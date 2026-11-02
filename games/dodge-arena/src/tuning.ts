@@ -18,6 +18,10 @@ export const LEAP_RECHARGE = 1.4;
 export const LEAP_BUFFER = 0.14;
 /** Above this you clear anything low: rings, beams and slime. */
 export const LOW_CLEARANCE = 0.45;
+/** A ring or beam at the feet waits this long for a leap before it bonks, so a press a moment late still counts. Only the early stages are this kind. */
+export const LATE_LEAP_EASY = 0.16;
+/** From this difficulty on, there's no waiting at all. */
+export const LATE_LEAP_UNTIL = 0.6;
 
 /** Time from a danger first showing until it can touch you. Shrinks slowly, and never below the floor. */
 export const WARN_EASY = 1.5;

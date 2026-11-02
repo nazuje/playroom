@@ -10,7 +10,7 @@ const AIMED_METEOR_CHANCE = 0.75;
 const AIM_SPREAD = 0.7;
 const AIMED_BOULDER_CHANCE = 0.65;
 const BOULDER_OFFSET = 2.2;
-const WARN_OF: Record<Kind, number> = { meteor: 1, boulder: 1, beam: 1.1, ring: 1.15, bar: 1.2, slime: 1 };
+const WARN_OF: Record<Kind, number> = { meteor: 1, boulder: 1, beam: 1.3, ring: 1.4, bar: 1.2, slime: 1 };
 const MOST_AT_ONCE: Record<Kind, number> = { meteor: 7, boulder: 3, beam: 2, ring: 2, bar: 2, slime: 3 };
 /** The shortest wait before the same kind comes again, at first and at the hardest. */
 const SAME_KIND_GAP: Record<Kind, readonly [number, number]> = {

@@ -3,6 +3,8 @@ import { STAGES } from './stages.ts';
 export const FAILS_BEFORE_SKIP = 5;
 
 export interface Progress {
+  /** Which order of stages the lists follow, so saves from before a reorder can be moved. */
+  order: number;
   /** Best endless time, in seconds. */
   best: number;
   /** By stage, 0 means not finished. */
@@ -13,9 +15,14 @@ export interface Progress {
   skipped: number[];
 }
 
+const STAGE_ORDER = 2;
+
+/** Order 1 taught beams and rings at stages 3 and 4, before bars and slime. Old stage id to new. */
+const ORDER_1_MOVES: Readonly<Record<number, number>> = { 3: 5, 4: 6, 5: 3, 6: 4 };
+
 const zeros = (): number[] => STAGES.map(() => 0);
 
-export const emptyProgress = (): Progress => ({ best: 0, stars: zeros(), fails: zeros(), skipped: [] });
+export const emptyProgress = (): Progress => ({ order: STAGE_ORDER, best: 0, stars: zeros(), fails: zeros(), skipped: [] });
 
 const wholeList = (value: unknown): number[] =>
   STAGES.map((_, at) => {
@@ -26,12 +33,23 @@ const wholeList = (value: unknown): number[] =>
 /** Saved data can be old, hand-edited or broken, and must never stop the game. */
 export function cleanProgress(saved: unknown): Progress {
   if (typeof saved !== 'object' || saved === null) return emptyProgress();
-  const { best, stars, fails, skipped } = saved as Partial<Record<keyof Progress, unknown>>;
+  const { order, best, stars, fails, skipped } = saved as Partial<Record<keyof Progress, unknown>>;
+  const moved = order === STAGE_ORDER ? (id: number) => id : (id: number) => ORDER_1_MOVES[id] ?? id;
+  const byStage = (list: number[]): number[] => {
+    const result = zeros();
+    list.forEach((count, at) => {
+      result[moved(at + 1) - 1] = count;
+    });
+    return result;
+  };
   return {
+    order: STAGE_ORDER,
     best: typeof best === 'number' && Number.isFinite(best) && best > 0 ? best : 0,
-    stars: wholeList(stars).map((count) => Math.min(count, 3)),
-    fails: wholeList(fails),
-    skipped: Array.isArray(skipped) ? skipped.filter((id): id is number => typeof id === 'number' && STAGES.some((stage) => stage.id === id)) : [],
+    stars: byStage(wholeList(stars).map((count) => Math.min(count, 3))),
+    fails: byStage(wholeList(fails)),
+    skipped: Array.isArray(skipped)
+      ? skipped.filter((id): id is number => typeof id === 'number' && STAGES.some((stage) => stage.id === id)).map(moved)
+      : [],
   };
 }
 

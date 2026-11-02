@@ -225,6 +225,81 @@ body {
   }
 }
 
+.leap-rocket {
+  grid-area: 1 / 1;
+}
+
+/* An arrow pointing up, drawn rather than an emoji so it looks the same everywhere. */
+.up-arrow {
+  --arrow: 30px;
+  position: absolute;
+  width: var(--arrow);
+  height: var(--arrow);
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px var(--lime)) drop-shadow(0 2px 0 #0a3d00);
+}
+
+.up-arrow::before,
+.up-arrow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  background: var(--lime);
+  transform: translateX(-50%);
+}
+
+.up-arrow::before {
+  top: 0;
+  width: 100%;
+  height: 55%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.up-arrow::after {
+  top: 54%;
+  width: 40%;
+  height: 46%;
+  border-radius: 0 0 3px 3px;
+}
+
+.leap-arrow {
+  --arrow: 28px;
+  top: -34px;
+  left: calc(50% - 14px);
+}
+
+.leap-btn[data-cue='true'] {
+  box-shadow: 0 0 26px #ffffff, 0 0 46px var(--lime);
+  animation: leap-cue 0.22s ease-in-out infinite alternate;
+}
+
+.leap-btn[data-cue='true'] .leap-arrow {
+  animation: arrow-hop 0.22s ease-in-out infinite alternate;
+}
+
+@keyframes leap-cue {
+  to {
+    transform: scale(1.16);
+  }
+}
+
+.jump-cue {
+  --arrow: 46px;
+  z-index: 2;
+  margin: -78px 0 0 -23px;
+  animation: arrow-hop 0.22s ease-in-out infinite alternate;
+}
+
+.jump-cue[hidden] {
+  display: none;
+}
+
+@keyframes arrow-hop {
+  to {
+    translate: 0 -10px;
+  }
+}
+
 .bonk {
   position: absolute;
   z-index: 3;
@@ -318,7 +393,8 @@ body {
   transform: translateY(4px);
 }
 
-.big-btn:disabled {
+.big-btn:disabled,
+.result[data-waiting] .big-btn {
   filter: saturate(0.6) brightness(0.7);
 }
 
@@ -573,6 +649,11 @@ body[data-screen='result'] .hud-banner {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .leap-btn[data-cue='true'],
+  .leap-btn[data-cue='true'] .leap-arrow,
+  .jump-cue {
+    animation: none;
+  }
   .stage-next {
     animation: none;
   }

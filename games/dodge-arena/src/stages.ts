@@ -11,14 +11,18 @@ export interface Stage {
   gap: number;
 }
 
-/** The first six teach one danger each. The rest combine them, up to something a grown-up finds really hard. */
+/**
+ * The first six teach one danger each: the ones you run from first, then the two you jump.
+ * Jumping stages space their dangers out, because missing a jump is the easiest way to lose.
+ * The rest combine them, up to something a grown-up finds really hard.
+ */
 export const STAGES: readonly Stage[] = [
   { id: 1, kinds: ['meteor'], goal: 20, difficulty: 0, gap: 1.5 },
   { id: 2, kinds: ['boulder'], goal: 20, difficulty: 0.05, gap: 1.5 },
-  { id: 3, kinds: ['beam'], goal: 20, difficulty: 0.1, gap: 2 },
-  { id: 4, kinds: ['ring'], goal: 25, difficulty: 0.15, gap: 2.6 },
-  { id: 5, kinds: ['bar', 'meteor'], goal: 25, difficulty: 0.2, gap: 1.5 },
-  { id: 6, kinds: ['slime', 'meteor'], goal: 30, difficulty: 0.25, gap: 1.6 },
+  { id: 3, kinds: ['bar', 'meteor'], goal: 20, difficulty: 0.1, gap: 1.5 },
+  { id: 4, kinds: ['slime', 'meteor'], goal: 25, difficulty: 0.15, gap: 1.6 },
+  { id: 5, kinds: ['beam'], goal: 25, difficulty: 0.2, gap: 6 },
+  { id: 6, kinds: ['ring'], goal: 25, difficulty: 0.25, gap: 6 },
   { id: 7, kinds: ['meteor', 'boulder', 'beam'], goal: 30, difficulty: 0.4, gap: 1 },
   { id: 8, kinds: ['ring', 'bar', 'meteor'], goal: 35, difficulty: 0.5, gap: 1 },
   { id: 9, kinds: ['beam', 'slime', 'boulder'], goal: 40, difficulty: 0.6, gap: 0.9 },

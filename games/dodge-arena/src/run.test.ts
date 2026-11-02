@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Danger } from './dangers.ts';
-import { inAir, leapCharge, leapHeight, moveToward, newRun, pressLeap, STANDING, starsOf, stepRun, type Run } from './run.ts';
+import { inAir, lateLeapAt, leapCharge, leapHeight, moveToward, newRun, pressLeap, STANDING, starsOf, stepRun, type Run } from './run.ts';
 import { STAGES } from './stages.ts';
 import { ARENA_RADIUS, BLINK_SECONDS, HEARTS, LEAP_RECHARGE, LEAP_SECONDS, LOW_CLEARANCE, PLAYER_SPEED, STEP } from './tuning.ts';
 
@@ -93,6 +93,22 @@ describe('the leap', () => {
     late.dangers.push(ringAt(-1.7));
     stepRun(late, STANDING, 0.9);
     expect(late.hits).toBe(1);
+  });
+
+  it('forgives a leap a moment late in the early stages, and not in the last one', () => {
+    const touchedThenLeap = (stage: number): Run => {
+      const run = quiet(newRun('stage', STAGES[stage] ?? null, 1));
+      // The ring's edge reaches the player's feet after about 0.03 seconds.
+      run.dangers.push(ringAt(-0.9));
+      stepRun(run, STANDING, 0.1);
+      pressLeap(run);
+      stepRun(run, STANDING, 0.9);
+      return run;
+    };
+    expect(touchedThenLeap(4).hits).toBe(0);
+    expect(touchedThenLeap(11).hits).toBe(1);
+    expect(lateLeapAt(1)).toBe(0);
+    expect(lateLeapAt(0)).toBeLessThan(0.2);
   });
 });
 

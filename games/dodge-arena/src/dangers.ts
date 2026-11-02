@@ -1,6 +1,7 @@
 import {
   ARENA_RADIUS,
   BAR_WIDTH,
+  BEAM_SWEEP,
   BEAM_WIDTH,
   LOW_CLEARANCE,
   METEOR_BLAST_SECONDS,
@@ -139,6 +140,36 @@ const HIT_TESTS: Record<Kind, (danger: Danger, x: number, z: number, height: num
     return Math.hypot(x - d.x, z - d.z) < radius + reach;
   },
 };
+
+const TURN = Math.PI * 2;
+
+function ringReach(ring: Danger, x: number, z: number): number | null {
+  const edge = Math.hypot(x - ring.x, z - ring.z) - RING_WIDTH / 2 - PLAYER_RADIUS;
+  if (ring.phase === 'warn') return ring.warn - ring.t + Math.max(0, edge) / ring.speed;
+  if (ring.size - RING_WIDTH - PLAYER_RADIUS * 2 > edge) return null;
+  return Math.max(0, edge - ring.size) / ring.speed;
+}
+
+function beamReach(beam: Danger, x: number, z: number): number | null {
+  const distance = Math.hypot(x - beam.x, z - beam.z);
+  if (distance > beam.size + PLAYER_RADIUS) return null;
+  const way = Math.sign(beam.spin) || 1;
+  const ahead = ((((Math.atan2(z - beam.z, x - beam.x) - beam.angle) * way) % TURN) + TURN) % TURN;
+  const half = Math.atan2(BEAM_WIDTH / 2 + PLAYER_RADIUS, distance);
+  const warning = beam.phase === 'warn' ? beam.warn - beam.t : 0;
+  const sweepLeft = beam.phase === 'warn' ? BEAM_SWEEP : Math.abs(beam.spin) * (beam.live - beam.t);
+  if (ahead > TURN - half) return beam.phase === 'warn' ? warning : 0;
+  if (ahead - half > sweepLeft) return null;
+  return warning + Math.max(0, ahead - half) / Math.abs(beam.spin);
+}
+
+/** Seconds until a ring or beam first reaches someone standing here, or null when it won't. Other dangers give null. */
+export function secondsUntilReach(danger: Danger, x: number, z: number): number | null {
+  if (danger.phase !== 'warn' && danger.phase !== 'live') return null;
+  if (danger.kind === 'ring') return ringReach(danger, x, z);
+  if (danger.kind === 'beam') return beamReach(danger, x, z);
+  return null;
+}
 
 /** True when this danger touches someone here. Nothing in its warning can ever touch anyone. */
 export function dangerHits(danger: Danger, x: number, z: number, height: number, reach = PLAYER_RADIUS): boolean {

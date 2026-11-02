@@ -7,6 +7,8 @@ import {
   BLINK_SECONDS,
   GOLDEN_SECONDS,
   HEARTS,
+  LATE_LEAP_EASY,
+  LATE_LEAP_UNTIL,
   LEAP_BOOST,
   LEAP_BUFFER,
   LEAP_HEIGHT,
@@ -92,6 +94,13 @@ export type RunEvent =
   | { type: 'pickup'; kind: PickupKind; x: number; z: number }
   | { type: 'surprise'; kind: Surprise };
 
+/** A ring or beam that reached someone on the ground, waiting a moment to see if they leap. */
+export interface Late {
+  danger: Danger;
+  left: number;
+  leapt: boolean;
+}
+
 export interface Run {
   mode: Mode;
   stage: Stage | null;
@@ -106,6 +115,7 @@ export interface Run {
   golden: number;
   slow: number;
   hits: number;
+  late: Late | null;
   director: Director;
   waveIndex: number;
   surpriseIn: number;
@@ -128,6 +138,7 @@ export function newRun(mode: Mode, stage: Stage | null, seed: number): Run {
     golden: 0,
     slow: 0,
     hits: 0,
+    late: null,
     director: newDirector(seed),
     waveIndex: 0,
     surpriseIn: SURPRISE_FIRST,
@@ -232,15 +243,43 @@ function touch(run: Run, danger: Danger): void {
   else bonk(run, danger);
 }
 
-function checkHits(run: Run): void {
+const JUMPABLE: readonly Kind[] = ['ring', 'beam'];
+
+/** Seconds a ring or beam waits at the feet for a leap, at this difficulty. */
+export function lateLeapAt(difficulty: number): number {
+  return Math.max(0, LATE_LEAP_EASY * (1 - difficulty / LATE_LEAP_UNTIL));
+}
+
+function hit(run: Run, danger: Danger): void {
+  touch(run, danger);
+  // A shield or golden touch also takes a breath, so one long touch counts once.
+  run.player.blink = Math.max(run.player.blink, TOUCH_PAUSE);
+}
+
+/** Settles a waiting ring or beam. True while it still holds every jumpable touch. */
+function stepLate(run: Run): boolean {
+  const { late, player } = run;
+  if (!late) return false;
+  late.left -= STEP;
+  if (inAir(player)) late.leapt = true;
+  if (late.left > 0) return true;
+  run.late = null;
+  if (!late.leapt && player.blink <= 0) hit(run, late.danger);
+  return false;
+}
+
+function checkHits(run: Run, lateLeap: number): void {
   const { player } = run;
+  const waiting = stepLate(run);
   if (player.blink > 0) return;
   const height = leapHeight(player.air);
   for (const danger of run.dangers) {
     if (!dangerHits(danger, player.x, player.z, height)) continue;
-    touch(run, danger);
-    // A shield or golden touch also takes a breath, so one long touch counts once.
-    player.blink = Math.max(player.blink, TOUCH_PAUSE);
+    if (JUMPABLE.includes(danger.kind) && (waiting || (lateLeap > 0 && !inAir(player)))) {
+      run.late ??= { danger, left: lateLeap, leapt: false };
+      continue;
+    }
+    hit(run, danger);
     return;
   }
 }
@@ -344,7 +383,7 @@ function tick(run: Run, input: Input): void {
   stepPickups(run);
   stepUfo(run);
   stepSurprises(run);
-  checkHits(run);
+  checkHits(run, lateLeapAt(plan.difficulty));
   stepClock(run);
   stepWaves(run);
 }

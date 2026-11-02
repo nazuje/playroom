@@ -17,7 +17,7 @@ import {
   type Scene,
 } from 'three';
 import type { Danger, Kind } from '../dangers.ts';
-import { ARENA_RADIUS, BAR_WIDTH, BEAM_SWEEP, METEOR_BLAST_SECONDS, RING_WIDTH, SLIME_BURST_RADIUS, SLIME_BURST_SECONDS, SLIME_FUSE_SECONDS } from '../tuning.ts';
+import { ARENA_RADIUS, BAR_WIDTH, BEAM_SWEEP, BEAM_WIDTH, METEOR_BLAST_SECONDS, RING_WIDTH, SLIME_BURST_RADIUS, SLIME_BURST_SECONDS, SLIME_FUSE_SECONDS } from '../tuning.ts';
 import { decalMaterial } from './decal.ts';
 import { Pool } from './pool.ts';
 
@@ -57,7 +57,9 @@ export function createHazards(scene: Scene, clock: IUniform<number>): Hazards {
     fillMark: new Pool(scene, flatDisc(), decalMaterial('plain', clock), CAPACITY * 2),
     lane: new Pool(scene, new PlaneGeometry(1, 1).rotateX(-Math.PI / 2), decalMaterial('lane', clock), 6),
     fan: new Pool(scene, fanGeometry(), decalMaterial('plain', clock), 4),
-    band: new Pool(scene, new RingGeometry(0.985, 1, 96).rotateX(-Math.PI / 2), decalMaterial('plain', clock), 4),
+    band: new Pool(scene, new CircleGeometry(1, 96).rotateX(-Math.PI / 2), decalMaterial('band', clock), 4),
+    edge: new Pool(scene, new RingGeometry(0.97, 1, 96).rotateX(-Math.PI / 2), decalMaterial('plain', clock), 4),
+    streak: new Pool(scene, new PlaneGeometry(1, 1).translate(0.5, 0, 0).rotateX(-Math.PI / 2), decalMaterial('plain', clock), 4),
     wall: new Pool(scene, new CylinderGeometry(1, 1, 1, 72, 1, true), decalMaterial('plain', clock, DoubleSide), 4),
     rock: new Pool(scene, new IcosahedronGeometry(1, 0), glowing('#7a3100'), CAPACITY),
     boulder: new Pool(scene, new DodecahedronGeometry(1, 0), glowing('#3b1a70'), 6),
@@ -119,6 +121,8 @@ export function createHazards(scene: Scene, clock: IUniform<number>): Hazards {
     }
     pools.beam.add(d.x, 0.45, d.z, d.size, 0.28, 0.3, yaw, paint.beam);
     pools.beam.add(d.x, 0.45, d.z, d.size, 0.12, 0.12, yaw, WHITE);
+    // The beam floats, so a glowing streak on the floor under it shows exactly where it is.
+    pools.streak.add(d.x, 0.03, d.z, d.size, 1, BEAM_WIDTH + 0.5, yaw, glow('beam', 0.75));
   }
 
   function ring(d: Danger): void {
@@ -130,9 +134,11 @@ export function createHazards(scene: Scene, clock: IUniform<number>): Hazards {
       pools.discMark.add(d.x, 0.04, d.z, beat, 1, beat, 0, glow('ring', 0.8));
       return;
     }
-    pools.band.add(d.x, 0.06, d.z, d.size + RING_WIDTH / 2, 1, d.size + RING_WIDTH / 2, 0, glow('ring', 1));
+    const reach = Math.max(0.01, d.size) + RING_WIDTH * 2;
+    pools.band.add(d.x, 0.06, d.z, reach, 1, reach, 0, glow('ring', 1));
     pools.fillMark.add(d.x, 0.05, d.z, Math.max(0.1, 1.2 - d.t * 2), 1, Math.max(0.1, 1.2 - d.t * 2), 0, glow('ring', 0.3));
-    pools.wall.add(d.x, 0.35, d.z, d.size, 0.7, d.size, 0, glow('ring', 0.5));
+    pools.wall.add(d.x, 0.35, d.z, Math.max(0.01, d.size), 0.7, Math.max(0.01, d.size), 0, glow('ring', 0.75));
+    pools.edge.add(d.x, 0.72, d.z, Math.max(0.01, d.size), 1, Math.max(0.01, d.size), 0, WHITE);
   }
 
   function bar(d: Danger): void {

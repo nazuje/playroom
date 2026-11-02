@@ -12,8 +12,10 @@ export interface Hud {
   update(run: Run, seconds: number): void;
   /** A big banner, with art and words. */
   callout(art: string, words: string): void;
-  /** Makes the leap button pulse, the first time a danger calls for it. */
+  /** Makes the leap button pulse, whenever a danger you can jump turns up. */
   hintLeap(): void;
+  /** Shows a bouncing arrow over the player and on the button while a ring or beam is about to reach them, or hides it. */
+  cueJump(at: { x: number; y: number } | null): void;
   /** Comic text at the player. */
   bonk(x: number, y: number): void;
   /** Redraws words after a language switch. */
@@ -39,9 +41,14 @@ export function createHud(host: HTMLElement, onLeap: () => void): Hud {
   const banner = element('div', 'hud-banner');
   banner.hidden = true;
   const leap = button('leap-btn');
-  leap.textContent = '🚀';
+  const rocket = element('span', 'leap-rocket');
+  rocket.textContent = '🚀';
+  leap.append(element('span', 'up-arrow leap-arrow'), rocket);
   leap.dataset.ready = 'true';
-  host.replaceChildren(top, banner, leap);
+  leap.dataset.cue = 'false';
+  const cue = element('div', 'up-arrow jump-cue');
+  cue.hidden = true;
+  host.replaceChildren(top, banner, cue, leap);
 
   let bannerLeft = 0;
   let shownHearts = -1;
@@ -89,6 +96,13 @@ export function createHud(host: HTMLElement, onLeap: () => void): Hud {
       leap.classList.remove('leap-hint');
       void leap.offsetWidth;
       leap.classList.add('leap-hint');
+    },
+    cueJump(at) {
+      cue.hidden = !at;
+      leap.dataset.cue = String(Boolean(at));
+      if (!at) return;
+      cue.style.left = `${at.x}px`;
+      cue.style.top = `${at.y}px`;
     },
     bonk(x, y) {
       const word = element('div', 'bonk');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dangerHits, KINDS, stepDanger, type Danger, type Kind } from './dangers.ts';
+import { dangerHits, KINDS, secondsUntilReach, stepDanger, type Danger, type Kind } from './dangers.ts';
 import { ARENA_RADIUS, LOW_CLEARANCE, RING_GAP, LEAP_RECHARGE, LEAP_SECONDS, STEP } from './tuning.ts';
 
 function make(kind: Kind, extra: Partial<Danger> = {}): Danger {
@@ -90,6 +90,37 @@ describe('moving', () => {
     expect(dangerHits(slime, slime.x + 2, 0, 0)).toBe(true);
     run(slime, 0.4, chase);
     expect(slime.phase).toBe('done');
+  });
+});
+
+describe('when a jumpable danger reaches you', () => {
+  function firstTouch(danger: Danger, x: number, z: number): number | null {
+    for (let time = 0; time < 6; time += STEP) {
+      if (dangerHits(danger, x, z, 0)) return time;
+      stepDanger(danger, STEP, { x, z });
+    }
+    return null;
+  }
+
+  const cases: [string, Danger, number, number][] = [
+    ['a ring in its warning', make('ring', { phase: 'warn', warn: 1.2, size: 0, speed: 7, x: 2, z: -1 }), 6, 3],
+    ['a growing ring', make('ring', { size: 2, speed: 9 }), -7, 0],
+    ['a beam in its warning', make('beam', { phase: 'warn', warn: 1, size: 20, spin: 1.2, live: 2 / 1.2, x: -11, angle: -0.9 }), 0, 0],
+    ['a sweeping beam', make('beam', { size: 20, spin: -1.4, live: 2 / 1.4, x: 11, angle: Math.PI + 0.8 }), 0, 1],
+  ];
+
+  it.each(cases)('%s says when it will touch, matching the real touch', (_name, danger, x, z) => {
+    const said = secondsUntilReach({ ...danger }, x, z);
+    const real = firstTouch({ ...danger }, x, z);
+    expect(said).not.toBeNull();
+    expect(real).not.toBeNull();
+    expect(Math.abs((said ?? 0) - (real ?? 0))).toBeLessThan(0.05);
+  });
+
+  it('says never for a ring that has passed, a beam that sweeps the other way, and anything else', () => {
+    expect(secondsUntilReach(make('ring', { size: 6 }), 1, 0)).toBeNull();
+    expect(secondsUntilReach(make('beam', { size: 20, spin: 1, live: 2, x: -11, angle: 0.9 }), 0, 0)).toBeNull();
+    expect(secondsUntilReach(make('meteor'), 0, 0)).toBeNull();
   });
 });
 

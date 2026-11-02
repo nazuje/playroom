@@ -9,6 +9,38 @@ import { button, element } from './ui.ts';
 export const KIND_ART: Record<Kind, string> = { meteor: '☄️', boulder: '🪨', beam: '🔦', ring: '💫', bar: '🌀', slime: '🟢' };
 /** Long enough for a held finger or a mashing hand to stop, and still well under a second to the next try. */
 const RETRY_AFTER_MS = 350;
+
+/**
+ * Keeps the result buttons from answering until a mashing hand has stopped. A single tap in that moment
+ * isn't lost: it counts as soon as the wait ends. Two or more taps in the wait are a mash, and count for nothing.
+ */
+function holdButtons(panel: HTMLElement, buttons: readonly HTMLButtonElement[], whenOpen: () => void): { open: () => boolean; stop: () => void } {
+  let waiting = true;
+  let taps = 0;
+  let early: HTMLButtonElement | null = null;
+  panel.dataset.waiting = 'true';
+  const watch = (event: PointerEvent): void => {
+    taps += 1;
+    const pressed = event.target instanceof Element ? event.target.closest('button') : null;
+    early = taps === 1 && pressed && buttons.includes(pressed) ? pressed : null;
+  };
+  document.addEventListener('pointerdown', watch, true);
+  const stopWatching = (): void => document.removeEventListener('pointerdown', watch, true);
+  const timer = setTimeout(() => {
+    waiting = false;
+    delete panel.dataset.waiting;
+    stopWatching();
+    whenOpen();
+    if (early && taps === 1) early.click();
+  }, RETRY_AFTER_MS);
+  return {
+    open: () => !waiting,
+    stop() {
+      clearTimeout(timer);
+      stopWatching();
+    },
+  };
+}
 const STAR_GAP_MS = 260;
 
 export interface HomeOptions {
@@ -132,36 +164,36 @@ export function showResult(host: HTMLElement, options: ResultOptions): () => voi
   const retry = button('big-btn big-go result-retry');
   retry.dataset.action = 'retry';
   retry.textContent = `↻ ${text().retry}`;
+  const actions = new Map<HTMLButtonElement, () => void>([[retry, options.onRetry]]);
   const main = options.canNext ? button('big-btn big-stages') : null;
   if (main) {
     main.dataset.action = 'next';
     main.textContent = `▶ ${text().next}`;
-    main.addEventListener('click', options.onNext);
+    actions.set(main, options.onNext);
     row.append(main);
   }
-  retry.addEventListener('click', options.onRetry);
   row.append(retry);
   panel.append(row);
   if (options.canSkip) {
     const skip = button('small-btn');
     skip.dataset.action = 'skip';
     skip.textContent = `⏭ ${text().skip}`;
-    skip.addEventListener('click', options.onSkip);
+    actions.set(skip, options.onSkip);
     panel.append(skip);
   }
-  const buttons = [...panel.querySelectorAll('button')];
-  for (const item of buttons) item.disabled = true;
   host.append(panel);
-  const timer = setTimeout(() => {
-    for (const item of buttons) item.disabled = false;
-    (main ?? retry).focus({ preventScroll: true });
-  }, RETRY_AFTER_MS);
+  const held = holdButtons(panel, [...actions.keys()], () => (main ?? retry).focus({ preventScroll: true }));
+  for (const [item, act] of actions) {
+    item.addEventListener('click', () => {
+      if (held.open()) act();
+    });
+  }
   if (options.isBest || options.stars === 3) {
     const box = panel.getBoundingClientRect();
     burst(box.left + box.width / 2, box.top + box.height / 3, options.calm ? 8 : 26);
   }
   return () => {
-    clearTimeout(timer);
+    held.stop();
     panel.remove();
   };
 }

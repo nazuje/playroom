@@ -37,7 +37,7 @@ describe('the director', () => {
   });
 
   it('starts bars with their circle clear of the player', () => {
-    simulate(90, 4, 11, (_dangers, made) => {
+    simulate(90, STAGES.findIndex(({ kinds }) => kinds.includes('bar')), 11, (_dangers, made) => {
       for (const danger of made) {
         if (danger.kind === 'bar') expect(Math.hypot(danger.x - 3, danger.z + 2)).toBeGreaterThan(danger.size);
       }
@@ -45,7 +45,7 @@ describe('the director', () => {
   });
 
   it('starts slime far away from the player', () => {
-    simulate(120, 5, 2, (_dangers, made) => {
+    simulate(120, STAGES.findIndex(({ kinds }) => kinds.includes('slime')), 2, (_dangers, made) => {
       for (const danger of made) {
         if (danger.kind === 'slime') expect(Math.hypot(danger.x - 3, danger.z + 2)).toBeGreaterThan(ARENA_RADIUS * 0.6);
       }

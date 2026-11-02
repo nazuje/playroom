@@ -4,16 +4,18 @@ import type { Controls } from './input.ts';
 import { KIND_ART } from './screens.ts';
 import { text } from './lang/index.ts';
 import { dangersText } from './readout.ts';
-import { leapCharge, leapHeight, moveToward, newRun, pressLeap, stepRun, STANDING, type Input, type Mode, type Run, type RunEvent, type Surprise } from './run.ts';
+import { inAir, leapCharge, leapHeight, moveToward, newRun, pressLeap, stepRun, STANDING, type Input, type Mode, type Run, type RunEvent, type Surprise } from './run.ts';
 import { soundFor } from './sounds.ts';
 import type { Stage } from './stages.ts';
 import type { View } from './view.ts';
 import { waveAt } from './waves.ts';
-import type { Kind } from './dangers.ts';
+import { secondsUntilReach, type Kind } from './dangers.ts';
 
 /** Just long enough to see the last bonk before the score card covers it. */
 const END_PAUSE_SECONDS = 0.45;
 const SURPRISE_ART: Record<Surprise, string> = { heart: '❤️', slow: '🐌', golden: '✨', ufo: '🛸' };
+/** How early the jump arrow shows before a ring or beam reaches the player: about one leap, so pressing the moment it appears works. */
+const JUMP_CUE_SECONDS = 0.6;
 
 export interface PlayScreen {
   run(): Run;
@@ -58,8 +60,16 @@ export function startPlay({ mode, stage, hudHost, readout, view, controls, calm,
     taught.add(kind);
     lastLine = text().teach[kind];
     hud.callout(KIND_ART[kind], lastLine);
-    if (kind === 'ring' || kind === 'beam') hud.hintLeap();
     void say(lastLine, { queue: true });
+  }
+
+  function jumpSoon(): boolean {
+    const { player } = run;
+    if (run.phase !== 'play' || inAir(player)) return false;
+    return run.dangers.some((danger) => {
+      const left = secondsUntilReach(danger, player.x, player.z);
+      return left !== null && left <= JUMP_CUE_SECONDS;
+    });
   }
 
   function announce(art: string, line: string): void {
@@ -78,6 +88,7 @@ export function startPlay({ mode, stage, hudHost, readout, view, controls, calm,
     soundFor(event);
     view.react(event, calm());
     if (event.type === 'bonk') bonks.push(event.kind);
+    if (event.type === 'warn' && (event.kind === 'ring' || event.kind === 'beam')) hud.hintLeap();
     if (event.type === 'warn') teach(event.kind);
     else if (event.type === 'wave') waveChanged(event.index);
     else if (event.type === 'surprise') announce(SURPRISE_ART[event.kind], text().surprises[event.kind]);
@@ -111,6 +122,7 @@ export function startPlay({ mode, stage, hudHost, readout, view, controls, calm,
     dataset.bonks = bonks.join(',');
     dataset.player = [player.x, player.z, leapHeight(player.air), player.air].map((value) => value.toFixed(3)).join(',');
     dataset.leapReady = String(leapCharge(player) >= 1);
+    dataset.jumpCue = String(jumpSoon());
     dataset.dangers = dangersText(run.dangers);
     dataset.pickups = run.pickups.map(({ x, z, kind }) => `${kind}:${x.toFixed(2)}:${z.toFixed(2)}`).join(',');
     dataset.camera = view.cameraMatrix().join(',');
@@ -130,6 +142,8 @@ export function startPlay({ mode, stage, hudHost, readout, view, controls, calm,
       run.events.length = 0;
       view.update(run, clock, seconds, calm());
       hud.update(run, seconds);
+      const cue = jumpSoon();
+      hud.cueJump(cue ? view.screenAt(run.player.x, run.player.z) : null);
       const draws = view.draws();
       peak = Math.max(peak, draws);
       publish(draws);

@@ -6,7 +6,7 @@ A 3D survival game for ages 6 to 12, for one player with one finger. A small spa
 
 1. Tap **Endless** or **Challenge**. Endless goes on until your hearts run out and saves your best time. Challenge has twelve stages that open in order.
 2. Touch and hold anywhere, and the explorer runs towards your finger. On a laptop, use the arrow keys or WASD.
-3. Tap the big 🚀 button (Space on a laptop) to leap. It's a short hop that also throws you forwards, then it needs about a second and a half to recharge. Timing it is the main skill.
+3. Tap the big 🚀 button (Space on a laptop) to leap. It's a short hop that also throws you forwards, then it needs about a second and a half to recharge. Timing it is the main skill. The button pulses whenever a ring or beam turns up, and a green arrow bounces over the explorer and the button just before one reaches you.
 4. You have 3 hearts. A hit is a cartoon BONK that costs one, then you blink for a moment and nothing can touch you. At zero hearts, the run ends with your time shown big and proud, and one tap on the button starts again in under a second.
 
 ## What's trying to hit you
@@ -17,8 +17,8 @@ Each danger has its own colour and sound, and every one shows itself before it c
 | --- | --- | --- |
 | ☄️ Meteor | An orange landing shadow fills up | Run out of the circle |
 | 🪨 Boulder | A purple lane with moving arrows | Get out of the lane. It's too tall to jump |
-| 🔦 Beam | A pink fan shows where it will sweep | Jump it or step out of the fan |
-| 💫 Ring | A cyan orb charges, then a ring spreads | Jump when it reaches you |
+| 🔦 Beam | A pink fan shows where it will sweep, and a streak on the floor shows where it is | Jump it or step out of the fan |
+| 💫 Ring | A cyan orb charges, then a thick glowing band spreads | Jump when it reaches you |
 | 🌀 Spinning bar | A yellow circle, then the bar rises | Stay out of the circle |
 | 🟢 Slime | A puddle on the far side | Keep running. It flashes and shows its splash before it bursts |
 
@@ -30,7 +30,7 @@ Rare surprises keep the tenth run fresh: a heart, a slow-motion orb that slows t
 
 ## Challenge
 
-Stages 1 to 6 teach the dangers, and stages 7 to 12 combine them, ending in something a grown-up will find properly hard. Survive for the time shown. You get 1 star for finishing, 2 for one bonk at most, and 3 for none. After 5 failed tries on a stage, a small skip button appears.
+Stages 1 to 6 teach the dangers, the ones you run from first and then beams and rings, which you jump. Those two stages space their dangers out. Early on, a leap a moment late still counts, and by stage 9 it has to be on time. Stages 7 to 12 combine them, ending in something a grown-up will find properly hard. Survive for the time shown. You get 1 star for finishing, 2 for one bonk at most, and 3 for none. After 5 failed tries on a stage, a small skip button appears.
 
 The game also plays in Slovenian as *Izmikaj se!*, with the flag in the top bar. Its words are in `src/lang/`.
 

@@ -48,3 +48,11 @@ it('survives broken saved data', () => {
   expect(cleanProgress({ best: 12, stars: [9, 1], fails: [2], skipped: [1] })).toMatchObject({ best: 12, skipped: [1] });
   expect(cleanProgress({ stars: [9] }).stars[0]).toBe(3);
 });
+
+it('moves stars saved before beams and rings moved to stages 5 and 6', () => {
+  const old = cleanProgress({ best: 30, stars: [3, 2, 1, 2, 3, 1, 0], fails: [0, 0, 0, 0, 0, 0, 4], skipped: [4] });
+  expect(old.stars.slice(0, 7)).toEqual([3, 2, 3, 1, 1, 2, 0]);
+  expect(old.fails[6]).toBe(4);
+  expect(old.skipped).toEqual([6]);
+  expect(cleanProgress(old)).toEqual(old);
+});
