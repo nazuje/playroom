@@ -25,11 +25,12 @@ const SCREENS = [
   { name: 'tablet', width: 1024, height: 768 },
 ];
 
-// Software 3D, so WebGL works with no graphics card.
+// Software 3D, so WebGL works with no graphics card. Headless Chrome still plays sound through the
+// computer's speakers, so bots and playtests run muted; the games' audio code runs the same either way.
 export const launchOptions = {
   channel: 'chrome',
   headless: true,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--mute-audio'],
 };
 
 function fail(message) {
