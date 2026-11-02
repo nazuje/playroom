@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>My Island</title>
+    <meta
+      name="description"
+      content="Your own little 3D island to explore. Grow a garden, care for pets, bake treats for friends, collect shells, bugs and fish, and decorate your house. Up to 4 saved islands, no timers and nothing to buy. For ages 4 to 8."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏝️</text></svg>"
+    />
+  </head>
+  <body data-screen="loading">
+    <main id="stage"></main>
+    <div id="hits"></div>
+    <header id="topbar" class="topbar"></header>
+    <div id="bubble" role="status"></div>
+    <div id="actions">
+      <button id="book" class="act-btn" type="button" data-action="book" hidden>📖</button>
+      <button id="decor" class="act-btn" type="button" data-action="decor" hidden>🎨</button>
+    </div>
+    <button id="arrow" type="button" data-action="quest" hidden><span class="arrow-point">➜</span><span class="arrow-icon">⭐</span></button>
+    <div id="tray" hidden></div>
+    <div id="floaters"></div>
+    <div id="banner" role="status"></div>
+    <div id="fade"></div>
+    <div id="panel"></div>
+    <div id="overlay"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

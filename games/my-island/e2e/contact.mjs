@@ -1,0 +1,13 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { chromium } from 'playwright-core';
+import { launchOptions } from '../../../scripts/playtest.mjs';
+const [dir, out, pattern, columns = '4', cell = '300'] = process.argv.slice(2);
+const files = readdirSync(dir).filter((name) => name.endsWith('.png') && new RegExp(pattern).test(name)).sort();
+const browser = await chromium.launch(launchOptions);
+const page = await browser.newPage({ viewport: { width: Number(columns) * (Number(cell) + 8), height: 400 } });
+const tiles = files.map((name) => `<figure><img src="data:image/png;base64,${readFileSync(join(dir, name)).toString('base64')}"><figcaption>${name.replace('screen-', '').replace('.png', '')}</figcaption></figure>`).join('');
+await page.setContent(`<style>body{margin:0;display:grid;grid-template-columns:repeat(${columns},${cell}px);gap:8px;font:11px sans-serif;background:#222;color:#fff}figure{margin:0}img{width:100%;display:block}</style>${tiles}`);
+await page.screenshot({ path: out, fullPage: true });
+await browser.close();
+console.log(files.length);

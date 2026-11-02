@@ -601,5 +601,32 @@
     },
     "color": "#7b2cbf",
     "status": "ready"
+  },
+  {
+    "slug": "my-island",
+    "title": "My Island",
+    "emoji": "🏝️",
+    "tagline": "Your own little island to explore, grow and share!",
+    "skills": [
+      "3d",
+      "fun"
+    ],
+    "ages": "4-10",
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "translations": {
+      "sl": {
+        "title": "Moj otok",
+        "tagline": "Tvoj mali otok za raziskovanje in igro!"
+      }
+    },
+    "color": "#19a974",
+    "status": "ready"
   }
 ]
