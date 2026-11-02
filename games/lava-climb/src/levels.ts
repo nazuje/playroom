@@ -40,7 +40,7 @@ const DESIGNS: Design[] = [
   { world: 'ice', lava: 29, par: 41, ice: true, fish: true, pieces: ['teeth', 'spikeShaft', 'dashGap!', 'rocksGem', 'zig', 'nook', 'gemHigh', 'dashSpikes', 'spikeShaft', 'rocks', 'dashShaft!', 'hops!', 'bridge'] },
   { world: 'ice', lava: 23, par: 37, ice: true, pieces: ['jaws', 'dashShaft!', 'lift', 'dashSpikes', 'twist', 'dashGap', 'bridge', 'jaws!', 'spikeShaft', 'dashGap!', 'crumbs', 'bridge'] },
   // Clockwork Tower.
-  { world: 'clock', lava: 47, par: 27, pieces: ['belts', 'zig', 'zig!', 'beltSpikes!', 'belts', 'zig', 'hops', 'belts', 'zig', 'beltSpikes!', 'stairs', 'zig', 'hops'] },
+  { world: 'clock', lava: 40, par: 30, pieces: ['belts!', 'dashBelt', 'zig!', 'beltSpikes!', 'dashShaft', 'belts', 'dashGap', 'beltSpikes', 'zig', 'dashBelt!', 'stairs', 'hops'] },
   { world: 'clock', lava: 49, par: 31, pieces: ['ferry', 'ferries', 'beltSpikes!', 'belts!', 'lift', 'stepping', 'bridge', 'beltSpikes!', 'ferries!', 'zig!', 'stepping', 'bridge'] },
   { world: 'clock', lava: 36, par: 34, pieces: ['rocks', 'belts', 'rocksGem!', 'dashBelt', 'dashShaft!', 'crumbs', 'gemHigh', 'rocks', 'dashBelt', 'dashShaft!', 'bridge'] },
   { world: 'clock', lava: 42, par: 36, pieces: ['stepping', 'beltSpikes', 'twist', 'dashBelt', 'spikeShaft', 'ferries', 'bridge', 'stepping', 'twist', 'dashBelt', 'spikeShaft', 'bridge'] },

@@ -2,13 +2,12 @@
  {
   "number": 1,
   "won": true,
-  "tries": 2,
+  "tries": 1,
   "seconds": 17.99,
   "stars": 3,
   "gems": 4,
   "lavaGapTiles": 9,
   "log": [
-   "singed at y 424 tick 13477",
    "won"
   ],
   "problems": []
@@ -29,13 +28,12 @@
  {
   "number": 3,
   "won": true,
-  "tries": 2,
+  "tries": 1,
   "seconds": 14.38,
   "stars": 3,
   "gems": 2,
   "lavaGapTiles": 7.2,
   "log": [
-   "singed at y 1384 tick 1957",
    "won"
   ],
   "problems": []
@@ -43,13 +41,12 @@
  {
   "number": 4,
   "won": true,
-  "tries": 2,
+  "tries": 1,
   "seconds": 19.83,
   "stars": 3,
   "gems": 2,
   "lavaGapTiles": 9,
   "log": [
-   "singed at y 1464 tick 2346",
    "won"
   ],
   "problems": []
@@ -74,7 +71,7 @@
   "seconds": 26.83,
   "stars": 3,
   "gems": 3,
-  "lavaGapTiles": 8.2,
+  "lavaGapTiles": 8.4,
   "log": [
    "won"
   ],
@@ -87,7 +84,7 @@
   "seconds": 28.06,
   "stars": 3,
   "gems": 3,
-  "lavaGapTiles": 9.2,
+  "lavaGapTiles": 9.3,
   "log": [
    "won"
   ],
@@ -100,7 +97,7 @@
   "seconds": 33.92,
   "stars": 3,
   "gems": 4,
-  "lavaGapTiles": 8.8,
+  "lavaGapTiles": 8.7,
   "log": [
    "won"
   ],
@@ -113,7 +110,7 @@
   "seconds": 28.6,
   "stars": 3,
   "gems": 8,
-  "lavaGapTiles": 9.3,
+  "lavaGapTiles": 9.2,
   "log": [
    "won"
   ],
@@ -123,7 +120,7 @@
   "number": 10,
   "won": true,
   "tries": 1,
-  "seconds": 25.87,
+  "seconds": 25.86,
   "stars": 3,
   "gems": 4,
   "lavaGapTiles": 8.8,
@@ -135,13 +132,12 @@
  {
   "number": 11,
   "won": true,
-  "tries": 2,
+  "tries": 1,
   "seconds": 33.41,
   "stars": 3,
   "gems": 4,
   "lavaGapTiles": 9,
   "log": [
-   "singed at y 2204 tick 5127",
    "won"
   ],
   "problems": []
@@ -163,9 +159,9 @@
   "number": 13,
   "won": true,
   "tries": 1,
-  "seconds": 21.63,
+  "seconds": 27.14,
   "stars": 3,
-  "gems": 4,
+  "gems": 6,
   "lavaGapTiles": 9,
   "log": [
    "won"
@@ -218,7 +214,7 @@
   "seconds": 28.51,
   "stars": 3,
   "gems": 7,
-  "lavaGapTiles": 5.8,
+  "lavaGapTiles": 5.7,
   "log": [
    "won"
   ],
