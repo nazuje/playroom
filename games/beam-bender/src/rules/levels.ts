@@ -57,7 +57,7 @@ export const LEVELS: readonly Level[] = [
   { id: 19, world: 'double', par: 8, limit: 10, rows: ['. v . . t', '> d1 . d0 .', '. . . . .', '. d1 . d1 m0', '. . . m2 t'] },
   { id: 20, world: 'double', par: 8, limit: 10, rows: ['. v . v .', '. . . . .', '. d1 . d0 m3', 'm2 . . d0 d1', 't . . t .'] },
   // Switches and sliding blocks
-  { id: 21, world: 'switches', par: 6, limit: 8, rows: ['. . xa . .', '> . m2 . .', '. . A a .', '. . . . .', '. . m2 . t'] },
+  { id: 21, world: 'switches', par: 7, limit: 9, rows: ['. . xa . .', '> . m1 . .', '. . A a .', '. . m3 . m1', '. . . . t'] },
   { id: 22, world: 'switches', par: 7, limit: 9, rows: ['> . A . t', '. . a . .', '. . . . .', 'xa . . m3 t', '> . . m2 .'] },
   { id: 23, world: 'switches', par: 8, limit: 10, rows: ['. . xa . .', '> . m2 . .', '. a A . .', 'xb . m0 B m2', '. . . b t'] },
   { id: 24, world: 'switches', par: 10, limit: 12, rows: ['. . xa . .', '> . m2 . .', '. a A b .', 'xb . m0 B m2', '. t . . m1'] },

@@ -9,7 +9,7 @@ There are 30 levels in 8 worlds, each adding one idea: plain mirrors with one wo
 - **Move limit.** Every level has one. Run out and the laser fizzles, with one tap to retry. After 5 losses on a level, a small skip button appears. Levels open in order and finished levels stay finished.
 - **Stars.** Par earns 3, a tidy win 2 and any other win 1.
 - **Hints.** Up to 3 per level. A hint marks one correct mirror, and a level won with a hint earns at most 1 star. A retry doesn't refill hints.
-- **Undo.** It restores the board and costs no star by itself, but it still counts as a move. One wrong tap on a plain mirror costs 2 moves with undo, and 4 by turning the mirror all the way round.
+- **Undo.** It restores the board and costs no move of its own, so it can never lose a try, but the tap it takes back still counts. One wrong tap on a plain mirror costs 1 move with undo, and 4 by turning the mirror all the way round.
 - **Switches.** A switch fires when light arrives on it, and the crate stays put afterwards, so the order of taps matters. A second arrival slides it back.
 
 ### Rare surprises

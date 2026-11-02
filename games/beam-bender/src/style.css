@@ -301,10 +301,11 @@ body[data-screen='lost'] #pieces {
 
 /* ---------- Toast ---------- */
 
+/* Placed by script into free space beside the board. */
 #toast {
   position: absolute;
-  top: calc(var(--safe-top) + 104px);
-  left: 50%;
+  top: 0;
+  left: 0;
   z-index: 5;
   max-width: min(92vw, 420px);
   padding: 6px 16px;
@@ -316,14 +317,14 @@ body[data-screen='lost'] #pieces {
   color: var(--glow);
   background: var(--plate-solid);
   opacity: 0;
-  transform: translate(-50%, -6px);
+  transform: translateY(-6px);
   transition: opacity 0.18s, transform 0.18s;
   pointer-events: none;
 }
 
 #toast.toast-on {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: none;
 }
 
 /* ---------- Level sheet ---------- */
@@ -431,9 +432,32 @@ body[data-screen='lost'] #pieces {
   from { opacity: 0; transform: translateY(16px) scale(0.94); }
 }
 
+/* The fizzle card sits low and small, and the board is refitted above it, so the miss stays in view. */
 .card-lost {
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  text-align: left;
   border-color: var(--hot);
   box-shadow: 0 8px 0 #8d1d3c, 0 0 40px rgba(255, 59, 107, 0.25);
+}
+
+.card-lost .card-face {
+  font-size: 2.4rem;
+}
+
+.card-lost .card-btn {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+body[data-screen='lost'] #overlay {
+  align-items: end;
+}
+
+body[data-screen='lost'] #safe {
+  bottom: calc(var(--safe-bottom) + var(--card-room, 90px));
 }
 
 .card-face {
@@ -590,10 +614,6 @@ body[data-screen='lost'] #pieces {
     left: calc(var(--safe-left) + 80px);
   }
 
-  #toast {
-    top: calc(var(--safe-top) + 8px);
-  }
-
   .map {
     width: auto;
     margin: 0 0 0 76px;
@@ -616,6 +636,20 @@ body[data-screen='lost'] #pieces {
   .card-main,
   .card-bonus {
     grid-column: 1 / -1;
+  }
+
+  body[data-screen='lost'] #overlay {
+    place-items: center end;
+  }
+
+  body[data-screen='lost'] #safe {
+    bottom: calc(var(--safe-bottom) + 6px);
+  }
+
+  .card-lost {
+    grid-template-columns: 1fr;
+    width: calc(var(--safe-right) + 172px);
+    text-align: center;
   }
 }
 

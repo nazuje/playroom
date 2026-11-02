@@ -17,6 +17,8 @@ const PROGRESS_KEY = 'beam-bender:progress';
 const WORLDS_SEEN_KEY = 'beam-bender:worlds-seen';
 const LOSSES_BEFORE_SKIP = 5;
 const CAMERA = { fov: 12, near: 1, far: 120 };
+/** The overlay's padding under the fizzle card plus a little air above it. */
+const CARD_GAP_PX = 24;
 
 function byId(id: string): HTMLElement {
   const found = document.getElementById(id);
@@ -200,6 +202,8 @@ function runGame(view: View): void {
         },
       });
       overlay.querySelector<HTMLElement>('[data-action="try-again"]')?.focus({ preventScroll: true });
+      const card = overlay.querySelector<HTMLElement>('.card-lost');
+      if (card) document.body.style.setProperty('--card-room', `${card.offsetHeight + CARD_GAP_PX}px`);
     };
     draw();
     redraw = draw;

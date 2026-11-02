@@ -38,10 +38,10 @@ describe('a try', () => {
 });
 
 describe('undo', () => {
-  it('puts the board back and still counts a move', () => {
+  it('puts the board back and costs no move of its own', () => {
     const before = easy();
     const play = undoMove(tapPiece(before, 0));
-    expect(play.moves).toBe(2);
+    expect(play.moves).toBe(1);
     expect(play.frame.turns).toEqual(before.frame.turns);
     expect(play.trace.lit).toBe(before.trace.lit);
   });
@@ -51,10 +51,10 @@ describe('undo', () => {
     expect(undoMove(play)).toBe(play);
   });
 
-  it('can lose the try', () => {
+  it('never loses the try, even with one move left', () => {
     let play = startPlay(parseBoard(['> . m0', '. . .', '. . t']), { par: 2, limit: 2 });
     play = undoMove(tapPiece(play, 0));
-    expect(play.status).toBe('lost');
+    expect(play).toMatchObject({ status: 'playing', moves: 1 });
   });
 
   it('slides a block back without pressing its switch again', () => {

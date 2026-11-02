@@ -7,6 +7,7 @@ import { solve } from '../rules/solver.ts';
 import { discoSound, fizzleSound, hintSound, litSound, noSound, pickSound, secretSound, slideSound, turnSound, undoSound, winSound } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
 import type { Rect, View } from '../view/view.ts';
+import { pickTipSpot } from './toast.ts';
 
 const WIN_PAUSE_MS = 1000;
 const DISCO_PAUSE_MS = 2500;
@@ -15,6 +16,9 @@ const TOAST_MS = 3600;
 const MOST_COACHED_LEVEL = 2;
 const MIN_TAP_PX = 64;
 const LOW_MOVES = 2;
+/** Room around the outer tiles for the tray's rim, and above them for a laser standing on the far row. */
+const RIM_TILES = 0.2;
+const TALL_TILES = 0.45;
 
 export interface WinReport {
   level: Level;
@@ -178,8 +182,41 @@ export function startPlayScreen(options: PlayOptions): PlayScreen {
     relabel();
   }
 
+  function boardBox(): Rect {
+    const last = board.width * board.height - 1;
+    const spots = [0, board.width - 1, last - board.width + 1, last].map((at) => view.tileSpot(at));
+    const box: Rect = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+    for (const { x, y, width, height } of spots) {
+      box.left = Math.min(box.left, x - width * (0.5 + RIM_TILES));
+      box.right = Math.max(box.right, x + width * (0.5 + RIM_TILES));
+      box.top = Math.min(box.top, y - height * (0.5 + TALL_TILES));
+      box.bottom = Math.max(box.bottom, y + height * (0.5 + RIM_TILES));
+    }
+    return box;
+  }
+
+  /** Above the board, below it, or beside it under the dock: anywhere but over the board itself. */
+  function placeToast(): void {
+    const box = boardBox();
+    const { innerWidth: width, innerHeight: height } = window;
+    const meter = meterHost.getBoundingClientRect();
+    const dock = dockHost.getBoundingClientRect();
+    const strips: Rect[] = [{ left: 0, top: meter.bottom, right: width, bottom: box.top }];
+    if (dock.top >= box.bottom) strips.push({ left: 0, top: box.bottom, right: width, bottom: dock.top });
+    if (dock.left >= box.right) strips.push({ left: dock.left, top: dock.bottom, right: dock.right, bottom: height });
+    toastHost.style.left = '0px';
+    const spot = pickTipSpot(strips, { left: dock.left, top: dock.top, right: dock.right, bottom: height }, (maxWidth) => {
+      toastHost.style.maxWidth = `${maxWidth}px`;
+      return { width: toastHost.offsetWidth, height: toastHost.offsetHeight };
+    });
+    toastHost.style.maxWidth = `${spot.maxWidth}px`;
+    toastHost.style.left = `${spot.left}px`;
+    toastHost.style.top = `${spot.top}px`;
+  }
+
   function showToast(line: string): void {
     toastHost.textContent = line;
+    placeToast();
     toastHost.classList.add('toast-on');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => toastHost.classList.remove('toast-on'), TOAST_MS);
@@ -252,7 +289,7 @@ export function startPlayScreen(options: PlayOptions): PlayScreen {
     }
     if (play.status === 'won') finishWin(before);
     else if (play.status === 'lost') finishLoss();
-    else if (level.limit - play.moves === 1 && level.limit > 3) {
+    else if (level.limit - play.moves === 1 && level.limit > 3 && play.moves !== before.moves) {
       showToast(text().lastMove);
       speak(text().lastMove);
     }

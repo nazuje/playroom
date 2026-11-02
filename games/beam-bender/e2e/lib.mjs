@@ -8,7 +8,7 @@ import { launchOptions } from '../../../scripts/playtest.mjs';
 
 export const GAME = fileURLToPath(new URL('..', import.meta.url));
 export const SHOTS = join(GAME, '.shots');
-export const PORT = 5351;
+export const PORT = Number(process.env.PORT ?? 5351);
 export const URL_HOME = `http://localhost:${PORT}/`;
 const VITE = join(GAME, '..', '..', 'node_modules', '.bin', 'vite');
 const MOST_TRIES = 100;

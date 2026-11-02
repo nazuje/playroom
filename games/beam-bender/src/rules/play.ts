@@ -37,29 +37,28 @@ export function startPlay(board: Board, { limit, par }: Rules): Play {
   return { board, limit, par, frame, trace, history: [], moves: 0, hints: 0, status: 'playing', secret: trace.secret };
 }
 
-function arrive(play: Play, frame: Frame, trace: Trace, history: readonly Frame[]): Play {
-  const moves = play.moves + 1;
-  const won = allLit(play.board, trace);
-  const status: Status = won ? 'won' : moves >= play.limit ? 'lost' : 'playing';
-  return { ...play, frame, trace, history, moves, status, secret: play.secret || trace.secret };
-}
-
 /** Turns one piece a quarter turn clockwise. */
 export function tapPiece(play: Play, index: number): Play {
   const piece = play.board.pieces[index];
   if (play.status !== 'playing' || !piece) return play;
   const { frame } = play;
   const turns = frame.turns.map((turn, at) => (at === index ? (turn + 1) % piece.turns : turn));
-  const after = settle(play.board, turns, frame.blocks, frame.pressed);
-  return arrive(play, { turns, blocks: after.blocks, pressed: after.pressed }, after.trace, [...play.history, frame]);
+  const { trace, blocks, pressed } = settle(play.board, turns, frame.blocks, frame.pressed);
+  const moves = play.moves + 1;
+  const status: Status = allLit(play.board, trace) ? 'won' : moves >= play.limit ? 'lost' : 'playing';
+  const history = [...play.history, frame];
+  return { ...play, frame: { turns, blocks, pressed }, trace, history, moves, status, secret: play.secret || trace.secret };
 }
 
-/** Takes the last tap back. The board is restored, but the move count keeps going up. */
+/**
+ * Takes the last tap back. The tap stays counted, but the undo itself is free, so it can never end a try:
+ * every earlier board was still being played.
+ */
 export function undoMove(play: Play): Play {
   const frame = play.history.at(-1);
   if (play.status !== 'playing' || !frame) return play;
   const { trace } = settle(play.board, frame.turns, frame.blocks, frame.pressed);
-  return arrive(play, frame, trace, play.history.slice(0, -1));
+  return { ...play, frame, trace, history: play.history.slice(0, -1), secret: play.secret || trace.secret };
 }
 
 export const useHint = (play: Play): Play => (play.hints >= HINTS_PER_LEVEL ? play : { ...play, hints: play.hints + 1 });
