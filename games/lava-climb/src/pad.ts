@@ -1,5 +1,5 @@
 import { buttonOf, Held, type Button } from './keys.ts';
-import type { Input } from './sim.ts';
+import { NO_INPUT, type Input } from './sim.ts';
 import { element } from './ui.ts';
 
 export interface Pad {
@@ -117,8 +117,19 @@ export function createPad(root: HTMLElement, field: HTMLElement, moveBox: HTMLEl
   return {
     held,
     inputAt(time) {
-      while (changes.length > 0 && changes[0]!.at <= time) current = changes.shift()!.input;
-      return current;
+      // A tap too quick for one tick still counts, once. Only a fresh press does: fingers lifting one
+      // after the other must not read as a press of whatever was already held.
+      const before = current;
+      let tapped: Input = NO_INPUT;
+      while (changes.length > 0 && changes[0]!.at <= time) {
+        current = changes.shift()!.input;
+        tapped = { dir: current.dir || tapped.dir, jump: current.jump || tapped.jump, dash: current.dash || tapped.dash };
+      }
+      return {
+        dir: current.dir || (before.dir === 0 ? tapped.dir : 0),
+        jump: current.jump || (!before.jump && tapped.jump),
+        dash: current.dash || (!before.dash && tapped.dash),
+      };
     },
     onPress: (listener) => pressListeners.push(listener),
     show,

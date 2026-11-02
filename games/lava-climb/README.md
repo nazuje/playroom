@@ -9,7 +9,7 @@ A 2D precision platformer for ages 6 to 12, to play alone. Climb 24 towers while
 3. Hold jump to go higher. From level 3, slide on the rough rock with bright rungs and jump off it. From level 8, the wind button dashes sideways in the air, once per jump, and a wall gives the dash back.
 4. Reach the glowing door at the top. One star for getting out, one for speed and one for every gem. A golden secret gem hides behind a false wall in a few levels.
 5. Touch lava, spikes or a falling rock and the hero singes, with smoke and a surprised face, and the climb restarts by itself in under a second. A press cuts the wait shorter still. Every singe counts on the proud 🔥 badge.
-6. After 5 tries a small skip button appears. It takes two taps, so mashing can't press it.
+6. After 5 tries a small skip button appears. It needs a long press, so mashing can't work it.
 
 Levels add crumbling ledges, moving platforms, belts, ice, spikes, bouncy pads and falling rocks. A rock always shivers in its hole first, with a red-ringed shadow on the floor where it will land. The first levels teach one idea and have slow lava. The last ones need exact wall kick and dash chains. Every so often a cheeky lava fish pops up and waves.
 
@@ -27,9 +27,9 @@ Levels are lists of handcrafted stretches of tower in `levels.ts`, in the words 
 
 The scripts in `e2e/` play the real build, and they aren't part of `npm test`.
 
-- `solve.mjs` searches the game's own rules for a route up each level and records it to `routes.json`. It plays with stricter edges than a child gets, so a route never leans on a lucky pixel. Run it after changing a level.
-- `bot-skilled.mjs` follows each recorded route in a `vite build` served by `vite preview`, with real touch events at real speed, reading only ordinary `data-` attributes on the canvas. It reports time, stars and how close the lava came.
-- `bot-careless.mjs` is a child in a hurry: it looks now and then, jumps when it feels like it, and never plans a wall kick.
+- `solve.mjs` searches the game's own rules for a route up each level and records it to `routes.json`. It plays with stricter edges than a child gets: feet land at least 7 units inside a ledge and spikes count as 6 units bigger, on a tile of 20. Run it after changing a level, and `sh e2e/solve-all.sh` to do all of them at once.
+- `bot-skilled.mjs` replays each recorded route in a `vite build` served by `vite preview`, with real touch events at real speed, reading only ordinary `data-` attributes on the canvas. Each touch carries the moment it happens, as a real screen's do, and the game plays each press on the tick of that moment, so a slow frame can't change the result. It reports time, stars and how close the lava came. This proves each route works in the real game, with perfect timing. It doesn't prove what a hand can do, which is what a real child and the stricter edges are for.
+- `bot-careless.mjs` is a child in a hurry: it heads for the next ledge, looks now and then, jumps early and late, and never plans a wall kick or a dash. It reads the same `data-` attributes.
 - `checks.mjs` tries four screens, both languages, 50-tap mashing, a language switch mid-climb, the keyboard and reduced motion.
 
 `levels.test.ts` replays every recorded route through the pure rules, so a change that breaks a route fails `npm test` at once.

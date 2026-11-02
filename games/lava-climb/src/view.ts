@@ -306,8 +306,7 @@ export function createView(canvas: HTMLCanvasElement, level: Level, world: World
     drawMovers(run);
     drawRocks(run, time);
     drawGems(run, time);
-    bits.draw(c);
-    heroPose(run, flourish, time);
+    if (flourish.singedFor === 0 && run.phase !== 'singed') heroPose(run, flourish, time);
     if (flourish.fishAge !== null) drawFish(c, flourish.fishX, lavaWorld, flourish.fishAge, time);
     inPixels();
     if (lavaY < height + 140 * scale) {
@@ -319,6 +318,10 @@ export function createView(canvas: HTMLCanvasElement, level: Level, world: World
       lava.draw(c, lavaY, time);
       c.restore();
     }
+    inWorld();
+    bits.draw(c);
+    if (flourish.singedFor > 0 || run.phase === 'singed') heroPose(run, flourish, time);
+    inPixels();
     drawGauge(run);
   }
 

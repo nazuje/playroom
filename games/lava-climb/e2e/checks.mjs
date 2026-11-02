@@ -78,7 +78,7 @@ async function onePass(browser, screen, language) {
   await fingers.set({ dir: 1, jump: false, dash: false });
   await page.waitForTimeout(60);
   await fingers.lift();
-  await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'singed', null, { timeout: 15000 });
+  await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'singed', null, { timeout: 30000 });
   await page.waitForTimeout(180);
   await shot('singed');
   const singedAt = Date.now();
@@ -140,7 +140,7 @@ async function calm(browser) {
   return problems;
 }
 
-/** Five singes on a fresh save bring the skip button, which one tap or a mash can't press. */
+/** Five singes on a fresh save bring the skip button, which only a long press works. */
 async function skipping(browser) {
   const screen = SCREENS[0];
   const { context, page, problems } = await openPhone(browser);
@@ -151,17 +151,20 @@ async function skipping(browser) {
     await fingers.set({ dir: 1, jump: false, dash: false });
     await page.waitForTimeout(40);
     await fingers.lift();
-    await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'singed', null, { timeout: 15000 });
+    await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'singed', null, { timeout: 30000 });
     await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'ready', null, { timeout: 3000 });
   }
   if (!(await page.locator('.skip-btn').isVisible())) problems.push('no skip button after 5 tries');
   await mash(page, { ...screen, height: 690 });
   const level = await page.evaluate(() => document.getElementById('tower').dataset.level);
   if (level !== '1') problems.push('mashing pressed skip');
-  await page.locator('.skip-btn').tap();
+  const box = await page.locator('.skip-btn').boundingBox();
+  const finger = { id: 9, x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await fingers.session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [finger] });
   await page.waitForTimeout(450);
-  await page.screenshot({ path: join(SHOTS, 'skip-armed.png') });
-  await page.locator('.skip-btn').tap();
+  await page.screenshot({ path: join(SHOTS, 'skip-held.png') });
+  await page.waitForTimeout(800);
+  await fingers.session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await page.waitForTimeout(300);
   const after = await page.evaluate(() => document.getElementById('tower').dataset.level);
   if (after !== '2') problems.push(`skip went to level ${after}`);

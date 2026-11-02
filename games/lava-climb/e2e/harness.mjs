@@ -138,7 +138,7 @@ export class Fingers {
 
 const TICK_SECONDS = 1 / 120;
 /** Touches are sent this far ahead, stamped for their moment, so a busy page can't make one late. */
-const SEND_AHEAD_MS = 150;
+const SEND_AHEAD_MS = 500;
 
 /**
  * Plays a recorded route with real touches at real speed. Each touch carries the moment it happens, as a

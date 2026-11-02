@@ -17,7 +17,6 @@ export const sl: Text = {
   next: 'Naslednja stopnja',
   again: 'Še enkrat',
   skip: 'Preskoči stopnjo',
-  skipSure: 'Tapni še enkrat za preskok',
   left: 'Levo',
   right: 'Desno',
   jump: 'Skok',

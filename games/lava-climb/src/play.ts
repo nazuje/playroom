@@ -19,13 +19,12 @@ const SINGE_SKIP_AFTER = 0.22;
 const RESULT_AFTER = 0.55;
 /** The result buttons sleep this long, so mashing can't skip past the stars. */
 const RESULT_WAKES_AFTER = 800;
-const SKIP_ARM_MS = 400;
-const SKIP_DISARM_MS = 3500;
+const SKIP_HOLD_MS = 900;
 const FISH_CHANCE = 0.4;
 const FISH_SECONDS = 2.4;
 const MAX_FRAME_SECONDS = 0.05;
 /** A longer stall than this is lost time, not time to make up. */
-const MAX_CATCH_UP_MS = 250;
+const MAX_CATCH_UP_MS = 500;
 const TICK_MS = 1000 / TICKS_PER_SECOND;
 const SAY_OUCH_EVERY = 4;
 
@@ -105,7 +104,7 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
   let fishAge: number | null = null;
   let fishX = 0;
   let fishComes = false;
-  let skipArmedAt = 0;
+  let skipTimer: ReturnType<typeof setTimeout> | undefined;
   let stuckSaid = false;
   let shownTime = '';
   let line = options.hint ? text().hints[options.hint] : text().go;
@@ -124,7 +123,7 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
     statTime.setAttribute('aria-label', words.time);
     statSinges.setAttribute('aria-label', words.singes);
     field.setAttribute('aria-label', words.title);
-    skipButton.setAttribute('aria-label', skipArmedAt ? words.skipSure : words.skip);
+    skipButton.setAttribute('aria-label', words.skip);
     moveBox.querySelector('.zone-left')?.setAttribute('aria-label', words.left);
     moveBox.querySelector('.zone-right')?.setAttribute('aria-label', words.right);
     actBox.querySelector('.zone-jump')?.setAttribute('aria-label', words.jump);
@@ -152,21 +151,19 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
     labels();
   }
 
-  skipButton.addEventListener('click', () => {
-    const now = performance.now();
-    if (skipArmedAt === 0) {
-      skipArmedAt = now;
-      skipButton.classList.add('armed');
-      skipButton.textContent = '⏭️?';
-      labels();
-      setTimeout(() => {
-        skipArmedAt = 0;
-        skipButton.classList.remove('armed');
-        skipButton.textContent = '⏭️';
-        labels();
-      }, SKIP_DISARM_MS);
-    } else if (now - skipArmedAt >= SKIP_ARM_MS) options.onSkip();
+  // Skipping is a long press, so mashing can't do it by accident.
+  const letGoOfSkip = (): void => {
+    clearTimeout(skipTimer);
+    skipButton.classList.remove('armed');
+  };
+  skipButton.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    skipButton.classList.add('armed');
+    skipTimer = setTimeout(options.onSkip, SKIP_HOLD_MS);
   });
+  skipButton.addEventListener('pointerup', letGoOfSkip);
+  skipButton.addEventListener('pointercancel', letGoOfSkip);
+  skipButton.addEventListener('pointerleave', letGoOfSkip);
 
   mapButton.addEventListener('click', options.onMap);
 
@@ -393,6 +390,7 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
   return {
     stop() {
       cancelAnimationFrame(frameId);
+      clearTimeout(skipTimer);
       pad.stop();
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisible);

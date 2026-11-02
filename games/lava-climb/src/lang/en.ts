@@ -19,7 +19,6 @@ export const en = {
   next: 'Next level',
   again: 'Climb it again',
   skip: 'Skip this level',
-  skipSure: 'Tap again to skip',
   left: 'Go left',
   right: 'Go right',
   jump: 'Jump',
