@@ -17,6 +17,8 @@ A tap on the ground walks there, around trees, fences and houses. A tap on a fri
 - **Decorating.** Shells are the only money. They buy furniture for the house and decorations for outside. Tap a thing, then the floor. Things can be turned, moved and put back in the cupboard.
 - **Rare surprises.** A rainbow after rain, shooting stars at night, a parade of friends, a golden butterfly and a whale. Each is recorded in the book.
 
+The 🏝️ button that goes back to the islands and the creator's "Let's go!" only work when held for about a second, while a yellow ring fills around them, so a mash can never leave an island or make a new one. Every new screen also ignores taps for a moment. Each moment says at most two short lines, and the next friend's request follows after a pause. Anything done towards a quest before its friend asks still counts.
+
 A finished island stays open for free play. A grown-up can reset an island from the picker: 🔧 shows the reset buttons, and the reset needs a second, deliberate press within 4 seconds.
 
 ## How it's built
@@ -38,7 +40,8 @@ npx vite build                    # in this folder
 node e2e/run-all.mjs              # everything below, three at a time
 node e2e/quest-bot.mjs            # a new island: creator, the first 10 quests by following the star, reload, second island
 node e2e/free-play.mjs            # every activity once on a half-done island, checked in the save, then a reload
-node e2e/screen-check.mjs         # 4 sizes, both languages, 50-tap mash on every screen, draw calls,
+node e2e/screen-check.mjs         # 4 sizes, both languages, 50-tap mash on every screen, a mash in play
+                                  # that must keep the same island and island count, draw calls,
                                   # language switch mid-quest, keyboard and mouse, reduced motion
 SIZE=390x844 node e2e/screen-check.mjs   # one size, or SIZE=extras for the last three checks
 node e2e/contact.mjs .shots /tmp/sheet.png '390x844' 6 200   # screenshots side by side

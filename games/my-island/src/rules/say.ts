@@ -76,6 +76,8 @@ export type Panel = 'seeds' | 'bakery' | 'pets' | 'care' | 'fishing' | 'give' | 
 /** What one action did, for the screen and the speaker to show. */
 export interface Outcome {
   say: Say[];
+  /** Said after a pause, as a moment of its own. */
+  then?: Say[];
   sound?: Sound;
   open?: Panel;
   /** Confetti. */

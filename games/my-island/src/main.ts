@@ -13,7 +13,7 @@ import { lookEditor, lookSheet, type LookState } from './screens/looks.ts';
 import { showAvatars, showPicker } from './screens/picker.ts';
 import { deviceStorage } from './storage.ts';
 import { createTalker } from './talk.ts';
-import { button, byId, calm, element, onPress } from './ui.ts';
+import { button, byId, calm, element, onHold, onPress, settle } from './ui.ts';
 import { createView, type View } from './view/view.ts';
 
 const CAMERA = { fov: 40, near: 0.5, far: 700 };
@@ -42,6 +42,7 @@ const decorButton = byId('decor') as HTMLButtonElement;
 const arrow = byId('arrow') as HTMLButtonElement;
 
 function setScreen(name: string): void {
+  if (document.body.dataset.screen !== name) settle();
   document.body.dataset.screen = name;
   const playing = name === 'play' || name === 'house' || name === 'decor' || name === 'wardrobe';
   islands.hidden = !playing;
@@ -161,7 +162,7 @@ function runGame(view: View): (seconds: number) => void {
       lookEditor(body, current.state, drawCreator);
       const go = button('go-btn', `🏝️ ${text().go}`);
       go.dataset.action = 'go';
-      onPress(go, () => finishCreator(current.slot, current.avatar, current.state.look));
+      onHold(go, () => finishCreator(current.slot, current.avatar, current.state.look));
       body.append(go);
     });
   }
@@ -240,7 +241,7 @@ function runGame(view: View): (seconds: number) => void {
     true,
   );
 
-  onPress(islands, () => {
+  onHold(islands, () => {
     playSound('pop');
     showIslands();
   });

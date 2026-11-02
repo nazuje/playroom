@@ -288,7 +288,8 @@ export function startGame(options: GameOptions): Game {
     if (result.say.some((line) => 'line' in line && (line.line === 'sail' || line.line === 'sailHome'))) sailFade();
     if (result.quest === 'finished') {
       const next = guide(play.island, play.finds.list, play.walker);
-      if (next && 'needs' in next.say) talk.queue([next.say]);
+      const then = result.then ?? (next && 'needs' in next.say ? [next.say] : []);
+      if (then.length) talk.later(then);
     }
     if (result.open) openPanel(result.open, target);
     updateHud();

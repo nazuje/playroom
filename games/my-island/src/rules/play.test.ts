@@ -110,6 +110,7 @@ describe('the whole quest ladder, played by following the marker', () => {
   it('finishes all 30 quests from a brand new island, reaching Island Level 10', () => {
     const play = startPlay(newIsland(0), theWorld());
     const levels: number[] = [];
+    let longest = 0;
     let steps = 0;
     while (currentQuest(play.island.quests) && steps < 900) {
       steps += 1;
@@ -129,7 +130,10 @@ describe('the whole quest ladder, played by following the marker', () => {
       if (result.level) levels.push(result.level);
       const used = usePanel(play, result, hint.target, hint);
       if (used?.level) levels.push(used.level);
+      for (const each of [result, used]) if (each) longest = Math.max(longest, each.say.length);
+      if (used?.quest === 'finished') expect(used.say.filter((line) => 'line' in line && line.line === 'yum')).toEqual([]);
     }
+    expect(longest).toBeLessThanOrEqual(2);
     expect(play.island.quests.done).toBe(QUESTS.length);
     expect(islandLevel(play.island)).toBe(10);
     expect(levels).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
@@ -152,6 +156,19 @@ describe('free play', () => {
     leaveHouse(play);
     expect(walkTo(play, { kind: 'place', id: 'wardrobe' })?.open).toBe('wardrobe');
     expect(play.island.quests.done).toBe(0);
+  });
+
+  it('counts shells picked up before Tobi asked for them', () => {
+    const play = startPlay(newIsland(0), theWorld());
+    for (let shell = 0; shell < 3; shell += 1) {
+      const find = play.finds.list.find((each) => each.item.startsWith('shell'));
+      if (!find) throw new Error('No shell on the beach');
+      walkTo(play, { kind: 'find', uid: find.uid });
+    }
+    const thanks = walkTo(play, { kind: 'friend', id: 'tobi' });
+    expect(thanks?.quest).toBe('finished');
+    expect(thanks?.say.length).toBeLessThanOrEqual(2);
+    expect(play.island.quests.done).toBe(1);
   });
 
   it('keeps Flower Hill shut until the bridge, and says why', () => {

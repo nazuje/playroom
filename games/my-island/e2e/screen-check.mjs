@@ -1,8 +1,8 @@
 // Every screen at four sizes and in both languages, with a 50-tap mash on each, then the checks no
 // single bot covers: a language switch mid-quest, keyboard and mouse, reduced motion and the
 // draw-call budget on a heavily decorated island.
-import { heavySave } from './fixtures.mjs';
-import { body, fail, goUse, launch, mash, openPage, panelIs, readSave, screenIs, serve, shot, touch } from './lib.mjs';
+import { freshSave, heavySave, midSave } from './fixtures.mjs';
+import { body, fail, goUse, hold, islandCount, launch, mash, openPage, panelIs, readSave, screenIs, serve, shot, touch } from './lib.mjs';
 import { followQuests } from './quest-bot.mjs';
 
 const SIZES = [
@@ -63,6 +63,64 @@ async function mashed(page, problems, name, seed, language) {
   await screenIs(page, 'islands');
   const kept = await readSave(page, 0);
   if (!kept || kept.quests.done !== 30) fail(problems, `${name}: the mash hurt the saved island`);
+}
+
+const PICK_ISLAND = { en: 'Pick your island!', sl: 'Izberi svoj otok!' };
+const PLAYING = new Set(['play', 'house', 'decor', 'wardrobe']);
+
+/**
+ * Fifty taps on a new island, the way the tester's mash once left it and made another. Nothing may
+ * switch islands or make one. The home link leaves the game for the portal, so a mash that hits it
+ * stops there.
+ */
+async function playMash(page, problems, tag, language) {
+  const { width, height } = page.viewportSize();
+  let left = false;
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) left = true;
+  });
+  for (const seed of [3, 19, 23]) {
+    await page.reload();
+    await screenIs(page, 'islands');
+    const before = await islandCount(page);
+    await touch(page, '.slot[data-slot="0"]');
+    await screenIs(page, 'play');
+    await wait(page, 300);
+    const said = await page.locator('#bubble').textContent();
+    if (said.includes(PICK_ISLAND[language])) fail(problems, `${tag}: the picker's line is still in the bubble: "${said}"`);
+    if (seed === 3) await shot(page, `enter-${tag}`);
+    left = false;
+    let value = seed;
+    const random = () => {
+      value = (value * 16807) % 2147483647;
+      return value / 2147483647;
+    };
+    const guarded = [];
+    for (let tap = 0; tap < 50 && !left; tap += 1) {
+      const [x, y] = [Math.floor(random() * width), Math.floor(random() * height)];
+      const on = await page.evaluate(([px, py]) => document.elementFromPoint(px, py)?.closest('.hold-btn')?.dataset.action ?? '', [x, y]).catch(() => '');
+      if (on) guarded.push(on);
+      await page.touchscreen.tap(x, y).catch(() => {});
+    }
+    await wait(page, 700);
+    if (left) {
+      await screenIs(page, 'islands');
+    } else {
+      const screen = await body(page, 'screen');
+      if (!PLAYING.has(screen) || (await body(page, 'slot')) !== '0') fail(problems, `${tag} seed ${seed}: the mash left the island for "${screen}", slot ${await body(page, 'slot')}`);
+    }
+    const after = await islandCount(page);
+    if (after !== before) fail(problems, `${tag} seed ${seed}: the mash changed the islands from ${before} to ${after}`);
+    check(problems, true, `${tag} seed ${seed}: 50 taps in play kept island 0 and ${after} islands${guarded.length ? ` (held buttons tapped: ${guarded.join(', ')})` : ''}${left ? ', then left by the home link' : ''}`);
+  }
+}
+
+async function mashInPlay(browser, [width, height], language) {
+  const tag = `${width}x${height}-${language}`;
+  const { page, context, problems } = await openPage(browser, { width, height, language, saves: { 0: freshSave(), 1: midSave() } });
+  await playMash(page, problems, tag, language);
+  if (problems.length) fail(problems, `${tag}: problems in the play mash`);
+  await context.close();
 }
 
 async function openHeavy(page) {
@@ -143,7 +201,7 @@ async function languageMidQuest(browser) {
   const { page, context, problems } = await openPage(browser, { language: 'en' });
   await touch(page, '.slot[data-state="empty"]');
   await touch(page, '[data-avatar="0"]');
-  await touch(page, '[data-action="go"]');
+  await hold(page, '[data-action="go"]');
   await screenIs(page, 'play');
   await wait(page, 1500);
   await goUse(page, 'friend:tobi');
@@ -158,7 +216,13 @@ async function languageMidQuest(browser) {
   check(problems, (await body(page, 'questStage')) === 'active', 'the quest carried on through the switch');
   await followQuests(page, 1);
   check(problems, (await readSave(page, 0)).quests.done === 1, 'and was finished in Slovenian');
+  await wait(page, 300);
+  const thanks = await page.locator('#bubble').textContent();
   await shot(page, 'language-mid-quest');
+  check(problems, !thanks.includes('Moko'), `the thanks comes on its own: "${thanks}"`);
+  await page.waitForFunction(() => document.querySelector('#bubble')?.textContent?.includes('Moko'), null, { timeout: 12000 });
+  check(problems, true, `then, after a pause, the next friend: "${await page.locator('#bubble').textContent()}"`);
+  await shot(page, 'quest-next-prompt');
   check(problems, problems.length === 0, 'no problems while switching');
   await context.close();
 }
@@ -234,6 +298,7 @@ try {
   for (const { size, index } of sizes) {
     await tour(browser, size, index % 2 ? 'sl' : 'en', index === 0);
     await tour(browser, size, index % 2 ? 'en' : 'sl', false);
+    for (const language of ['en', 'sl']) await mashInPlay(browser, size, language);
   }
   if (sizes.length) check([], drawPeak <= MOST_DRAWS, `the most draw calls in any frame was ${drawPeak} (budget ${MOST_DRAWS})`);
   if (!only || only === 'extras') {

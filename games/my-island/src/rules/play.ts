@@ -452,7 +452,8 @@ function track(play: Play, result: Outcome, act: () => boolean, friendHere?: Fri
   if (before.done !== after.done || before.stage !== 'active') return result;
   const quest = currentQuest(after);
   if (after.stage === 'ready' && quest) {
-    if (friendHere && quest.friend === friendHere) return mergeOutcomes(result, finish(play));
+    // The friend's thanks says it all, so the action's own line ("Yum! Thank you!") would only repeat it.
+    if (friendHere && quest.friend === friendHere) return mergeOutcomes({ ...result, say: [] }, finish(play));
     result.quest = 'ready';
     result.say.push({ back: quest.friend });
     result.sound = 'tada';
@@ -466,18 +467,24 @@ export function mergeOutcomes(first: Outcome, second: Outcome): Outcome {
   return { ...first, ...second, say: [...first.say, ...second.say], shells: (first.shells ?? 0) + (second.shells ?? 0) || undefined };
 }
 
-function finish(play: Play): Outcome {
+/**
+ * Hands the job in, saying at most two lines: the opener (or a thank-you) and any new level. Anything
+ * after that waits for the next moment.
+ */
+function finish(play: Play, opener: Say[] = []): Outcome {
   const { island } = play;
   const done = island.quests.done;
   const { shells, level } = finishQuest(island);
   if (!shells) return outcome();
   openPlots(island);
-  const result = outcome({ say: [{ thanks: done % 3 }], sound: 'tada', cheer: true, shells, quest: 'finished' });
+  const say: Say[] = [...opener];
+  if (!say.length || !level) say.push({ thanks: done % 3 });
+  const result = outcome({ say, sound: 'tada', cheer: true, shells, quest: 'finished' });
   if (level) {
     result.level = level;
     result.say.push({ level });
   }
-  if (!currentQuest(island.quests)) result.say.push({ line: 'allDone' });
+  if (!currentQuest(island.quests)) result.then = [{ line: 'allDone' }];
   return result;
 }
 
@@ -490,7 +497,7 @@ function talk(play: Play, id: FriendId): Outcome {
       acceptQuest(island);
       result.say.push({ quest: quest.id });
       result.quest = 'accepted';
-      if ((island.quests.stage as string) === 'ready') return mergeOutcomes(result, finish(play));
+      if ((island.quests.stage as string) === 'ready') return finish(play, result.say);
       return result;
     }
     if (island.quests.stage === 'ready') return finish(play);

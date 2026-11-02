@@ -70,20 +70,23 @@ function settle(island: Island): void {
   if (questCount(island) >= goalCount(quest.goal)) island.quests.stage = 'ready';
 }
 
-/** The friend has been spoken to: the job starts now. Some jobs may already be done. */
+/**
+ * The friend has been spoken to: the job starts now. Anything already done towards it since the
+ * last job was handed in still counts, so a child who picked up shells first isn't sent to do it again.
+ */
 export function acceptQuest(island: Island): void {
   const quest = currentQuest(island.quests);
   if (!quest || island.quests.stage !== 'offered') return;
   island.quests.stage = quest.goal.type === 'meet' ? 'ready' : 'active';
-  island.quests.count = 0;
   settle(island);
 }
 
-/** Feeds an event to the current quest. Returns true if that just finished its job. */
+/** Feeds an event to the current quest, even one not yet asked for. Returns true if that just finished its job. */
 export function recordEvent(island: Island, event: GameEvent): boolean {
   const quest = currentQuest(island.quests);
-  if (!quest || island.quests.stage !== 'active') return false;
+  if (!quest || island.quests.stage === 'ready') return false;
   if (counts(quest.goal, event)) island.quests.count += 1;
+  if (island.quests.stage !== 'active') return false;
   settle(island);
   return (island.quests.stage as string) === 'ready';
 }

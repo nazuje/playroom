@@ -20,6 +20,9 @@ function placeMany(play, room, ids, spots) {
   return placed;
 }
 
+/** A brand new island, as the creator makes it. */
+export const freshSave = () => file(newIsland(0, undefined, 3));
+
 /** Halfway up the ladder with a ripe plot, ingredients and shells, so every activity can be tried at once. */
 export function midSave() {
   const island = newIsland(2, undefined, 5);

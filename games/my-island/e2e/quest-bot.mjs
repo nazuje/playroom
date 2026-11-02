@@ -1,6 +1,6 @@
 // Plays a new island the way a child following the star would: every step a real tap on the screen.
 // Finishes the first quests, reloads to prove the save, then checks that a second island is separate.
-import { body, fail, launch, makeIsland, openPage, panelIs, screenIs, serve, shot, touch } from './lib.mjs';
+import { body, fail, hold, launch, makeIsland, openPage, panelIs, screenIs, serve, shot, touch } from './lib.mjs';
 
 const QUESTS_TO_FINISH = Number(process.env.QUESTS ?? 10);
 const LANGUAGE = process.env.LANG_PICK ?? 'en';
@@ -154,12 +154,12 @@ if (isMain) {
     if (Number(after.quests) < done || after.level !== before.level || after.pets !== before.pets) fail(problems, `The reload lost progress: ${JSON.stringify(before)} then ${JSON.stringify(after)}`);
     console.log(`reload kept it: ${JSON.stringify(after)}`);
 
-    await touch(page, '[data-action="islands"]');
+    await hold(page, '[data-action="islands"]');
     await screenIs(page, 'islands');
     await makeIsland(page, { avatar: 4 });
     const second = { slot: await body(page, 'slot'), quests: await body(page, 'quests'), shells: await body(page, 'shells') };
     if (second.slot !== '1' || second.quests !== '0' || second.shells !== '0') fail(problems, `The second island is not fresh: ${JSON.stringify(second)}`);
-    await touch(page, '[data-action="islands"]');
+    await hold(page, '[data-action="islands"]');
     await screenIs(page, 'islands');
     const slots = await page.locator('.slot[data-state="ok"]').count();
     if (slots !== 2) fail(problems, `Expected two islands on the picker, saw ${slots}`);

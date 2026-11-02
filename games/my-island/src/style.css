@@ -645,6 +645,51 @@ body[data-screen='decor'] #actions {
   transform: translateY(5px);
 }
 
+/* ---------- Hold to press: a ring fills around the button ---------- */
+
+@property --hold {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+.hold-btn {
+  -webkit-touch-callout: none;
+}
+
+.hold-btn:not(.go-btn) {
+  position: relative;
+}
+
+.hold-btn::after {
+  position: absolute;
+  inset: -7px;
+  border: 7px solid transparent;
+  border-radius: 24px;
+  background: conic-gradient(#ffd23f calc(var(--hold) * 1turn), rgba(255, 255, 255, 0.55) 0) border-box;
+  opacity: 0;
+  mask:
+    linear-gradient(#000 0 0) padding-box exclude,
+    linear-gradient(#000 0 0) border-box;
+  content: '';
+  pointer-events: none;
+}
+
+.go-btn.hold-btn::after {
+  border-radius: 30px;
+}
+
+.hold-btn.holding::after {
+  opacity: 1;
+  animation: hold-fill var(--hold-ms) linear forwards;
+}
+
+@keyframes hold-fill {
+  to {
+    --hold: 1;
+  }
+}
+
 /* ---------- Fishing ---------- */
 
 .fish-pond {

@@ -25,7 +25,6 @@ describe('the quest ladder', () => {
 
   it('starts a job when the friend is spoken to, counts it, and pays on handing in', () => {
     const island = newIsland(0);
-    expect(recordEvent(island, { type: 'collect', category: 'shell', habitat: 'beach' })).toBe(false);
     acceptQuest(island);
     expect(island.quests.stage).toBe('active');
     recordEvent(island, { type: 'collect', category: 'bug', habitat: 'forest' });
@@ -36,6 +35,19 @@ describe('the quest ladder', () => {
     const paid = finishQuest(island);
     expect(paid.shells).toBe(QUESTS[0]?.shells);
     expect(island.quests).toEqual({ done: 1, stage: 'offered', count: 0 });
+  });
+
+  it('counts what was done before the friend asked, and is ready as soon as she asks', () => {
+    const island = newIsland(0);
+    for (let shell = 0; shell < 3; shell += 1) expect(recordEvent(island, { type: 'collect', category: 'shell', habitat: 'beach' })).toBe(false);
+    expect(island.quests.stage).toBe('offered');
+    acceptQuest(island);
+    expect(island.quests.stage).toBe('ready');
+    finishQuest(island);
+    expect(island.quests.count).toBe(0);
+    recordEvent(island, { type: 'plant', crop: 'carrot' });
+    acceptQuest(island);
+    expect(island.quests.stage).toBe('ready');
   });
 
   it('pays nothing for a job not yet done', () => {

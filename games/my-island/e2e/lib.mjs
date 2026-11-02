@@ -62,14 +62,45 @@ export async function openPage(browser, { width = 390, height = 844, language = 
 export const screenIs = (page, name, timeout = 10000) => page.waitForSelector(`body[data-screen="${name}"]`, { timeout });
 export const panelIs = (page, name, timeout = 10000) => page.waitForSelector(`body[data-panel="${name}"]`, { timeout });
 
-/** A real touch in the middle of something on screen. */
-export async function touch(page, selector) {
+/** A new screen ignores taps for a moment. A child waits that long without noticing, so the bots do too. */
+export const settled = (page) => page.waitForSelector('body:not([data-settling])', { timeout: 5000 });
+
+async function middleOf(page, selector) {
   const found = page.locator(selector).first();
   if (!selector.startsWith('.hit')) await found.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
   const box = await found.boundingBox();
   if (!box) throw new Error(`Nothing to touch at ${selector}`);
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
+
+/** A real touch in the middle of something on screen. */
+export async function touch(page, selector) {
+  await settled(page);
+  const { x, y } = await middleOf(page, selector);
+  await page.touchscreen.tap(x, y);
+}
+
+/** A finger held still on a button, for the ones that leave an island or make a new one. */
+export async function hold(page, selector, ms = 1300) {
+  await settled(page);
+  const { x, y } = await middleOf(page, selector);
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await page.waitForTimeout(ms);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+  } else {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.waitForTimeout(ms);
+    await page.mouse.up();
+  }
+}
+
+/** How many islands are saved, read from storage the way the picker counts them. */
+export const islandCount = (page) =>
+  page.evaluate(() => new Set(Object.keys(localStorage).filter((key) => key.startsWith('playroom:my-island:slot-')).map((key) => key.split(':')[2])).size);
 
 export async function tapAt(page, x, y) {
   await page.touchscreen.tap(x, y);
@@ -98,7 +129,7 @@ export async function makeIsland(page, { avatar = 0, picks = [] } = {}) {
     await touch(page, `[data-tab="${tab}"]`);
     await touch(page, `[data-option="${option}"]`);
   }
-  await touch(page, '[data-action="go"]');
+  await hold(page, '[data-action="go"]');
   await screenIs(page, 'play');
 }
 
