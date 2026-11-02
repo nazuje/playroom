@@ -30,14 +30,24 @@ function rock(c: CanvasRenderingContext2D, size: number, world: World, seed: num
   c.fillRect(size * 0.94, 0, size * 0.06, size);
 }
 
-/** Handholds: bright rungs you can tell from plain rock at a glance. */
+/** The same bright lime in every world, a colour no ledge, belt or spike uses, so rough walls stand out. */
+const GRIP_RUNG = '#b6ff3b';
+const GRIP_SHADE = '#3d6b00';
+
+/** Handholds: thick lime rungs with a glowing edge, unmistakable next to plain rock. */
 function grip(c: CanvasRenderingContext2D, size: number, world: World): void {
   rock(c, size, world, 3);
-  c.fillStyle = world.accent;
-  for (const y of [0.14, 0.62]) {
-    c.fillRect(0, size * y, size, size * 0.16);
-    c.fillRect(size * 0.35, size * (y + 0.16), size * 0.3, size * 0.1);
+  c.fillStyle = 'rgba(182, 255, 59, 0.22)';
+  c.fillRect(0, 0, size, size);
+  for (const y of [0.08, 0.42, 0.76]) {
+    c.fillStyle = GRIP_SHADE;
+    c.fillRect(0, size * (y + 0.04), size, size * 0.16);
+    c.fillStyle = GRIP_RUNG;
+    c.fillRect(0, size * y, size, size * 0.13);
   }
+  c.fillStyle = GRIP_RUNG;
+  c.fillRect(0, 0, size * 0.1, size);
+  c.fillRect(size * 0.9, 0, size * 0.1, size);
 }
 
 function ledge(c: CanvasRenderingContext2D, size: number, world: World): void {

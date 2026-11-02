@@ -1,3 +1,4 @@
+import type { Demo } from './demo.ts';
 import type { Plan, MoveSpec, DropSpec } from './level.ts';
 import type { HintId } from './lang/en.ts';
 import { mirrored, START, STAMPS, TOP, type Stamp, type StampName } from './stamps.ts';
@@ -25,12 +26,12 @@ interface Design {
 
 const DESIGNS: Design[] = [
   // Volcano Shaft.
-  { world: 'shaft', lava: 12, par: 36, pieces: ['zig', 'zig!', 'stairs', 'zig', 'hops', 'bridge', 'zig', 'zig!', 'stairs', 'zig', 'hops', 'bridge', 'gemHigh'] },
-  { world: 'shaft', lava: 11, par: 40, pieces: ['crumbs', 'crumbs!', 'zig', 'stairs!', 'crumbStairs', 'crumbs', 'bridge', 'crumbStairs!', 'crumbs!', 'crumbs', 'bridge', 'crumbStairs', 'bridge'] },
-  { world: 'shaft', lava: 16, par: 37, pieces: ['zig', 'slab', 'shaft', 'ledgeWall', 'ledgeWall!', 'shaftGem', 'hops', 'shaft', 'zig', 'ledgeWall', 'twist', 'shaftGem'] },
-  { world: 'shaft', lava: 16, par: 33, pieces: ['teeth', 'teethGem!', 'crumbs!', 'teeth', 'jaws', 'shaft', 'stairs', 'zig', 'slab', 'teethGem', 'zig', 'jaws', 'gemHigh'] },
-  { world: 'shaft', lava: 14, par: 38, fish: true, pieces: ['pad', 'zig', 'padPair!', 'teeth', 'pad!', 'crumbs!', 'gemHigh', 'pad', 'zig', 'jaws', 'padPair!', 'bridge'] },
-  { world: 'shaft', lava: 11, par: 44, pieces: ['rocks', 'rocksGem', 'zig', 'rocks', 'nook', 'crumbs!', 'gemHigh', 'rocks!', 'rocksGem!', 'crumbs!', 'shaft', 'bridge'] },
+  { world: 'shaft', lava: 10, par: 26, pieces: ['steps', 'steps!', 'stepsGem', 'steps!', 'steps', 'stepsGem!', 'steps', 'steps!'] },
+  { world: 'shaft', lava: 10, par: 27, pieces: ['steps', 'crumbSteps', 'crumbSteps!', 'steps', 'crumbSteps', 'stepsGem!', 'crumbSteps', 'crumbSteps!', 'steps'] },
+  { world: 'shaft', lava: 10, par: 22, pieces: ['steps', 'kick', 'steps', 'kick!', 'steps!', 'kick', 'stepsGem', 'kick!', 'steps!'] },
+  { world: 'shaft', lava: 12, par: 28, pieces: ['steps', 'spikeSteps', 'spikeSteps!', 'stepsGem', 'spikeSteps', 'kick', 'steps', 'spikeSteps!', 'spikeSteps', 'steps'] },
+  { world: 'shaft', lava: 12, par: 33, fish: true, pieces: ['steps', 'padLow', 'steps', 'padLow!', 'spikeSteps', 'padLow', 'crumbSteps', 'stepsGem', 'padLow!', 'spikeSteps!', 'pad', 'steps'] },
+  { world: 'shaft', lava: 13, par: 36, pieces: ['steps', 'rockSteps', 'steps!', 'rockSteps!', 'stepsGem', 'crumbSteps', 'rockSteps', 'steps!', 'rocksGem', 'kick!', 'steps!'] },
   // Ice Tower.
   { world: 'ice', lava: 21, par: 35, ice: true, pieces: ['zig', 'zig!', 'hops!', 'stairs', 'zig', 'slab', 'bridge', 'shaft', 'hops!', 'slab!', 'teeth', 'jaws', 'gemHigh'] },
   { world: 'ice', lava: 24, par: 42, pieces: ['dashGap', 'dashSpikes!', 'dashGap!', 'zig!', 'dashGap!', 'dashShaft!', 'hops!', 'stairs', 'dashSpikes', 'dashShaft', 'crumbs!', 'zig', 'hops'] },
@@ -86,3 +87,31 @@ export const WORLD_OF: readonly WorldId[] = DESIGNS.map((design) => design.world
 
 /** The level that first shows each new idea, by level number. */
 export const HINTS: Readonly<Record<number, HintId>> = { 1: 'jump', 2: 'crumble', 3: 'wall', 4: 'spikes', 5: 'pad', 6: 'rocks', 7: 'ice', 8: 'dash', 9: 'moving', 13: 'belts' };
+
+/** Wordless lessons: a see-through hero shows the new move on the level that first needs it. */
+export const DEMOS: Readonly<Record<number, Demo>> = {
+  // Jump at the rough wall, slide, jump off it, and drift back onto the ledge above.
+  3: {
+    from: { x: 175, rowsUp: 10 },
+    moves: [
+      { ticks: 30, dir: 0 },
+      { ticks: 22, dir: -1, jump: true },
+      { ticks: 48, dir: -1 },
+      { ticks: 36, dir: -1, jump: true },
+      { ticks: 14, dir: -1 },
+      { ticks: 40, dir: 0 },
+    ],
+  },
+  // A full jump, then the dash at the top carries the hero across the gap.
+  8: {
+    from: { x: 78, rowsUp: 6 },
+    moves: [
+      { ticks: 30, dir: 0 },
+      { ticks: 59, dir: 1, jump: true },
+      { ticks: 8, dir: 1, jump: true, dash: true },
+      { ticks: 16, dir: 1, jump: true },
+      { ticks: 8, dir: 1 },
+      { ticks: 40, dir: 0 },
+    ],
+  },
+};

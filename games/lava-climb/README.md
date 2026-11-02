@@ -6,12 +6,12 @@ A 2D precision platformer for ages 6 to 12, to play alone. Climb 24 towers while
 
 1. Pick a level on the tower. Levels open in order, from the Volcano Shaft through the Ice Tower and the Clockwork Tower to The Top.
 2. The climb and the clock start with your first press, so take a breath first. Big ◀ ▶ buttons move, and ▲ jumps. Any finger on the tower itself jumps too. On a laptop use the arrow keys and Space, with X or Z for the dash.
-3. Hold jump to go higher. From level 3, slide on the rough rock with bright rungs and jump off it. From level 8, the wind button dashes sideways in the air, once per jump, and a wall gives the dash back.
+3. Hold jump to go higher. From level 3, slide on the rough rock with bright lime rungs and jump off it. From level 8, the wind button dashes sideways in the air, once per jump, and a wall gives the dash back. Before the first press on those two levels, a see-through hero shows the new move on the real tower, with no words needed.
 4. Reach the glowing door at the top. One star for getting out, one for speed and one for every gem. A golden secret gem hides behind a false wall in a few levels.
 5. Touch lava, spikes or a falling rock and the hero singes, with smoke and a surprised face, and the climb restarts by itself in under a second. A press cuts the wait shorter still. Every singe counts on the proud 🔥 badge.
-6. After 5 tries a small skip button appears. It needs a long press, so mashing can't work it.
+6. After 3 tries, or after about 45 seconds of failing, a small skip button appears. It needs a long press, so mashing can't work it.
 
-Levels add crumbling ledges, moving platforms, belts, ice, spikes, bouncy pads and falling rocks. A rock always shivers in its hole first, with a red-ringed shadow on the floor where it will land. The first levels teach one idea and have slow lava. The last ones need exact wall kick and dash chains. Every so often a cheeky lava fish pops up and waves.
+Levels add crumbling ledges, moving platforms, belts, ice, spikes, bouncy pads and falling rocks. A rock always shivers in its hole first, with a red-ringed shadow on the floor where it will land. The first levels teach one idea, with ledges only two rows apart and slow lava. The last ones need exact wall kick and dash chains. Every so often a cheeky lava fish pops up and waves.
 
 The game also plays in Slovenian, with the flag in the top bar. Its words are in `src/lang/`.
 

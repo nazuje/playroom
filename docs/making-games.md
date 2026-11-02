@@ -25,7 +25,7 @@ The parent asked for games that are truly hard. Maze Escape and every game tagge
 
 - Losing costs nothing but the try: a funny reaction, one tap to retry within a second, and finished levels stay finished.
 - Difficulty is a staircase. The first levels teach one idea and a 6-year-old beats them quickly. The last levels are a real challenge for a grown-up.
-- Levels open in order. After 5 failed tries on a level, a small skip button appears, so nobody stays stuck.
+- Levels open in order. After 5 failed tries on a level, or sooner when tries are long, a small skip button appears, so nobody stays stuck.
 - Every loss is fair: the danger or mistake was visible, and the player can see what to do differently.
 - Prove the staircase by playing the built game with real touch events, not only by simulation. A skilled bot beats every level, a careless bot beats the early levels and loses the late ones. Simulated results have disagreed with the real game here before, so the real run decides.
 

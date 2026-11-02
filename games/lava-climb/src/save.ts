@@ -63,4 +63,4 @@ export const addSkip = (before: Progress, index: number): Progress => ({ ...befo
 
 export const totalStars = (progress: Progress): number => progress.stars.reduce((sum, stars) => sum + stars, 0);
 
-export const SKIP_AFTER = 5;
+export const SKIP_AFTER = 3;

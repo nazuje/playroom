@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SKIP_AFTER } from '../src/save.ts';
 import { allOpen, buildGame, enterLevel, Fingers, openBrowser, openPhone, replay, serveGame, SHOTS } from './harness.mjs';
 
 const routes = JSON.parse(readFileSync(fileURLToPath(new URL('routes.json', import.meta.url)), 'utf8'));
@@ -95,6 +96,12 @@ async function onePass(browser, screen, language) {
     await page.waitForTimeout(900);
     await shot('result-mashed');
     await smallTargets(page, problems, 'result');
+    const mapOnTop = await page.evaluate(() => {
+      const map = document.querySelector('.hud-left .bar-btn');
+      const box = map.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('.bar-btn') === map;
+    });
+    if (!mapOnTop) problems.push('the result covers the map button');
     const next = page.locator('.result .big-btn');
     if (await next.count()) {
       await next.tap();
@@ -140,21 +147,22 @@ async function calm(browser) {
   return problems;
 }
 
-/** Five singes on a fresh save bring the skip button, which only a long press works. */
+/** A few singes on a fresh save bring the skip button, which only a long press works. */
 async function skipping(browser) {
   const screen = SCREENS[0];
   const { context, page, problems } = await openPhone(browser);
   await page.waitForSelector('.level-btn');
   await enterLevel(page, 1);
   const fingers = await Fingers.on(page);
-  for (let singe = 0; singe < 5; singe += 1) {
+  for (let singe = 0; singe < SKIP_AFTER; singe += 1) {
+    if (await page.locator('.skip-btn').isVisible()) problems.push(`skip button after only ${singe} tries`);
     await fingers.set({ dir: 1, jump: false, dash: false });
     await page.waitForTimeout(40);
     await fingers.lift();
     await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'singed', null, { timeout: 30000 });
     await page.waitForFunction(() => document.getElementById('tower').dataset.phase === 'ready', null, { timeout: 3000 });
   }
-  if (!(await page.locator('.skip-btn').isVisible())) problems.push('no skip button after 5 tries');
+  if (!(await page.locator('.skip-btn').isVisible())) problems.push(`no skip button after ${SKIP_AFTER} tries`);
   await mash(page, { ...screen, height: 690 });
   const level = await page.evaluate(() => document.getElementById('tower').dataset.level);
   if (level !== '1') problems.push('mashing pressed skip');

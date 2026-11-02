@@ -246,9 +246,17 @@ body[data-screen='play'] .topbar {
 }
 
 .hud-left {
+  position: relative;
+  z-index: 4;
   grid-area: barl;
   grid-column: 1 / -1;
   padding-right: 120px;
+  pointer-events: none;
+}
+
+/* The bar stays above the result so the map button keeps working there, without the bar swallowing taps itself. */
+.hud-left > * {
+  pointer-events: auto;
 }
 
 .hud-right {

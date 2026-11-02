@@ -2,28 +2,114 @@
  {
   "number": 1,
   "won": true,
-  "tries": 5,
-  "seconds": 43.7,
+  "tries": 1,
+  "seconds": 55.11,
   "stars": 1,
   "log": [
-   "singed, best 49/128 rows",
-   "singed, best 59/128 rows",
-   "stuck y 616",
-   "singed, best 3/128 rows",
    "won"
   ],
   "problems": []
  },
  {
   "number": 2,
-  "won": false,
-  "tries": 5,
+  "won": true,
+  "tries": 1,
+  "seconds": 35.92,
+  "stars": 1,
   "log": [
-   "singed, best 60/126 rows",
-   "singed, best 33/126 rows",
-   "stuck y 1913",
-   "singed, best 15/126 rows",
-   "singed, best 63/126 rows"
+   "won"
+  ],
+  "problems": []
+ },
+ {
+  "number": 3,
+  "won": true,
+  "tries": 7,
+  "seconds": 70.2,
+  "stars": 1,
+  "log": [
+   "singed, best 14/66 rows",
+   "singed, best 13/66 rows",
+   "singed, best 44/66 rows",
+   "singed, best 14/66 rows",
+   "singed, best 58/66 rows",
+   "singed, best 13/66 rows",
+   "won"
+  ],
+  "problems": []
+ },
+ {
+  "number": 4,
+  "won": true,
+  "tries": 1,
+  "seconds": 55.52,
+  "stars": 1,
+  "log": [
+   "won"
+  ],
+  "problems": []
+ },
+ {
+  "number": 5,
+  "won": false,
+  "tries": 8,
+  "log": [
+   "singed, best 51/115 rows",
+   "singed, best 51/115 rows",
+   "singed, best 66/115 rows",
+   "singed, best 51/115 rows",
+   "singed, best 91/115 rows",
+   "singed, best 51/115 rows",
+   "singed, best 13/115 rows",
+   "singed, best 45/115 rows"
+  ],
+  "problems": []
+ },
+ {
+  "number": 6,
+  "won": false,
+  "tries": 8,
+  "log": [
+   "singed, best 76/99 rows",
+   "singed, best 76/99 rows",
+   "singed, best 76/99 rows",
+   "singed, best 3/99 rows",
+   "singed, best 12/99 rows",
+   "singed, best 76/99 rows",
+   "singed, best 77/99 rows",
+   "singed, best 76/99 rows"
+  ],
+  "problems": []
+ },
+ {
+  "number": 7,
+  "won": false,
+  "tries": 8,
+  "log": [
+   "singed, best 56/129 rows",
+   "singed, best 76/129 rows",
+   "singed, best 26/129 rows",
+   "singed, best 65/129 rows",
+   "singed, best 26/129 rows",
+   "singed, best 6/129 rows",
+   "singed, best 24/129 rows",
+   "singed, best 28/129 rows"
+  ],
+  "problems": []
+ },
+ {
+  "number": 8,
+  "won": false,
+  "tries": 8,
+  "log": [
+   "singed, best 9/170 rows",
+   "singed, best 6/170 rows",
+   "singed, best 9/170 rows",
+   "singed, best 9/170 rows",
+   "singed, best 9/170 rows",
+   "singed, best 9/170 rows",
+   "singed, best 9/170 rows",
+   "singed, best 9/170 rows"
   ],
   "problems": []
  }

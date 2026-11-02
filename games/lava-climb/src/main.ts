@@ -4,7 +4,7 @@ import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, sp
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
 import { buildLevel } from './level.ts';
-import { HINTS, PLANS, WORLD_OF } from './levels.ts';
+import { DEMOS, HINTS, PLANS, WORLD_OF } from './levels.ts';
 import { startPlay, type PlayScreen } from './play.ts';
 import { addSinge, addSkip, addWin, cleanProgress, type Progress } from './save.ts';
 import { showMap } from './screens.ts';
@@ -87,6 +87,7 @@ function go(index: number): void {
     level: buildLevel(plan),
     world: WORLDS[worldId],
     hint: HINTS[index + 1] ?? null,
+    demo: DEMOS[index + 1] ?? null,
     worldIntro: index === 0 || WORLD_OF[index - 1] !== worldId,
     hasNext: index + 1 < PLANS.length,
     finished: progress.stars[index]! > 0 || progress.open > index + 1,

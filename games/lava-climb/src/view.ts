@@ -3,6 +3,7 @@ import { Bits } from './art/fx.ts';
 import { drawHero } from './art/hero.ts';
 import { backdropSprite, rockLip, tileSprites } from './art/sprites.ts';
 import { cameraStep, cameraTarget } from './camera.ts';
+import type { GhostFrame } from './demo.ts';
 import { cell, lavaAt, moverAt, rockAt, ROCK_SIZE, type Level } from './level.ts';
 import { type Run } from './sim.ts';
 import { AIR, BELT_LEFT, BELT_RIGHT, CRUMBLE, ROCK } from './tiles.ts';
@@ -21,6 +22,8 @@ export interface Flourish {
   fishX: number;
   singedFor: number;
   shake: number;
+  /** The see-through hero showing a new move, with its path so far, or null. */
+  ghost: { path: GhostFrame[]; at: number; alpha: number } | null;
 }
 
 export interface View {
@@ -273,6 +276,53 @@ export function createView(canvas: HTMLCanvasElement, level: Level, world: World
     });
   }
 
+  /** Dotted footsteps in the air behind the ghost, a ring where it kicked and streaks where it dashed. */
+  function drawGhost(ghost: NonNullable<Flourish['ghost']>, time: number): void {
+    const { path, at, alpha } = ghost;
+    const now = path[Math.min(at, path.length - 1)];
+    if (!now || alpha <= 0) return;
+    c.save();
+    c.globalAlpha = alpha;
+    c.fillStyle = '#ffffff';
+    for (let index = 0; index <= at && index < path.length; index += 5) {
+      const frame = path[index]!;
+      if (frame.ground) continue;
+      c.beginPath();
+      c.arc(frame.x + HERO_W / 2, frame.y + HERO_H / 2, 1.6, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let index = 0; index <= at && index < path.length; index += 1) {
+      const frame = path[index]!;
+      if (frame.kicked) {
+        c.strokeStyle = '#b6ff3b';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.arc(frame.x + (frame.vx > 0 ? 0 : HERO_W), frame.y + HERO_H / 2, 7, 0, Math.PI * 2);
+        c.stroke();
+      }
+      if (frame.dashing && index % 3 === 0) {
+        c.fillStyle = '#4ff0c8';
+        c.fillRect(frame.x - 6 * frame.facing, frame.y + 4, 8, 2);
+        c.fillRect(frame.x - 9 * frame.facing, frame.y + 10, 8, 2);
+      }
+    }
+    c.globalAlpha = alpha * 0.75;
+    drawHero(c, {
+      x: now.x + HERO_W / 2,
+      y: now.y + HERO_H,
+      facing: now.facing,
+      vx: now.vx,
+      vy: now.vy,
+      ground: now.ground,
+      sliding: now.sliding,
+      dashing: now.dashing,
+      singed: 0,
+      bonked: false,
+      time,
+    });
+    c.restore();
+  }
+
   function trackPerformance(seconds: number): void {
     if (seconds > 1 / 32) slowFrames += 1;
     else slowFrames = Math.max(0, slowFrames - 0.25);
@@ -306,6 +356,7 @@ export function createView(canvas: HTMLCanvasElement, level: Level, world: World
     drawMovers(run);
     drawRocks(run, time);
     drawGems(run, time);
+    if (flourish.ghost) drawGhost(flourish.ghost, time);
     if (flourish.singedFor === 0 && run.phase !== 'singed') heroPose(run, flourish, time);
     if (flourish.fishAge !== null) drawFish(c, flourish.fishX, lavaWorld, flourish.fishAge, time);
     inPixels();

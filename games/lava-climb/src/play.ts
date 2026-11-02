@@ -1,4 +1,5 @@
 import { burst, speak } from '@playroom/kit';
+import { ghostPath, type Demo } from './demo.ts';
 import { text } from './lang/index.ts';
 import type { HintId } from './lang/en.ts';
 import { lavaAt, type Level } from './level.ts';
@@ -20,6 +21,12 @@ const RESULT_AFTER = 0.55;
 /** The result buttons sleep this long, so mashing can't skip past the stars. */
 const RESULT_WAKES_AFTER = 800;
 const SKIP_HOLD_MS = 900;
+/** Failing this long also brings the skip button, since a mashed try can last a long time. */
+const SKIP_AFTER_SECONDS = 45;
+const GHOST_TICKS_PER_SECOND = 90;
+const GHOST_PAUSE_TICKS = 50;
+const GHOST_ALPHA = 0.6;
+const GHOST_FADE_SECONDS = 0.6;
 const FISH_CHANCE = 0.4;
 const FISH_SECONDS = 2.4;
 const MAX_FRAME_SECONDS = 0.05;
@@ -39,6 +46,7 @@ export interface PlayOptions {
   level: Level;
   world: World;
   hint: HintId | null;
+  demo: Demo | null;
   worldIntro: boolean;
   hasNext: boolean;
   finished: boolean;
@@ -105,6 +113,10 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
   let fishX = 0;
   let fishComes = false;
   let skipTimer: ReturnType<typeof setTimeout> | undefined;
+  let failingFor = 0;
+  const ghost = options.demo ? ghostPath(level, options.demo) : [];
+  let ghostClock = 0;
+  let ghostFade = 0;
   let stuckSaid = false;
   let shownTime = '';
   let line = options.hint ? text().hints[options.hint] : text().go;
@@ -143,7 +155,8 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
   }
 
   function showSkip(): void {
-    if (options.finished || skipButton.hidden === false || tries <= SKIP_AFTER) return;
+    if (options.finished || skipButton.hidden === false) return;
+    if (tries <= SKIP_AFTER && (tries === 1 || failingFor < SKIP_AFTER_SECONDS)) return;
     skipButton.hidden = false;
     skipButton.textContent = '⏭️';
     if (!stuckSaid) say(text().stuck);
@@ -323,6 +336,19 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
     fishSeen = true;
   }
 
+  /** The ghost plays its move on a loop until the first press, then fades away. */
+  function ghostAt(seconds: number): Flourish['ghost'] {
+    if (ghost.length === 0) return null;
+    ghostFade = run.phase === 'ready' ? 1 : Math.max(0, ghostFade - seconds / GHOST_FADE_SECONDS);
+    if (ghostFade === 0) {
+      ghostClock = 0;
+      return null;
+    }
+    ghostClock += seconds;
+    const at = Math.floor(ghostClock * GHOST_TICKS_PER_SECOND) % (ghost.length + GHOST_PAUSE_TICKS);
+    return { path: ghost, at, alpha: GHOST_ALPHA * ghostFade };
+  }
+
   function publish(): void {
     field.dataset.run = `${run.tick} ${run.x.toFixed(1)} ${run.y.toFixed(1)} ${run.vx.toFixed(0)} ${run.vy.toFixed(0)} ${run.ground ? 1 : 0} ${lavaAt(level, run.tick).toFixed(1)}`;
     const shown = clock(runSeconds(run));
@@ -349,10 +375,14 @@ export function startPlay(host: HTMLElement, options: PlayOptions): PlayScreen {
         showResult();
       }
     }
+    if (run.phase !== 'won' && !wrapped) {
+      failingFor += seconds;
+      if (failingFor >= SKIP_AFTER_SECONDS) showSkip();
+    }
     updateFish(seconds);
     shake = Math.max(0, shake - seconds * 5);
     publish();
-    const flourish: Flourish = { fishAge, fishX, singedFor, shake };
+    const flourish: Flourish = { fishAge, fishX, singedFor, shake, ghost: ghostAt(seconds) };
     made?.draw(run, flourish, seconds, time);
   }
 
