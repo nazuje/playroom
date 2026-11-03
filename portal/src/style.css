@@ -1,13 +1,24 @@
-.welcome {
-  padding: calc(var(--safe-top) + 32px) var(--gutter) 8px;
-  text-align: center;
+/* The first screen is for games: a short top bar, the players, then shelves. */
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  width: min(100%, 1320px);
+  margin: 0 auto;
+  padding-bottom: 4px;
 }
 
 .logo {
   margin: 0;
-  font-size: clamp(2.6rem, 9vw, 4rem);
+  font-size: clamp(1.7rem, 6vw, 2.4rem);
   font-weight: 700;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .logo-mark {
@@ -15,53 +26,318 @@
   transform: rotate(-6deg);
 }
 
-.tagline {
-  margin: 4px 0 0;
-  font-size: clamp(1.2rem, 4vw, 1.5rem);
-  color: var(--ink-soft);
+.corner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.shelf {
+/* The grown-up corner: small, plain and off to the side, so it doesn't call to the children. */
+.gear-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  background: color-mix(in srgb, var(--paper-2) 70%, #fff);
+  opacity: 0.85;
+  touch-action: manipulation;
+}
+
+/* ---------- Who's playing ---------- */
+
+.players {
+  display: flex;
+  gap: 14px;
   width: min(100%, 1320px);
   margin: 0 auto;
-  padding: 20px var(--gutter) calc(var(--safe-bottom) + 40px);
-}
-
-/* ---------- Filter chips ---------- */
-
-.filters {
-  display: grid;
-  gap: 2px;
-  margin-bottom: 18px;
-}
-
-/* On a phone each row slides sideways by itself, edge to edge. The padding leaves room for chip shadows and focus rings. */
-.filter-row {
-  display: flex;
-  gap: 8px;
-  margin-inline: calc(var(--gutter) * -1);
-  padding: 4px var(--gutter) 8px;
+  padding: 6px var(--gutter) 12px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-.filter-row::-webkit-scrollbar {
+.players::-webkit-scrollbar {
   display: none;
 }
 
-@media (min-width: 600px) {
-  .filter-row {
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-inline: 0;
-    padding-inline: 0;
-    overflow: visible;
+.player {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 5px 0 var(--paper-2), 0 0 0 4px transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  touch-action: manipulation;
+}
+
+.player-avatar {
+  font-size: 3.2rem;
+  line-height: 1;
+}
+
+.player-age {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--grape);
+  box-shadow: 0 0 0 3px var(--paper);
+}
+
+.player[aria-pressed='true'] {
+  background: var(--sun);
+  box-shadow: 0 5px 0 var(--sun-dark), 0 0 0 4px #fff;
+  transform: scale(1.04);
+}
+
+/* Once a child is chosen, the others step back, so everyone can see whose turn it is. */
+.players.has-choice .player[aria-pressed='false'] {
+  opacity: 0.6;
+}
+
+.player:active {
+  transform: translateY(3px);
+}
+
+/* ---------- Shelves ---------- */
+
+.games {
+  flex: 1;
+  width: min(100%, 1320px);
+  margin: 0 auto;
+  padding-bottom: calc(var(--safe-bottom) + 24px);
+}
+
+.shelf {
+  container-type: inline-size;
+  margin-bottom: 6px;
+  /* About 2.3 tiles on a phone, so the next one peeks out and asks for a swipe. */
+  --tile-w: clamp(120px, calc((100cqi - var(--gutter) - 24px) / 2.3), 210px);
+}
+
+.shelf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px var(--gutter) 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.shelf-emoji {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.shelf-track {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 4px var(--gutter) 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--gutter);
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.shelf-track > li {
+  flex: 0 0 var(--tile-w);
+  scroll-snap-align: start;
+}
+
+/* Fingers swipe, so phones and tablets need no scrollbar. A mouse does. */
+@media (pointer: coarse) {
+  .shelf-track {
+    scrollbar-width: none;
+  }
+
+  .shelf-track::-webkit-scrollbar {
+    display: none;
   }
 }
 
+/* ---------- Tiles: mostly picture ---------- */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  container-type: inline-size;
+  color: var(--ink);
+  text-decoration: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.tile-art {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius);
+  font-size: 46cqi;
+  line-height: 1;
+  background:
+    radial-gradient(circle at 50% 45%, rgb(255 255 255 / 0.45), transparent 62%),
+    var(--accent);
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 65%, #000);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+a.tile:hover .tile-art {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 0 color-mix(in srgb, var(--accent) 65%, #000);
+}
+
+a.tile:active .tile-art {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 65%, #000);
+}
+
+.tile-title {
+  display: -webkit-box;
+  overflow: hidden;
+  padding: 0 2px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.tile:focus-visible {
+  outline: none;
+}
+
+.tile:focus-visible .tile-art,
+.player:focus-visible,
+.gear-btn:focus-visible,
+.filter:focus-visible,
+.filter-summary:focus-visible,
+.profile-avatar:focus-visible,
+.step-btn:focus-visible,
+.avatar-choice:focus-visible {
+  outline: 4px solid var(--grape);
+  outline-offset: 3px;
+}
+
+/* ---------- Coming soon ---------- */
+
+.tile.is-soon .tile-art {
+  filter: grayscale(0.6);
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.tile.is-soon .tile-title {
+  opacity: 0.7;
+}
+
+.tile-ribbon {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--sun);
+  transform: translateX(-50%) rotate(-4deg);
+}
+
+/* ---------- Filtered grid ---------- */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px var(--gutter) 14px;
+}
+
+.filter-summary {
+  min-height: 48px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: transparent;
+  touch-action: manipulation;
+}
+
+.filter-tag {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--paper-2);
+}
+
+.show-all-chip {
+  background: var(--sun);
+  box-shadow: 0 4px 0 var(--sun-dark);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 18px 12px;
+  margin: 0;
+  padding: 4px var(--gutter) 16px;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+.empty {
+  padding: 24px var(--gutter);
+  text-align: center;
+}
+
+.empty-note {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Filter chips, in the grown-up sheet and the filtered view ---------- */
+
 .filter {
   flex: none;
-  min-height: 44px;
+  min-height: 48px;
   padding: 6px 16px;
   border: 0;
   border-radius: 999px;
@@ -84,131 +360,184 @@
   box-shadow: 0 4px 0 var(--sun-dark);
 }
 
+.show-all-chip:active,
 .filter[aria-pressed='true']:active {
   box-shadow: 0 1px 0 var(--sun-dark);
 }
 
-.filter:focus-visible,
-.tile:focus-visible {
-  outline: 4px solid var(--grape);
-  outline-offset: 3px;
+/* ---------- Grown-up sheet ---------- */
+
+.sheet {
+  width: min(100%, 560px);
+  max-width: 100%;
+  max-height: min(92dvh, 920px);
+  margin: auto auto 0;
+  padding: 0 0 calc(var(--safe-bottom) + 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 -8px 40px rgb(43 33 64 / 0.25);
 }
 
-/* ---------- Game tiles ---------- */
+.sheet::backdrop {
+  background: rgb(43 33 64 / 0.45);
+}
 
-.tiles {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+@media (min-width: 600px) {
+  .sheet {
+    margin: auto;
+    border-radius: var(--radius);
+  }
+}
+
+.sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px var(--gutter);
+  background: var(--paper);
+  border-bottom: 2px solid var(--paper-2);
+}
+
+.sheet-title {
   margin: 0;
+  font-size: 1.5rem;
+}
+
+.sheet-section {
+  padding: 8px var(--gutter) 12px;
+}
+
+.sheet-heading {
+  margin: 8px 0 4px;
+  font-size: 1.25rem;
+}
+
+.sheet-note {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.profile-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
   padding: 0;
   list-style: none;
 }
 
-@media (min-width: 600px) {
-  .tiles {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 960px) {
-  .tiles {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .tiles {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.tile {
-  position: relative;
+.profile-edit {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  height: 100%;
-  padding: 20px;
-  overflow: hidden;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
   border-radius: var(--radius);
-  color: var(--ink);
-  text-decoration: none;
   background: #fff;
-  border-top: 10px solid var(--accent);
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 45%, var(--paper-2));
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.profile-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 2.3rem;
+  line-height: 1;
+  background: var(--paper-2);
   touch-action: manipulation;
 }
 
-a.tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 9px 0 color-mix(in srgb, var(--accent) 45%, var(--paper-2));
-}
-
-a.tile:active {
-  transform: translateY(4px);
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 45%, var(--paper-2));
-}
-
-.tile-emoji {
-  display: grid;
-  place-items: center;
-  width: 88px;
-  height: 88px;
-  margin-bottom: 6px;
-  border-radius: 50%;
-  font-size: 3rem;
-  line-height: 1;
-  background: color-mix(in srgb, var(--accent) 22%, #fff);
-}
-
-.tile-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.tile-tagline {
-  flex: 1;
-  font-size: 1.15rem;
-  line-height: 1.3;
-  color: var(--ink-soft);
-}
-
-.tile-chips {
+.stepper {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin-top: 8px;
 }
 
-.tile-chip {
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  background: color-mix(in srgb, var(--accent) 16%, #fff);
-}
-
-/* The age, mode and language badges sit apart from the skill chips, as plain facts. */
-.tile-age,
-.tile-mode,
-.tile-language {
-  background: var(--paper-2);
-}
-
-/* ---------- Nothing matches ---------- */
-
-.empty {
-  padding: 24px 0;
+.stepper-age {
+  min-width: 64px;
+  font-size: 1.1rem;
+  font-weight: 600;
   text-align: center;
 }
 
-.empty-note {
-  margin: 0 0 16px;
-  font-size: 1.3rem;
+.step-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper-2);
+  touch-action: manipulation;
+}
+
+.remove-btn {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: var(--coral-dark);
+}
+
+.avatar-picker {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.avatar-choice {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.8rem;
+  line-height: 1;
+  background: var(--paper);
+  touch-action: manipulation;
+}
+
+.avatar-choice[aria-pressed='true'] {
+  background: var(--sun);
+}
+
+.add-btn {
+  width: 100%;
+}
+
+.filter-group {
+  margin-bottom: 12px;
+}
+
+.filter-label {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--ink-soft);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 4px;
 }
 
 /* ---------- Credits ---------- */
@@ -224,34 +553,15 @@ a.tile:active {
   color: inherit;
 }
 
-/* ---------- Coming soon ---------- */
+/* ---------- Calm mode: kit already stills transitions; the chosen player stops growing too ---------- */
 
-.tile.is-soon {
-  background: #fdf8ef;
-  box-shadow: none;
-}
+@media (prefers-reduced-motion: reduce) {
+  .player[aria-pressed='true'],
+  a.tile:hover .tile-art {
+    transform: none;
+  }
 
-.is-soon .tile-title,
-.is-soon .tile-tagline,
-.is-soon .tile-chips {
-  opacity: 0.8;
-}
-
-.is-soon .tile-emoji {
-  opacity: 0.6;
-  filter: grayscale(0.5);
-}
-
-.tile-ribbon {
-  position: absolute;
-  top: 18px;
-  right: -36px;
-  width: 136px;
-  padding: 4px 0;
-  font-size: 1rem;
-  font-weight: 700;
-  text-align: center;
-  color: var(--ink);
-  background: var(--sun);
-  transform: rotate(35deg);
+  .shelf-track {
+    scroll-snap-type: none;
+  }
 }

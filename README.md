@@ -1,6 +1,6 @@
 # 🧸 Playroom
 
-A cozy shelf of small web games for young children, to play alone or with a grown-up. The portal at the site root shows every game as a big tile, with filters for who's playing, age, type of game and language. Each game lives at its own sub-path.
+A cozy shelf of small web games for young children, to play alone or with a grown-up. The portal at the site root shows the games as big picture tiles on swipeable shelves (New, Played lately, Brain games and more). A "who's playing" row of animal profiles hides games outside each child's age, and the grown-up filters for mode, age, type of game and language sit behind ⚙️. Each game lives at its own sub-path.
 
 Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 

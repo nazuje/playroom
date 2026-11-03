@@ -40,7 +40,8 @@ export function parseAges(ages: string): { min: number; max: number } | null {
   return match ? { min: Number(match[1]), max: Number(match[2]) } : null;
 }
 
-function suitsAge(game: Game, age: number): boolean {
+/** Whether an age falls inside a game's range, ends included. An unreadable range suits nobody. */
+export function suitsAge(game: Game, age: number): boolean {
   const range = parseAges(game.ages);
   return range !== null && range.min <= age && age <= range.max;
 }
@@ -54,6 +55,11 @@ export function applyFilter(games: readonly Game[], { mode, age, skill, language
       (skill === 'all' || game.skills.includes(skill)) &&
       (language === 'all' || game.languages.includes(language)),
   );
+}
+
+/** Whether a grown-up has narrowed the games down at all. */
+export function isFiltered(filters: Filters): boolean {
+  return (Object.keys(NO_FILTERS) as (keyof Filters)[]).some((key) => filters[key] !== 'all');
 }
 
 /** A remembered filter can go stale when the registry changes, so it falls back to everything. */

@@ -3,6 +3,7 @@ import type { Language } from '@playroom/kit';
 import {
   NO_FILTERS,
   applyFilter,
+  isFiltered,
   languagesIn,
   parseAges,
   restoreFilter,
@@ -159,5 +160,26 @@ describe('restoreFilter', () => {
   it('falls back to all for anything else', () => {
     expect(restoreFilter('numbers', ['world'])).toBe('all');
     expect(restoreFilter(null, ['world'])).toBe('all');
+  });
+});
+
+describe('isFiltered', () => {
+  it('is off with nothing chosen and on with anything chosen', () => {
+    expect(isFiltered(NO_FILTERS)).toBe(false);
+    expect(isFiltered({ ...NO_FILTERS, skill: 'fun' })).toBe(true);
+    expect(isFiltered({ ...NO_FILTERS, language: 'sl' })).toBe(true);
+  });
+});
+
+describe('remembered filters', () => {
+  it('restore to nothing chosen when storage holds junk', () => {
+    const restored: Filters = {
+      mode: restoreFilter('alone', ['solo', 'together']),
+      age: restoreFilter('6', [4, 6]),
+      skill: restoreFilter({ skill: 'fun' }, skillsIn(REGISTRY)),
+      language: restoreFilter('de', languagesIn(REGISTRY)),
+    };
+    expect(restored).toEqual(NO_FILTERS);
+    expect(isFiltered(restored)).toBe(false);
   });
 });

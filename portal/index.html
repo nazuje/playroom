@@ -15,24 +15,22 @@
     />
   </head>
   <body>
-    <header class="welcome">
+    <header class="topbar">
       <h1 class="logo"><span class="logo-mark" aria-hidden="true">🧸</span> Playroom</h1>
-      <p class="tagline">Pick a game to play!</p>
+      <div id="corner" class="topbar-end corner"></div>
     </header>
 
-    <main class="shelf">
-      <div id="filters" class="filters"></div>
-      <ul id="tiles" class="tiles"></ul>
-      <div id="empty" class="empty" hidden>
-        <p class="empty-note"><span aria-hidden="true">🙈</span> No games match all of those.</p>
-        <button id="show-all" class="btn btn-sun" type="button">Show all games</button>
-      </div>
-    </main>
+    <nav id="players" class="players"></nav>
+
+    <main id="games" class="games"></main>
+
+    <dialog id="grownups" class="sheet"></dialog>
 
     <footer class="credits">
-      Slovenian voice:
+      <span data-word="creditVoice">Slovenian voice:</span>
       <a href="https://huggingface.co/rhasspy/piper-voices/tree/main/sl/sl_SI/artur/medium">Piper “Artur”</a>,
-      dataset by <a href="https://huggingface.co/datasets/ppisljar/artur_studio_tts/">ppisljar</a>,
+      <span data-word="creditDataset">dataset by</span>
+      <a href="https://huggingface.co/datasets/ppisljar/artur_studio_tts/">ppisljar</a>,
       <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
     </footer>
 
