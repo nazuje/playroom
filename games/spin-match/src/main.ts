@@ -12,6 +12,7 @@ import { pickSound, stopSounds, winSound } from './sounds.ts';
 import { button, element, onPress } from './ui.ts';
 import { createBoard } from './view/board.ts';
 import { createGuide } from './view/guide.ts';
+import { createReef, goldenPaint } from './view/reef.ts';
 
 const PROGRESS_KEY = 'spin-match:progress';
 /** How many tries each level has had, so every retry and replay gets a fresh set of puzzles, even after a reload. */
@@ -49,6 +50,10 @@ const language = languageButton(['en', 'sl']);
 bar.append(home, heading, language, repeat, restart, levels);
 
 const board = createBoard(boardHost, bar);
+// Coral and seaweed grow up from the sand at both edges, wherever the sand's edge is on this screen.
+const reef = createReef();
+document.body.append(goldenPaint(), reef);
+new ResizeObserver(() => document.documentElement.style.setProperty('--sand-height', `${dock.getBoundingClientRect().height}px`)).observe(dock);
 const guide = createGuide();
 let progress: Progress = cleanProgress(store.get<unknown>(PROGRESS_KEY, null));
 let play: PlayScreen | null = null;

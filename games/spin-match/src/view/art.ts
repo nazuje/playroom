@@ -6,9 +6,11 @@ import { BODY, FACE, GEM, normalise, SPOT, STRIPE, width, height, type Shape, ty
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** Body colours, one per puzzle: coral, sunshine, lilac, bubblegum and tangerine. */
-export const BODY_PAINT = ['#ff7a6b', '#ffcb3d', '#c39bff', '#ff9fcf', '#ffa04d'];
-export const BODY_DARK = ['#c9473b', '#c7901a', '#8a5fd1', '#d0679c', '#cc6a1e'];
+/** Body colours, one per puzzle: coral, sunshine, lilac, bubblegum and tangerine, then gold for a surprise set. */
+export const BODY_PAINT = ['#ff7a6b', '#ffcb3d', '#c39bff', '#ff9fcf', '#ffa04d', 'url(#spin-gold)'];
+export const BODY_DARK = ['#c9473b', '#c7901a', '#8a5fd1', '#d0679c', '#cc6a1e', '#a86f00'];
+/** The body colour of a golden surprise set. reef.ts puts its paint on the page. */
+export const GOLDEN = 5;
 const ACCENT_PAINT: Record<number, string> = { [SPOT]: '#2f5bea', [STRIPE]: '#4b2477', [GEM]: '#fdfcff' };
 const INK = '#1d2b4a';
 /** Room around the critter inside its box, in tiles. */

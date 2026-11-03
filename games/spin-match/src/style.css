@@ -599,6 +599,9 @@ body[data-screen='map'] #play {
   min-height: 36px;
   padding: 18px 12px calc(var(--safe-bottom) + 18px);
   background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 40'%3E%3Cpath d='M24 38 L4 18 Q24 -6 44 18 Z' fill='%23ffd8cc' stroke='%23e8967f' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M24 38 L14 10 M24 38 L24 6 M24 38 L34 10' stroke='%23e8967f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") left 6px bottom calc(var(--safe-bottom) + 4px) / 30px 25px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Cpath d='M25 3 L31 18 L47 19 L34 29 L39 45 L25 36 L11 45 L16 29 L3 19 L19 18 Z' fill='%23ffa94d' stroke='%23d9772a' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") right 8px bottom calc(var(--safe-bottom) + 6px) / 26px 26px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'%3E%3Cpath d='M4 26 Q2 8 20 6 Q36 6 36 20 Q36 28 24 28 Z' fill='%23fff0f6' stroke='%23d98bb0' stroke-width='2.5'/%3E%3Cpath d='M20 26 Q12 24 14 16 Q17 10 24 14 Q28 19 22 21' fill='none' stroke='%23d98bb0' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") 62% calc(100% - var(--safe-bottom) - 2px) / 24px 18px no-repeat,
     radial-gradient(circle at 20% 30%, rgba(160, 110, 40, 0.35) 0 1.5px, transparent 2.5px) 0 0 / 34px 30px,
     radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.6) 0 1.5px, transparent 2.5px) 0 0 / 46px 38px,
     linear-gradient(180deg, var(--sand-light), var(--sand) 30%, var(--sand-dark));
@@ -1212,4 +1215,286 @@ body[data-screen='won'] #dock > * {
 
 .target:has(.mirror-ghost) > .art {
   opacity: 0.15;
+}
+
+/* ---------- The reef: coral and seaweed growing up from the sand at both edges ---------- */
+
+.reef {
+  position: fixed;
+  right: 0;
+  bottom: calc(var(--sand-height, 120px) - 8px);
+  left: 0;
+  z-index: 0;
+  height: 120px;
+  pointer-events: none;
+}
+
+body[data-screen='map'] .reef {
+  bottom: -10px;
+}
+
+.reef-piece {
+  position: absolute;
+  bottom: 0;
+  display: block;
+}
+
+.reef-piece svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.reef-coral {
+  width: 56px;
+  height: 75px;
+}
+
+.reef-weed {
+  width: 34px;
+  height: 96px;
+  transform-origin: 50% 100%;
+  animation: weed 4s ease-in-out infinite alternate;
+}
+
+.reef-brain {
+  width: 54px;
+  height: 31px;
+}
+
+.reef-left {
+  left: -6px;
+}
+
+.reef-left-2 {
+  left: 38px;
+}
+
+.reef-left-3 {
+  left: 8px;
+  bottom: -4px;
+}
+
+.reef-right {
+  right: 2px;
+  animation-delay: -2s;
+}
+
+.reef-right-2 {
+  right: 30px;
+}
+
+.reef-right-3 {
+  right: -10px;
+  bottom: -4px;
+}
+
+@keyframes weed {
+  from {
+    transform: rotate(-6deg);
+  }
+
+  to {
+    transform: rotate(6deg);
+  }
+}
+
+/* ---------- Funny reactions to a wrong critter, and the surprises ---------- */
+
+.blub {
+  position: absolute;
+  bottom: 40%;
+  left: var(--x);
+  z-index: 3;
+  width: var(--size);
+  height: var(--size);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff 0 18%, rgba(255, 255, 255, 0.35) 30%, rgba(120, 220, 245, 0.45));
+  box-shadow: 0 0 0 1px rgba(11, 130, 150, 0.45);
+  animation: blub 1.2s ease-out backwards;
+  pointer-events: none;
+}
+
+@keyframes blub {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.3);
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+    transform: translateY(var(--rise, -90px)) translateX(8px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--rise, -90px) - 12px)) translateX(8px) scale(1.6);
+  }
+}
+
+.art.woozy {
+  animation: woozy 1.05s ease-in-out;
+}
+
+@keyframes woozy {
+  20% {
+    transform: rotate(-25deg) scale(0.92);
+  }
+
+  45% {
+    transform: rotate(20deg) scale(1.05);
+  }
+
+  70% {
+    transform: rotate(-12deg);
+  }
+}
+
+.dizzy-stars {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  z-index: 3;
+  font-size: 1.8rem;
+  transform: translateX(-50%);
+  animation: dizzy-stars 1.2s linear;
+  pointer-events: none;
+}
+
+@keyframes dizzy-stars {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+.crab {
+  position: fixed;
+  z-index: 16;
+  font-size: 2.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 3px rgba(80, 50, 10, 0.4));
+  pointer-events: none;
+}
+
+.pinched {
+  animation: pinched 0.6s ease-out;
+}
+
+@keyframes pinched {
+  15% {
+    transform: translateY(-14px) rotate(8deg) scale(0.94);
+  }
+
+  40% {
+    transform: translateY(-4px) rotate(-6deg);
+  }
+}
+
+.swimmer {
+  position: fixed;
+  right: -70px;
+  z-index: 14;
+  font-size: 3rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* A golden set: the critters shine. */
+body[data-surprise='golden'] .art {
+  filter: drop-shadow(0 0 6px rgba(255, 220, 90, 0.95)) drop-shadow(0 4px 3px rgba(5, 63, 82, 0.35));
+}
+
+/* The hand hovering over the row on the sand, pointing down and drifting along it. */
+.hand.hand-sway {
+  transform: translate(-50%, -100%);
+  animation: hand-sway 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes hand-sway {
+  from {
+    transform: translate(calc(-50% - var(--sway, 0px)), -100%);
+  }
+
+  to {
+    transform: translate(calc(-50% + var(--sway, 0px)), -100%);
+  }
+}
+
+/* ---------- The win card's reef ---------- */
+
+.card {
+  background:
+    linear-gradient(180deg, transparent calc(100% - 18px), var(--sand) calc(100% - 18px)),
+    radial-gradient(circle at 30% 15%, #ffffff, var(--glass) 60%, #9fe9de);
+  background-clip: padding-box;
+}
+
+.card-reef {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+}
+
+.card-reef svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.card-coral {
+  bottom: -10px;
+  left: -22px;
+  width: 50px;
+  height: 66px;
+}
+
+.card-weed {
+  right: -16px;
+  bottom: -8px;
+  width: 30px;
+  height: 84px;
+  transform-origin: 50% 100%;
+  animation: weed 3.5s ease-in-out infinite alternate;
+}
+
+.card-star {
+  top: -20px;
+  left: calc(50% - 20px);
+  width: 40px;
+  height: 40px;
+  transform: rotate(-12deg);
+}
+
+.card-shell {
+  bottom: -14px;
+  left: 32%;
+  width: 34px;
+  height: 28px;
+}
+
+.card-helped {
+  font-size: 0.95rem;
+  color: var(--abyss);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reef-weed,
+  .card-weed,
+  .blub,
+  .art.woozy,
+  .dizzy-stars,
+  .pinched,
+  .hand.hand-sway {
+    animation: none;
+  }
 }

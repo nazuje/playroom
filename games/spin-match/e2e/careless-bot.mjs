@@ -1,14 +1,16 @@
 // A careless player: a child in a hurry who doesn't turn anything in their head. They glance at the target and grab
 // whichever critter looks most like it as it lies, then the next most alike (careless.ts); in "which two are the
-// same?" they grab the two cards that look most alike. They never use ↻ and never give up: when a try runs out
+// same?" they grab the two cards that look most alike. On the first world they mash ↻ once on every puzzle and
+// glance at the target as it then lies, which caps those levels at 2 stars. They never give up: when a try runs out
 // they tap 🔄 and go again at a fresh set. A level counts as lost once 5 tries have failed, which is when the game
 // offers to skip it. Ties go by a seeded random source, so a run can be repeated. Run `npx vite build` first.
 //
 // It passes when it wins every level up to 12, every first-world level on its first try (those tries can't fail),
-// loses every level from 13 on, and never earns 3 stars past world 1, since copying how the target lies costs a
-// miss in every set there and misses add up over every try.
+// loses every level from 13 on, never earns 3 stars past world 1, since copying how the target lies costs a miss
+// in every set there and misses add up over every try, and never earns 3 stars on a level where it used ↻.
 import { carelessPairs, carelessOrder } from '../src/rules/careless.ts';
 import { carelessGoal, LEVELS, seeded } from '../src/rules/levels.ts';
+import { turn } from '../src/rules/shapes.ts';
 import { pairKey } from '../src/rules/play.ts';
 import { allOpen, launch, openLevel, openPage, pickOption, pickPair, puzzleOn, ready, screenIs, serve, SHOTS, tapCard, touch } from './lib.mjs';
 
@@ -25,7 +27,13 @@ async function oneTry(page, random) {
     if (now.status === 'failed') return 'failed';
     const puzzle = await puzzleOn(page);
     const step = now.step;
-    const order = puzzle.kind === 'pairs' ? carelessPairs(puzzle.options, random) : carelessOrder(puzzle.target, puzzle.options, random).map((at) => [at]);
+    if (puzzle.world === 'spin') {
+      await touch(page, '#board .helper');
+      await page.waitForFunction((was) => document.body.dataset.turned !== was, now.turned);
+      now = await status(page);
+    }
+    const shown = turn(puzzle.target, Number(now.turned ?? 0));
+    const order = puzzle.kind === 'pairs' ? carelessPairs(puzzle.options, random) : carelessOrder(shown, puzzle.options, random).map((at) => [at]);
     const tried = new Set();
     for (const choice of order) {
       if (choice.length === 2) {
@@ -76,7 +84,7 @@ async function main() {
         await screenIs(page, 'won');
         const { stars, levelMisses: misses } = await status(page);
         console.log(`level ${String(id).padStart(2)} ${world.padEnd(6)} won  on try ${tries} with ${misses ?? 0} miss(es) ${'★'.repeat(Number(stars))}`);
-        if (Number(stars) === 3 && world !== 'spin') lucky.push(id);
+        if (Number(stars) === 3 && (world !== 'spin' || (await status(page)).helped === 'true')) lucky.push(id);
         if (world === 'spin' && tries > 1) slow.push(id);
         await tapCard(page, 'map');
       } else {
@@ -102,7 +110,7 @@ async function main() {
   const earlyWon = early.filter((level) => results.get(level.id)).length;
   const lateLost = late.every((level) => !results.get(level.id));
   console.log(`early levels (1 to ${early.length}) won: ${earlyWon} of ${early.length}; late levels (${late[0].id} to ${late.at(-1).id}) all lost: ${lateLost ? 'yes' : 'no'}`);
-  console.log(`3 stars past world 1: ${lucky.length ? lucky.join(', ') : 'never'}`);
+  console.log(`3 stars past world 1 or after using ↻: ${lucky.length ? lucky.join(', ') : 'never'}`);
   console.log(`first-world levels that needed a second try: ${slow.length ? slow.join(', ') : 'none'}`);
   process.exit(earlyWon === early.length && lateLost && !lucky.length && !slow.length && !problems.length ? 0 : 1);
 }

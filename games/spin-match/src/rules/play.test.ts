@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { missLimit, puzzleFor, SET, setFor, type Puzzle } from './levels.ts';
+import { LEVELS, missLimit, puzzleFor, SET, setFor, type Puzzle } from './levels.ts';
 import { addHint, addMiss, cleanHints, cleanMisses, missesSoFar, settle, settleHint, starsFor } from './misses.ts';
 import { answer, answerPair, pairKey, startPlay } from './play.ts';
 import { addSkip, addWin, cleanProgress, emptyProgress, isOpen, nextLevel, totalStars } from './progress.ts';
@@ -103,6 +103,10 @@ describe('stars, misses and progress', () => {
   it('gives stars for every miss since the level was last won, and keeps three for a solve with no ↻ hint', () => {
     expect([0, 1, 2, 3, 4, 9].map((misses) => starsFor(misses))).toEqual([3, 2, 2, 1, 1, 1]);
     expect([0, 1, 2, 3].map((misses) => starsFor(misses, true))).toEqual([2, 2, 2, 1]);
+    // Turning the target until it matches never buys three stars, on any world that has ↻.
+    for (let misses = 0; misses < 10; misses += 1) expect(starsFor(misses, true)).toBeLessThan(3);
+    for (const level of LEVELS) expect(['hint', 'none']).toContain(level.helper);
+    expect(LEVELS.filter((level) => level.helper === 'hint').map((level) => level.world)).toEqual([...Array(4).fill('spin'), ...Array(5).fill('turn'), ...Array(5).fill('mirror')]);
   });
 
   it('adds misses and hints up over every try until a win settles them', () => {

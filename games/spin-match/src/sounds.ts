@@ -52,6 +52,13 @@ export function oddSound(): void {
   later(200, () => notes([[0, 440], [170, 349]], 'triangle', 0.14, 0.2));
 }
 
+/** The funny reactions: a stream of bubbles, a woozy wobble, or a crab's snip-snip. */
+export function funnySound(kind: 'bubbles' | 'dizzy' | 'crab'): void {
+  if (kind === 'bubbles') notes([[0, 880], [90, 1047], [180, 1175], [270, 1397], [360, 1568]], 'sine', 0.06, 0.14);
+  else if (kind === 'dizzy') notes([[0, 523], [140, 466], [280, 523], [420, 440]], 'sine', 0.14, 0.16);
+  else later(600, () => notes([[0, 2093], [110, 2093]], 'square', 0.03, 0.08));
+}
+
 /** A clearly different shape bounces away. */
 export const shapeSound = (): void => playSound('boing');
 

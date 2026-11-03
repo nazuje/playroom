@@ -3,13 +3,14 @@
 // spin when a try runs out, the ↻ button, the hint, the idle nudge and the one-time demos of each new idea.
 import { burst, say, speak, store } from '@playroom/kit';
 import { text } from '../lang/index.ts';
-import type { Puzzle } from '../rules/levels.ts';
+import { SET, surpriseFor, type Puzzle } from '../rules/levels.ts';
 import { starsFor } from '../rules/misses.ts';
 import { answer, answerPair, pairKey, puzzleOf, startPlay, type Answered, type Feedback, type Play } from '../rules/play.ts';
 import { keyOf, turn, turnBetween } from '../rules/shapes.ts';
-import { bubbleSound, dizzySound, flipSound, hintSound, oddSound, pickSound, shapeSound, snapSound, stopSounds, turnSound, whirrSound } from '../sounds.ts';
+import { bubbleSound, dizzySound, flipSound, funnySound, hintSound, oddSound, pickSound, shapeSound, snapSound, stopSounds, turnSound, whirrSound } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
-import { critterArt, markTiles } from '../view/art.ts';
+import { critterArt, GOLDEN, markTiles } from '../view/art.ts';
+import { FUNNIES, funny, swimPast } from '../view/fun.ts';
 import type { BoardView } from '../view/board.ts';
 import type { DemoStep, Guide } from '../view/guide.ts';
 
@@ -72,11 +73,11 @@ export interface PlayScreen {
 }
 
 /** A new idea gets a demo the first time it appears. */
-type Demo = 'turn' | 'mirror' | 'colour' | 'pairs';
+type Demo = 'look' | 'helper' | 'mirror' | 'colour' | 'pairs';
 
 function demoFor(puzzle: Puzzle): Demo | null {
   if (puzzle.kind === 'pairs') return 'pairs';
-  if (puzzle.world === 'spin') return 'turn';
+  if (puzzle.world === 'spin') return 'look';
   if (puzzle.world === 'mirror') return 'mirror';
   if (puzzle.world === 'colour') return 'colour';
   return null;
@@ -95,7 +96,11 @@ function replay(target: Element | null | undefined, className: string, ms: numbe
 const shortest = (quarters: number): number => (quarters === 3 ? -1 : quarters);
 
 export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
-  const { puzzles, board, dock, guide } = options;
+  const { board, dock, guide } = options;
+  // About one set in eight is a surprise: golden critters, or a fish that spins past at every snap.
+  const surprise = surpriseFor(options.puzzles[0].id, Math.floor(options.puzzles[0].go / SET));
+  const puzzles = surprise === 'golden' ? options.puzzles.map((one) => ({ ...one, body: GOLDEN })) : options.puzzles;
+  document.body.dataset.surprise = surprise ?? '';
   let play: Play = startPlay(puzzles);
   let puzzle = puzzleOf(play);
   let busy = false;
@@ -131,6 +136,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     body.kind = puzzle.kind;
     body.turned = String(board.turned);
     body.selected = selected === null ? '' : String(selected);
+    body.helped = String(helped);
     body.status = play.won ? 'won' : busy ? 'busy' : play.failed ? 'failed' : 'playing';
   }
 
@@ -270,6 +276,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const box = board.art(puzzle.kind === 'pairs' ? 0 : undefined)?.getBoundingClientRect();
     if (box && !calm()) burst(box.left + box.width / 2, box.top + box.height / 2, 20);
     board.pearls(result.solvedOne ? play.at : puzzles.length, puzzles.length);
+    if (surprise === 'swimmer' && box) swimPast(box.top + box.height * 0.2, cheers % 2 === 0 ? '🐠' : '🐟');
     void say(text().cheers[cheers % text().cheers.length]);
     cheers += 1;
     later(AFTER_SNAP_MS, result.solvedOne ? nextPuzzle : win);
@@ -311,18 +318,23 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   function react(holder: HTMLElement, art: SVGSVGElement, feedback: Feedback): void {
     const lines = feedback.kind === 'mirror' ? text().backwards : feedback.kind === 'tiles' ? text().moved : text().otherShape;
     const line = lines[reactions % lines.length];
+    // A funny reaction in turn: bubbles, dizzy stars, or a crab that pinches the critter away.
+    const silly = FUNNIES[reactions % FUNNIES.length];
     reactions += 1;
     void say(line);
     if (feedback.kind === 'mirror') {
       flipSound();
       // Flipped over, a backwards critter is the target turned: that is what "backwards" means.
       replay(art, 'flip', 1150);
-    } else if (feedback.kind === 'tiles') {
-      oddSound();
-      replay(holder, 'wobble', 700);
+      later(900, () => {
+        funny(silly === 'dizzy' ? 'bubbles' : silly, holder, art);
+        funnySound(silly === 'dizzy' ? 'bubbles' : silly);
+      });
     } else {
-      shapeSound();
-      replay(holder, 'wobble', 700);
+      if (feedback.kind === 'tiles') oddSound();
+      else shapeSound();
+      funny(silly, holder, art);
+      funnySound(silly);
     }
     showMark(holder, art, feedback);
   }
@@ -340,7 +352,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
       after();
       busy = false;
       drawDock();
-      showHint();
+      // ↻ is introduced after the first miss, as a way to help: it glows, and the hand shows where it is.
+      if (puzzle.helper === 'none' || !demoOnce('helper', 0)) showHint();
     });
   }
 
@@ -350,6 +363,9 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     [...dock.querySelectorAll<HTMLElement>('.pebble')].map((one) => ({ at: () => one, ms: SWEEP_STEP_MS, run: () => bounce(one) }));
 
   const toTarget = (ms: number): DemoStep => ({ at: () => board.target(), ms, className: 'hop' });
+
+  /** The hand ends hovering over the whole row on the sand, drifting along it: "pick one from here". */
+  const toSand: DemoStep = { at: () => dock.querySelector('.bed'), ms: 1200, sway: true };
 
   function showHint(): void {
     if (hinted || guide.busy || totalMisses < MISSES_BEFORE_HINT || play.won || play.failed) return;
@@ -370,15 +386,15 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   /**
    * The nudge after a quiet spell: the hand taps the target, then travels across the sand as each critter hops
-   * under it, and comes back to rest on the target. It never stops on a critter, which would look like the
-   * answer. After a lost try it points at the retry button.
+   * under it, and stays hovering over the row on the sand, drifting along it. It never stops on a critter, which
+   * would look like the answer. After a lost try it points at the retry button.
    */
   function nudge(): void {
     if (play.failed) {
       guide.point(dock.querySelector('[data-action="retry"]'));
       return;
     }
-    guide.demo([toTarget(800), ...sweep(), toTarget(900)], true);
+    guide.demo([toTarget(900), ...sweep(), toSand], true);
   }
 
   function armIdle(wait = IDLE_MS): void {
@@ -405,23 +421,10 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   }
 
   function demoSteps(demo: Demo): DemoStep[] {
-    if (demo === 'turn') {
-      return [
-        {
-          at: () => board.helper(),
-          ms: 1100,
-          className: 'glow',
-          run: () => {
-            board.turnTarget();
-            turnSound();
-            mark();
-          },
-        },
-        toTarget(1000),
-        ...sweep(),
-        toTarget(700),
-      ];
-    }
+    // Look at the target, then pick from the sand.
+    if (demo === 'look') return [toTarget(1400), ...sweep().map((step) => ({ ...step, ms: 420 })), toSand];
+    // ↻ glows without being pressed, since pressing it is a hint.
+    if (demo === 'helper') return [{ at: () => board.helper(), ms: 1800, className: 'glow', run: bubbleSound }, toTarget(700), toSand];
     if (demo === 'mirror') {
       return [
         {
@@ -433,27 +436,32 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
           },
         },
         ...sweep(),
-        toTarget(700),
+        toSand,
       ];
     }
-    if (demo === 'colour') return [{ at: () => board.target(), ms: 1800, run: () => board.glowAccents() }, ...sweep(), toTarget(700)];
+    if (demo === 'colour') return [{ at: () => board.target(), ms: 1800, run: () => board.glowAccents() }, ...sweep(), toSand];
     return [
       { at: () => board.slot(0), ms: 800, className: 'hop', run: bubbleSound },
       { at: () => board.slot(1), ms: 800, className: 'hop', run: bubbleSound },
       ...sweep(),
-      toTarget(700),
+      toSand,
     ];
+  }
+
+  /** Shows a demo once ever, unless it has been seen. */
+  function demoOnce(demo: Demo | null, wait: number): boolean {
+    const seen = shown();
+    if (!demo || seen.includes(demo)) return false;
+    store.set(SHOWN_KEY, [...seen, demo]);
+    later(wait, () => {
+      if (!busy && !play.won) guide.demo(demoSteps(demo), true);
+    });
+    return true;
   }
 
   /** The first time an idea appears, the hand shows it once without words. */
   function runDemos(): void {
-    const demo = demoFor(puzzle);
-    const seen = shown();
-    if (!demo || seen.includes(demo)) return;
-    store.set(SHOWN_KEY, [...seen, demo]);
-    later(DEMO_AFTER_MS, () => {
-      if (!busy && !play.won) guide.demo(demoSteps(demo));
-    });
+    demoOnce(demoFor(puzzle), DEMO_AFTER_MS);
   }
 
   // ---------- Taps ----------
@@ -472,7 +480,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     guide.hide();
     board.turnTarget();
     turnSound();
-    if (puzzle.helper === 'hint' && !helped) {
+    if (puzzle.helper !== 'none' && !helped) {
       helped = true;
       options.onHint();
     }

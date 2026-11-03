@@ -10,10 +10,15 @@ export interface DemoStep {
   className?: string;
   /** Something to run as the step starts, such as pieces flying together. */
   run?: () => void;
+  /**
+   * Hover above a whole row instead of tapping one thing: the hand points down at the row and drifts slowly along
+   * it, so it never rests on any one critter.
+   */
+  sway?: boolean;
 }
 
 export interface Guide {
-  point(target: Element | null): void;
+  point(target: Element | null, sway?: boolean): void;
   hide(): void;
   /** Points at each step in turn, then hides, or with rest stays on the last step. A new call or hide() stops it. */
   demo(steps: readonly DemoStep[], rest?: boolean): void;
@@ -37,18 +42,21 @@ export function createGuide(): Guide {
     className = '';
   }
 
-  function point(target: Element | null): void {
+  function point(target: Element | null, sway = false): void {
     if (!target) {
       hand.hidden = true;
       return;
     }
     const box = target.getBoundingClientRect();
     hand.style.left = `${box.left + box.width / 2}px`;
-    hand.style.top = `${box.top + box.height / 2}px`;
+    hand.style.top = sway ? `${box.top - 6}px` : `${box.top + box.height / 2}px`;
+    hand.style.setProperty('--sway', `${Math.max(0, box.width / 2 - 30)}px`);
+    hand.textContent = sway ? '👇' : '👆';
     hand.hidden = false;
-    hand.classList.remove('hand-tap');
+    hand.classList.remove('hand-tap', 'hand-sway');
     void hand.offsetWidth;
-    if (!calm()) hand.classList.add('hand-tap');
+    if (sway) hand.classList.add('hand-sway');
+    else if (!calm()) hand.classList.add('hand-tap');
   }
 
   function stop(): void {
@@ -59,9 +67,9 @@ export function createGuide(): Guide {
   }
 
   return {
-    point(target) {
+    point(target, sway = false) {
       stop();
-      point(target);
+      point(target, sway);
     },
     hide() {
       stop();
@@ -76,7 +84,7 @@ export function createGuide(): Guide {
           timers.delete(timer);
           unmark();
           const target = step.at();
-          point(target);
+          point(target, step.sway);
           step.run?.();
           if (target && step.className) {
             marked = target;

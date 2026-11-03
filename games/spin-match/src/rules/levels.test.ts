@@ -4,6 +4,7 @@ import {
   carelessGoal,
   LEVEL_COUNT,
   LEVELS,
+  levelById,
   missLimit,
   needsFor,
   puzzleFor,
@@ -11,6 +12,7 @@ import {
   puzzleKey,
   SET,
   setFor,
+  surpriseFor,
   tilesApart,
   turnKey,
   turnsFor,
@@ -19,7 +21,7 @@ import {
 } from './levels.ts';
 import { feedbackFor } from './play.ts';
 import { ACCENTS, bare, difference, FACE, freeKey, isTurnOf, keyOf, noSymmetry, relation, sideOf, turnBetween } from './shapes.ts';
-import { solveMatch, solvePairs } from './solve.ts';
+import { allPairs, solveMatch, solvePairs } from './solve.ts';
 
 const GOES = 20;
 const everyGo: Puzzle[] = LEVELS.flatMap((level) => Array.from({ length: GOES }, (_, go) => puzzleFor(level.id, go) as Puzzle));
@@ -141,22 +143,82 @@ describe('every puzzle', () => {
   });
 });
 
+describe('where the right answer sits', () => {
+  // Every go of a level in play order: the sets of every try and replay follow one another.
+  const RUN = 40;
+  /** The first world has only two places, so it is quick to make and needs more goes to tell luck from a pattern. */
+  const lengthOf = (id: number): number => (levelById(id)?.options === 2 ? RUN * 3 : RUN);
+  const runOf = (id: number): Puzzle[] => Array.from({ length: lengthOf(id) }, (_, go) => puzzleFor(id, go) as Puzzle);
+  /** Where the answer is, as one of the places a child can tap: an option, or one of the pairs of cards. */
+  const placeOf = (puzzle: Puzzle): number => {
+    if (puzzle.kind === 'match') return puzzle.answer;
+    const [first, second] = puzzle.pair as [number, number];
+    return allPairs(puzzle.options.length).findIndex(([a, b]) => a === first && b === second);
+  };
+  const placesIn = (puzzle: Puzzle): number => (puzzle.kind === 'match' ? puzzle.options.length : allPairs(puzzle.options.length).length);
+
+  /** Strategies that tap by place, never looking: each guesses a place from the go and the last answer. */
+  const strategies = (places: number): [string, (go: number, step: number, last: number | null) => number][] => [
+    ...Array.from({ length: places }, (_, at) => [`always place ${at}`, () => at] as [string, () => number]),
+    ...Array.from({ length: places }, (_, shift) => [`cycling from ${shift}`, (go: number) => (go + shift) % places] as [string, (go: number) => number]),
+    ...Array.from({ length: places }, (_, shift) => [`cycling within a set from ${shift}`, (_go: number, step: number) => (step + shift) % places] as [string, (go: number, step: number) => number]),
+    ['the same as last time', (_go, _step, last) => last ?? 0],
+    ['one along from last time', (_go, _step, last) => ((last ?? 0) + 1) % places],
+    ['one back from last time', (_go, _step, last) => ((last ?? 0) + places - 1) % places],
+  ];
+
+  it('is a seeded shuffle: the same every time, and every place gets the answer', () => {
+    for (const level of LEVELS) {
+      const run = runOf(level.id);
+      for (const go of [5, 17, 33]) expect(placeOf(makePuzzle(level.id, go) as Puzzle), `level ${level.id} go ${go}`).toBe(placeOf(run[go]));
+      if (level.kind === 'match') expect(new Set(run.map(placeOf)).size, `level ${level.id}`).toBe(level.options);
+    }
+  }, 60000);
+
+  it('lets no tapping-by-place strategy beat chance by much, across sets and tries, in any world or in pairs', () => {
+    // Levels with the same number of places are pooled, so there are enough goes to tell luck from a pattern.
+    const groups = new Map<number, Puzzle[][]>();
+    for (const level of LEVELS) {
+      const run = runOf(level.id);
+      const places = placesIn(run[0]);
+      groups.set(places, [...(groups.get(places) ?? []), run]);
+    }
+    for (const [places, runs] of groups) {
+      const chance = 1 / places;
+      const tries = runs.reduce((sum, run) => sum + run.length, 0);
+      // Three standard deviations of pure luck, and never less than 8 points.
+      const allowed = chance + Math.max(0.08, 3 * Math.sqrt((chance * (1 - chance)) / tries));
+      for (const [name, guess] of strategies(places)) {
+        let hits = 0;
+        for (const run of runs) {
+          let last: number | null = null;
+          run.forEach((puzzle, go) => {
+            if (guess(go, go % SET, last) === placeOf(puzzle)) hits += 1;
+            last = placeOf(puzzle);
+          });
+        }
+        expect(hits / tries, `${places} places, ${name}`).toBeLessThan(allowed);
+      }
+    }
+  }, 60000);
+});
+
 describe('the staircase', () => {
-  it('starts with big four-tile critters with a face, two options and a free ↻', () => {
+  it('starts with big four-tile critters with a face, two options and ↻ as a hint', () => {
     for (const puzzle of inWorld('spin')) {
       expect(puzzle.options).toHaveLength(2);
       expect(puzzle.big).toBe(true);
-      expect(puzzle.helper).toBe('free');
+      expect(puzzle.helper).toBe('hint');
       expect(puzzle.target).toHaveLength(4);
       expect(puzzle.target.filter((tile) => tile.paint === FACE)).toHaveLength(1);
       expect(missLimit(puzzle)).toBe(Infinity);
     }
   });
 
-  it('then three options turned a quarter or a half, wrong ones clearly other shapes, ↻ still free', () => {
+  it('then three options turned a quarter or a half, wrong ones clearly other shapes, ↻ still there', () => {
     for (const puzzle of inWorld('turn')) {
       expect(puzzle.options).toHaveLength(3);
-      expect(puzzle.helper).toBe('free');
+      expect(puzzle.helper).toBe('hint');
       expect([1, 2]).toContain(turnBetween(puzzle.target, puzzle.options[puzzle.answer]));
       expect(new Set(puzzle.slips.filter(Boolean))).toEqual(new Set(['shape']));
     }
@@ -218,6 +280,15 @@ describe('the staircase', () => {
     const early = LEVELS.filter((level) => level.id <= 12);
     expect(early.every((level) => carelessGoal(level.id) === 'wins')).toBe(true);
     expect(LEVELS.filter((level) => level.id > 12).every((level) => carelessGoal(level.id) === 'loses')).toBe(true);
+  });
+
+  it('makes about one set in eight a surprise, the same every time', () => {
+    const all = LEVELS.flatMap((level) => Array.from({ length: 40 }, (_, set) => surpriseFor(level.id, set)));
+    const share = all.filter(Boolean).length / all.length;
+    expect(share).toBeGreaterThan(0.08);
+    expect(share).toBeLessThan(0.18);
+    expect(new Set(all.filter(Boolean))).toEqual(new Set(['golden', 'swimmer']));
+    expect(surpriseFor(7, 3)).toBe(surpriseFor(7, 3));
   });
 
   it('makes guessing at random rarely win a late try', () => {

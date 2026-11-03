@@ -2,6 +2,7 @@ import { burst } from '@playroom/kit';
 import { text } from '../lang/index.ts';
 import { LEVELS, WORLDS, type Level, type WorldId } from '../rules/levels.ts';
 import { critterArt } from '../view/art.ts';
+import { cardReef } from '../view/reef.ts';
 import { isDone, isOpen, nextLevel, type Progress } from '../rules/progress.ts';
 import { pickSound } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
@@ -113,7 +114,10 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
   const line = element('p', 'card-line');
   line.textContent = text()[`stars${report.stars}` as 'stars1' | 'stars2' | 'stars3'];
   const small = element('p', 'card-small');
-  small.textContent = report.misses > 0 ? text().misses(report.misses) : text().helped;
+  small.textContent = text().misses(report.misses);
+  // A small cue for the grown-up: ↻ was used, so the best here is 2 stars.
+  const helped = element('p', 'card-small card-helped');
+  helped.textContent = text().helped;
   // Replay and the map sit small in the top corners, away from the big "next level" button a mashing hand finds.
   const row = element('div', 'card-row card-corners');
   const again = armedButton('card-btn card-small-btn', '🔄', onAgain, SMALL_AFTER_MS);
@@ -124,8 +128,9 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
   map.dataset.action = 'map';
   row.append(again, map);
   // Three stars already says "no mistakes", so the count only shows when there were some, or ↻ took a star.
-  panel.append(row, stars, line);
-  if (report.misses > 0 || report.hinted) panel.append(small);
+  panel.append(...cardReef(), row, stars, line);
+  if (report.misses > 0) panel.append(small);
+  if (report.hinted) panel.append(helped);
   if (onNext) {
     const next = armedButton('card-btn card-main card-next', `${text().next} ▶`, onNext);
     next.dataset.action = 'next';
@@ -184,7 +189,7 @@ export function showFinale(host: HTMLElement, { report, totalStars, onMap }: Fin
   const map = armedButton('card-btn card-main', '🗺️', onMap);
   map.setAttribute('aria-label', text().levels);
   map.dataset.action = 'map';
-  panel.append(trophy, line, total, map);
+  panel.append(...cardReef(), trophy, line, total, map);
   host.append(panel);
   confetti();
   return () => panel.remove();

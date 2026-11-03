@@ -40,8 +40,11 @@ export type Kind = 'match' | 'pairs';
 /** What makes a wrong option wrong. */
 export type Slip = 'mirror' | 'moved' | 'paint' | 'shape';
 
-/** The ↻ button that turns the target on screen: free, a hint that costs the third star, or not there. */
-export type Helper = 'free' | 'hint' | 'none';
+/**
+ * The ↻ button that turns the target on screen, on the first three worlds. It is always fine to use, but it is a
+ * hint: a set where it was used earns 2 stars at most, so turning the target until it matches never buys 3.
+ */
+export type Helper = 'hint' | 'none';
 
 interface Spec {
   world: WorldId;
@@ -142,27 +145,27 @@ const S4 = ['.##', '##.'];
 /** Simple shapes for the first worlds' wrong options: a line, a square, a little corner and the first critters. */
 const SIMPLE = [L4, T4, S4, ['###'], ['####'], ['##', '##'], ['#.', '##']];
 
-const SPIN = { world: 'spin', kind: 'match', options: 2, side: 3, turns: [1, 2], face: true, accents: [], slips: ['shape'], needs: [], helper: 'free', careless: 'wins', symmetric: true } as const;
-const TURN = { world: 'turn', kind: 'match', options: 3, side: 3, turns: [1, 2], face: true, accents: [], slips: ['shape'], needs: [], helper: 'free', careless: 'wins', symmetric: true } as const;
+const SPIN = { world: 'spin', kind: 'match', options: 2, side: 3, turns: [1, 2], face: true, accents: [], slips: ['shape'], needs: [], helper: 'hint', careless: 'wins', symmetric: true } as const;
+const TURN = { world: 'turn', kind: 'match', options: 3, side: 3, turns: [1, 2], face: true, accents: [], slips: ['shape'], needs: [], helper: 'hint', careless: 'wins', symmetric: true } as const;
 const MIRROR = { world: 'mirror', kind: 'match', options: 4, side: 4, turns: [1, 2, 3], face: true, accents: [], helper: 'hint', symmetric: false } as const;
 const COLOUR = { world: 'colour', kind: 'match', options: 4, side: 4, turns: [1, 2, 3], face: true, helper: 'none', careless: 'loses', symmetric: false } as const;
 const TRICKY = { world: 'tricky', options: 5, side: 4, turns: [1, 2, 3], face: false, accents: [GEM], helper: 'none', careless: 'loses', symmetric: false } as const;
 
 const SPECS: Spec[] = [
-  // 1. Spin: big friendly critters, two options and a free ↻ that turns the target, to find out what "turned" means.
+  // 1. Spin: big friendly critters and two options, to find out what "turned" means. ↻ turns the target, as a hint.
   { ...SPIN, cells: [4], shapes: [L4] },
   { ...SPIN, cells: [4], shapes: [T4] },
   { ...SPIN, cells: [4], shapes: [S4, L4] },
   { ...SPIN, cells: [4], shapes: [L4, T4, S4] },
 
-  // 2. Turn: three options, a quarter or half turn, the ↻ still free. Wrong options are clearly different shapes.
+  // 2. Turn: three options, a quarter or half turn, ↻ still there. Wrong options are clearly different shapes.
   { ...TURN, cells: [4] },
   { ...TURN, cells: [4] },
   { ...TURN, cells: [4, 5] },
   { ...TURN, cells: [5] },
   { ...TURN, cells: [5] },
 
-  // 3. Mirror: one option is the target backwards. Using ↻ is fine, but a three-star solve doesn't.
+  // 3. Mirror: one option is the target backwards. ↻ is there for the last time.
   { ...MIRROR, cells: [4, 5], slips: ['mirror', 'shape'], needs: ['mirror'], careless: 'wins' },
   { ...MIRROR, cells: [5], slips: ['mirror', 'shape'], needs: ['mirror'], careless: 'wins' },
   { ...MIRROR, cells: [5], slips: ['mirror', 'moved'], needs: ['mirror', 'moved'], careless: 'wins' },
@@ -514,6 +517,18 @@ export const levelById = (id: number): Level | undefined => LEVELS.find((level) 
 
 /** What a puzzle looks like, so two goes can be told apart. */
 export const puzzleKey = (puzzle: Puzzle): string => [puzzle.target, ...puzzle.options].map(keyOf).join('|');
+
+export type Surprise = 'golden' | 'swimmer';
+
+/**
+ * About one set in eight is a surprise, the same one on every device: golden critters, or a turtle or a fish that
+ * swims past doing a spin each time a critter snaps into place.
+ */
+export function surpriseFor(id: number, set: number): Surprise | null {
+  const random = seeded(SEED * 3 + id * 613 + set * 7727);
+  if (random() >= 1 / 8) return null;
+  return random() < 0.5 ? 'golden' : 'swimmer';
+}
 
 /** The order the careless eye taps a match puzzle's options in, for the careless bot. */
 export const carelessTaps = (puzzle: Puzzle, random: Random): number[] => carelessOrder(puzzle.target, puzzle.options, random);

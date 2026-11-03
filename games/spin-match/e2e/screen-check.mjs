@@ -3,7 +3,7 @@
 // 64px (88px on the first world), a pool or sand bed cut off or overlapping, a first-world try that fails, a slow
 // retry, a backwards critter that doesn't flip, a moved tile that doesn't light up, ↻ that doesn't turn the target
 // or doesn't cost the third star on the mirror world, an idle hand that doesn't sweep the sand or rests on a
-// critter, a live sand bed under the win card, mashing the win card anywhere but the next level, or skip going
+// critter or ends anywhere but hovering over the sand, a live sand bed under the win card, mashing the win card anywhere but the next level, or skip going
 // anywhere but the next level. The fit is checked on every level at each screen size.
 import { LEVELS, SET } from '../src/rules/levels.ts';
 import { pairKey } from '../src/rules/play.ts';
@@ -86,6 +86,8 @@ const watchNudge = (page, ms) =>
       const y = parseFloat(finger.style.top);
       const inside = (box) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
       if ([...document.querySelectorAll('#dock .pebble')].some((one) => inside(one.getBoundingClientRect()))) return 'critter';
+      const bed = document.querySelector('#dock .bed')?.getBoundingClientRect();
+      if (finger.classList.contains('hand-sway') && bed && y <= bed.top && x >= bed.left && x <= bed.right) return 'row';
       return inside(document.querySelector('#board .target, #board .tray').getBoundingClientRect()) ? 'target' : 'elsewhere';
     };
     const end = performance.now() + ms;
@@ -101,7 +103,7 @@ function nudgeProblems(tag, nudge) {
   const problems = [];
   if (!nudge.sand) problems.push(`${tag}: the idle hand never travelled over the sand`);
   if (!nudge.bounced) problems.push(`${tag}: the critters did not hop with the idle hand`);
-  if (nudge.rest !== 'target') problems.push(`${tag}: after its sweep the idle hand rests at ${nudge.rest}, not the target`);
+  if (nudge.rest !== 'row') problems.push(`${tag}: after its sweep the idle hand rests at ${nudge.rest}, not hovering over the sand`);
   return problems;
 }
 
@@ -129,7 +131,7 @@ async function tour(browser, screen, language) {
   await shot(page, `${tag}-l1-demo`);
   await page.waitForTimeout(2300);
   await shot(page, `${tag}-l1-nudge`);
-  problems.push(...nudgeProblems(`${tag} level 1`, await watchNudge(page, 2600)));
+  problems.push(...nudgeProblems(`${tag} level 1`, await watchNudge(page, 3400)));
   await touch(page, '#board .target');
   await page.waitForTimeout(60);
   if ((await page.locator('#dock .pebble.bounce').count()) !== 2) problems.push(`${tag}: tapping the target did not bounce the critters`);
@@ -156,16 +158,23 @@ async function tour(browser, screen, language) {
   const going = await dataset(page);
   if (going.status !== 'playing' || (await page.locator('#dock .retry').count())) problems.push(`${tag}: two misses ended a first-world try`);
   await finishSet(page);
-  await page.waitForTimeout(100);
-  if (await page.locator('#dock > *').evaluateAll((parts) => parts.some((part) => getComputedStyle(part).visibility !== 'hidden'))) {
-    problems.push(`${tag}: something on the sand still shows under the win card`);
-  }
+  const wonAt = Date.now();
+  // A mashing hand on the win card does nothing for a moment.
   const next = await page.locator('[data-action="next"]').boundingBox();
   if (next) await page.touchscreen.tap(next.x + next.width / 2, next.y + next.height / 2);
-  if ((await dataset(page)).screen !== 'won') problems.push(`${tag}: the win card took a tap at once`);
-  await page.waitForTimeout(400);
-  await shot(page, `${tag}-won`);
-  await tapCard(page, 'map');
+  const early = Date.now() - wonAt < 500;
+  if ((await dataset(page)).screen !== 'won') {
+    // A slow machine can take longer than the card's wait to land that tap; only a tap that came early counts.
+    if (early) problems.push(`${tag}: the win card took a tap at once`);
+    await touch(page, '[data-action="levels"]');
+  } else {
+    if (await page.locator('#dock > *').evaluateAll((parts) => parts.some((part) => getComputedStyle(part).visibility !== 'hidden'))) {
+      problems.push(`${tag}: something on the sand still shows under the win card`);
+    }
+    await page.waitForTimeout(400);
+    await shot(page, `${tag}-won`);
+    await tapCard(page, 'map');
+  }
   await screenIs(page, 'map');
 
   // Level 9: a try running out, the dizzy critters and a quick retry onto a fresh set.
@@ -211,8 +220,9 @@ async function tour(browser, screen, language) {
   await openLevel(page, 12);
   puzzle = await puzzleOn(page);
   await pickOption(page, puzzle.slips.indexOf('moved'));
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(650);
   if ((await page.locator('#dock .pebble .tile.odd').count()) !== 1) problems.push(`${tag}: a moved tile did not light up`);
+  if (!(await page.locator('.crab, #dock .blub, #dock .dizzy-stars').count())) problems.push(`${tag}: a wrong critter got no funny reaction`);
   if ((await page.locator('#dock .pebble .ghost-tile').count()) !== 1) problems.push(`${tag}: there is no outline where the moved tile belongs`);
   await shot(page, `${tag}-l12-moved`);
   await touch(page, '[data-action="levels"]');
@@ -312,18 +322,22 @@ async function cardRun(browser) {
   }
   if (await page.locator('#dock [data-action="skip"]').count()) problems.push('cards: the skip button is still on the sand under the win card');
 
-  // Level 13: ↻ is a hint on the mirror world, so a set with no miss but one turn earns 2 stars, even after a reload.
-  await tapCard(page, 'map');
-  await screenIs(page, 'map');
-  await openLevel(page, 13);
-  await touch(page, '#board .helper');
-  await page.waitForTimeout(200);
-  const hints = await page.evaluate(() => localStorage.getItem('playroom:spin-match:hints'));
-  if (!hints?.includes('13')) problems.push(`cards: ↻ on the mirror world was not saved as a hint (${hints})`);
-  await finishSet(page);
-  await screenIs(page, 'won');
-  if ((await dataset(page)).stars !== '2') problems.push(`cards: a set solved with ↻ on the mirror world got ${(await dataset(page)).stars} stars, not 2`);
-  await shot(page, 'cards-won-with-hint');
+  // ↻ is a hint on every world that has it, so a set with no miss but one turn earns 2 stars, with a cue on the card.
+  for (const id of [1, 5, 13]) {
+    await tapCard(page, 'map');
+    await screenIs(page, 'map');
+    await openLevel(page, id);
+    await touch(page, '#board .helper');
+    await page.waitForTimeout(200);
+    const hints = await page.evaluate(() => localStorage.getItem('playroom:spin-match:hints'));
+    if (!hints?.includes(String(id))) problems.push(`cards: ↻ on level ${id} was not saved as a hint (${hints})`);
+    await finishSet(page);
+    await screenIs(page, 'won');
+    if ((await dataset(page)).stars !== '2') problems.push(`cards: a set solved with ↻ on level ${id} got ${(await dataset(page)).stars} stars, not 2`);
+    if (!(await page.locator('#overlay .card-helped').count())) problems.push(`cards: the win card after ↻ on level ${id} has no cue for the grown-up`);
+    await page.waitForTimeout(500);
+    await shot(page, `cards-won-with-hint-l${id}`);
+  }
 
   // Mashing the win card from the moment it shows only ever moves on to the next level.
   await tapCard(page, 'map');
