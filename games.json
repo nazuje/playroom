@@ -760,5 +760,32 @@
     },
     "color": "#b5179e",
     "status": "ready"
+  },
+  {
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "status": "ready",
+    "slug": "spin-match",
+    "title": "Spin Match",
+    "emoji": "🌀",
+    "tagline": "Turn it in your head. Which one is the same?",
+    "skills": [
+      "logic",
+      "challenge"
+    ],
+    "ages": "5-12",
+    "translations": {
+      "sl": {
+        "title": "Zavrti in najdi",
+        "tagline": "Zavrti v mislih. Kateri je enak?"
+      }
+    },
+    "color": "#06d6a0"
   }
 ]

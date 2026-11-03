@@ -1,0 +1,75 @@
+import type { Text } from './en.ts';
+
+export const sl: Text = {
+  title: 'Zavrti in najdi',
+  description:
+    'Uganke z vrtenjem v sončnem koralnem grebenu. Kateri stvorček je enak, samo zasukan? Pazi na tiste, ki so kot v ogledalu. Za otroke od 5 do 12 let, od velikih prijaznih oblik z gumbom za vrtenje do skoraj enakih dvojčkov, ob katerih razmišljajo tudi odrasli.',
+  home: 'Nazaj na igre',
+  sayAgain: 'Povej še enkrat',
+  showLevels: 'Izberi uganko',
+  restart: 'Nova uganka',
+  pickLevel: 'Izberi uganko!',
+  worlds: {
+    spin: 'Vrtenje',
+    turn: 'Zasuk',
+    mirror: 'Ogledalo',
+    colour: 'Barve',
+    tricky: 'Uganke za odrasle',
+  },
+  ideas: {
+    spin: 'Poišči enako obliko, samo zasukano!',
+    turn: 'Zavrti jo v mislih!',
+    mirror: 'Pazi! Nekatere so kot v ogledalu.',
+    colour: 'Poglej tudi barve!',
+    tricky: 'Zvite uganke! Dobro poglej.',
+  },
+  ask: 'Katera je enaka, samo zasukana?',
+  askPair: 'Katera dva sta enaka?',
+  cheers: ['Klik! Ujemata se!', 'Ja! Enaka, samo zasukana!', 'Zavrti in klik!'],
+  backwards: ['Ta je kot v ogledalu!', 'Ups! To je zrcalna slika.'],
+  moved: ['En kvadratek je drugje!', 'Poglej, en košček je drugačen!'],
+  otherShape: ['Bum! To je druga oblika.', 'Hopla! Ne ta.'],
+  failed: 'Ojoj, stvorčki so vsi omotični! Tukaj so novi.',
+  hint: 'Poglej!',
+  canSkip: 'To uganko lahko preskočiš.',
+  allDone: 'Vsi stvorčki se ujemajo! Bravo!',
+  stars1: 'Uspelo ti je!',
+  stars2: 'Pametno!',
+  stars3: 'Popolno! Brez napake!',
+  next: 'Naprej',
+  levels: 'Uganke',
+  again: 'Še enkrat',
+  skip: 'Preskoči',
+  level: (n) => `Uganka ${n}`,
+  locked: (n) => `Uganka ${n} je zaklenjena`,
+  misses: (n) => (n === 0 ? 'Brez napake.' : `Napake: ${n}.`),
+  helped: 'Z malo pomoči gumba ↻.',
+  retry: 'Poskusi nove stvorčke',
+  target: 'Stvorček, ki ga iščeš',
+  helper: 'Zavrti',
+  option: (n) => `Stvorček ${n}`,
+  tray: 'Izbrana dva',
+};
+
+/** Every line the game can say in Slovenian. Speech here is short, because the puzzles are pictures. */
+export function spokenLines(): string[] {
+  return [
+    ...new Set([
+      sl.pickLevel,
+      ...Object.values(sl.ideas),
+      sl.ask,
+      sl.askPair,
+      ...sl.cheers,
+      ...sl.backwards,
+      ...sl.moved,
+      ...sl.otherShape,
+      sl.failed,
+      sl.hint,
+      sl.canSkip,
+      sl.allDone,
+      sl.stars1,
+      sl.stars2,
+      sl.stars3,
+    ]),
+  ];
+}
