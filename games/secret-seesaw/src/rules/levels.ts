@@ -44,18 +44,18 @@ function draw<T>(random: Random, make: (random: Random) => T | null): T {
 
 /**
  * The right number, the tempting wrong one (the number a quick look suggests, such as the total), and one close
- * wrong number, smallest first. Including the tempting one means a quick guess is never right by luck.
+ * wrong number. Including the tempting one means a quick guess is never right by luck. The tempting number is
+ * nearly always the biggest, so sorting would never put the answer last: instead the answer goes in the place
+ * given, and the two wrong numbers fill the others in a random order.
  */
-function threeChoices(random: Random, answer: number, tempting: number): number[] {
+function threeChoices(random: Random, answer: number, tempting: number, place: number): number[] {
   const valid = (n: number): boolean => n >= 1 && n <= MOST_ANSWER && n !== answer;
   const near = [answer - 1, answer + 1, answer + 2, answer - 2];
   const pool = [...new Set(near)].filter((n) => valid(n) && n !== tempting);
-  const picked: number[] = valid(tempting) ? [tempting] : [];
-  while (picked.length < 2) {
-    const at = Math.floor(random() * pool.length);
-    picked.push(...pool.splice(at, 1));
-  }
-  return [answer, ...picked].sort((a, b) => a - b);
+  const wrong: number[] = valid(tempting) ? [tempting] : [];
+  while (wrong.length < 2) wrong.push(...pool.splice(Math.floor(random() * pool.length), 1));
+  if (random() < 0.5) wrong.reverse();
+  return [...wrong.slice(0, place), answer, ...wrong.slice(place)];
 }
 
 interface Made {
@@ -204,7 +204,7 @@ const two = {
   },
   /** box + box + hat = b, box + hat + a = hat + hat + c */
   grownUp: (random: Random): Made | null => {
-    const y = int(random, 2, 5);
+    const y = int(random, 2, 6);
     const d = int(random, 1, 3);
     const a = int(random, 1, 6);
     const x = y + d;
@@ -271,12 +271,20 @@ export interface Level {
   ask: Mystery[];
   /** Three big numbers to pick from, or every number from 0 to 20. */
   answer: 'three' | 'picker' | 'none';
-  /** The numbers shown, smallest first. */
+  /** The numbers shown, in the order the row shows them. */
   choices: number[];
   /** Weights in the tray, on "make it level" boards. */
   tray: number[];
   /** The side tray weights go on. */
   open: SideName | null;
+}
+
+/**
+ * Where the answer sits in a row of three on this try: first, middle or last with equal odds, drawn on its own
+ * for every try from the level and try alone, so no try's place says anything about the next one's.
+ */
+function answerPlace(index: number, variant: number): number {
+  return Math.floor(seeded(SEED + index * 7919 + variant * VARIANT_STEP + 31)() * 3);
 }
 
 function build(spec: Spec, index: number, variant: number): Level {
@@ -285,7 +293,11 @@ function build(spec: Spec, index: number, variant: number): Level {
   const ask = made.ask ?? (made.values.box === undefined ? [] : ['box' as Mystery]);
   const first = ask[0];
   const choices =
-    spec.answer === 'three' && first ? threeChoices(random, made.values[first] as number, made.tempting ?? 0) : spec.answer === 'picker' ? PICKER : [];
+    spec.answer === 'three' && first
+      ? threeChoices(random, made.values[first] as number, made.tempting ?? 0, answerPlace(index, variant))
+      : spec.answer === 'picker'
+        ? PICKER
+        : [];
   return {
     id: index + 1,
     world: spec.world,

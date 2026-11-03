@@ -20,7 +20,7 @@ describe('the staircase', () => {
   it('makes the same levels every time', () => {
     expect(buildLevels()).toEqual(LEVELS);
     expect(picture(boardFor(LEVELS[0]).seesaws[0])).toBe('box+1=5');
-    expect(picture(boardFor(LEVELS[23]).seesaws[1])).toBe('hat+box+5=hat+hat+6');
+    expect(picture(boardFor(LEVELS[23]).seesaws[1])).toBe('hat+box+3=hat+hat+6');
   });
 
   it('keeps every weight, answer and stack within what the screen shows', () => {
@@ -183,6 +183,51 @@ describe('every try gets a fresh puzzle of the same shape', () => {
   it('keeps the last world to two rows of two on a phone while it is worked out', () => {
     for (const level of LEVELS.filter((one) => one.world === 'two')) {
       for (const one of tries(level)) expect(peakSideCount(one), `level ${one.id} try ${one.variant}`).toBeLessThanOrEqual(4);
+    }
+  });
+});
+
+describe('where the right number sits in a row of three', () => {
+  const TRIES = 300;
+  const threeLevels = LEVELS.filter((level) => level.answer === 'three');
+  /** Every three-choice puzzle in the order a child would meet them: each level's tries, level by level. */
+  const places = threeLevels.flatMap((level) =>
+    Array.from({ length: TRIES }, (_, variant) => {
+      const one = levelFor(level.id, variant) as Level;
+      return one.choices.indexOf(one.values.box as number);
+    }),
+  );
+
+  it('always shows the tempting wrong number and puts the answer first, middle and last about equally', () => {
+    for (const level of threeLevels) {
+      const counts = [0, 0, 0];
+      for (let variant = 0; variant < TRIES; variant += 1) {
+        const one = levelFor(level.id, variant) as Level;
+        counts[one.choices.indexOf(one.values.box as number)] += 1;
+      }
+      for (const count of counts) expect(count / TRIES, `level ${level.id}: ${counts}`).toBeGreaterThan(0.25);
+      for (const count of counts) expect(count / TRIES, `level ${level.id}: ${counts}`).toBeLessThan(0.42);
+    }
+  });
+
+  it('lets no fixed way of tapping beat chance by more than 1.3 times', () => {
+    const chance = 1 / 3;
+    const strategies: Record<string, (at: number) => number> = {
+      'always first': () => 0,
+      'always middle': () => 1,
+      'always last': () => 2,
+      cycle: (at) => at % 3,
+      'reverse cycle': (at) => 2 - (at % 3),
+      'same as last puzzle': (at) => (at === 0 ? 0 : places[at - 1]),
+      'avoid the last two places': (at) => {
+        if (at < 2) return 0;
+        const recent = [places[at - 1], places[at - 2]];
+        return [0, 1, 2].find((place) => !recent.includes(place)) ?? (places[at - 1] + 1) % 3;
+      },
+    };
+    for (const [name, pick] of Object.entries(strategies)) {
+      const wins = places.filter((place, at) => pick(at) === place).length;
+      expect(wins / places.length / chance, name).toBeLessThan(1.3);
     }
   });
 });
