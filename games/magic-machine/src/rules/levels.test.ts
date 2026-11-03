@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALL_VARIANTS,
+  bestStrategy,
+  buildLevel,
   buildLevels,
+  MOST_OVER_CHANCE,
   EVERY_PUZZLE,
   FAR_FROM_GIVEN,
   KID_RULES,
@@ -86,8 +89,8 @@ describe('the staircase', () => {
 
   it('makes the same levels every time', () => {
     expect(buildLevels()).toEqual(ALL_VARIANTS);
-    expect(pictureOf(LEVELS[0].puzzle)).toBe('? | 1>2 6>7 | out 8');
-    expect(LEVELS[0].numbers).toEqual([8, 9, 11]);
+    expect(pictureOf(LEVELS[0].puzzle)).toBe('? | 2>3 7>8 | out 8');
+    expect(LEVELS[0].numbers).toEqual([9, 8, 7]);
   });
 
   it('gives every level fresh puzzles of the same shape for retries and replays', () => {
@@ -227,7 +230,6 @@ describe('the answers on offer', () => {
       expect(new Set(level.numbers).size, `level ${level.id}`).toBe(3);
       expect(level.numbers).toContain(level.truth);
       expect(level.numbers).toContain(level.puzzle.given);
-      expect([...level.numbers].sort((a, b) => a - b)).toEqual(level.numbers);
       for (const value of level.numbers) expect(PICKER).toContain(value);
       if (level.puzzle.ask === 'in') expect(level.numbers).toContain(run(level.puzzle.machines, level.puzzle.given as number));
     }
@@ -268,4 +270,47 @@ describe('the answers on offer', () => {
       for (const card of wrong) expect(fitsEach(card, level.puzzle.examples).some(Boolean), `level ${level.id}.${level.variant}`).toBe(true);
     }
   });
+});
+
+describe('where the right answer sits', () => {
+  // Many seeds, each giving a level's 15 puzzles in the order they are played.
+  const SEEDS = Array.from({ length: 30 }, (_, at) => 777 + at * 1000003);
+  const STRATEGIES: Record<string, (pos: number, at: number, n: number, seq: readonly number[]) => boolean> = {
+    'always first': (pos) => pos === 0,
+    'always last': (pos, _at, n) => pos === n - 1,
+    'cycle': (pos, at, n) => pos === at % n,
+    'reverse cycle': (pos, at, n) => pos === n - 1 - (at % n),
+    ...Object.fromEntries(
+      [1, 2, 3, 4, 5, 6].map((lag) => [`same as ${lag} ago`, (pos: number, at: number, _n: number, seq: readonly number[]) => at >= lag && pos === seq[at - lag]]),
+    ),
+  };
+
+  for (const base of LEVELS.filter((level) => level.answer !== 'picker')) {
+    it(`gives nothing away on level ${base.id}: an even spread, and no fixed strategy beats chance`, () => {
+      const seq = SEEDS.flatMap((seed) =>
+        buildLevel(base.id - 1, seed).map((level) =>
+          level.answer === 'cards' ? level.cards.findIndex((card) => sameCard(card, level.truth as Card)) : level.numbers.indexOf(level.truth as number),
+        ),
+      );
+      const n = base.answer === 'cards' ? base.cards.length : base.numbers.length;
+      const chance = 1 / n;
+      expect(seq.every((pos) => pos >= 0)).toBe(true);
+      for (let place = 0; place < n; place += 1) {
+        const share = seq.filter((pos) => pos === place).length / seq.length;
+        expect(share / chance, `level ${base.id} place ${place}`).toBeGreaterThan(0.75);
+        expect(share / chance, `level ${base.id} place ${place}`).toBeLessThan(1.25);
+      }
+      // The shipped puzzles too, not only on average: no strategy beats chance over the level as it is played.
+      const shipped = ALL_VARIANTS[base.id - 1].map((level) =>
+        level.answer === 'cards' ? level.cards.findIndex((card) => sameCard(card, level.truth as Card)) : level.numbers.indexOf(level.truth as number),
+      );
+      expect(bestStrategy(shipped, n), `level ${base.id} as shipped`).toBeLessThanOrEqual(MOST_OVER_CHANCE);
+      for (const [name, guess] of Object.entries(STRATEGIES)) {
+        const lag = Number(/(\d+) ago/.exec(name)?.[1] ?? 0);
+        const tries = seq.length - lag;
+        const wins = seq.filter((pos, at) => guess(pos, at, n, seq)).length;
+        expect(wins / tries / chance, `level ${base.id}: ${name}`).toBeLessThanOrEqual(1.3);
+      }
+    }, 60000);
+  }
 });

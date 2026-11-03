@@ -64,7 +64,10 @@ export const KID_RULES: readonly Rule[] = [
 
 /** A small seeded random source (mulberry32), so a level never changes between runs. */
 export function seeded(seed: number): () => number {
-  let state = seed >>> 0;
+  // Nearby seeds start mulberry32 on related numbers, so the seed is mixed first and early draws don't line up.
+  let state = Math.imul((seed >>> 0) ^ (seed >>> 16), 0x45d9f3b);
+  state = Math.imul(state ^ (state >>> 16), 0x45d9f3b);
+  state = (state ^ (state >>> 16)) >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
     let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
@@ -75,6 +78,16 @@ export function seeded(seed: number): () => number {
 
 type Random = () => number;
 const pick = <T>(random: Random, list: readonly T[]): T => list[Math.floor(random() * list.length)];
+
+/** A seeded Fisher-Yates shuffle. */
+function shuffled<T>(random: Random, list: readonly T[]): T[] {
+  const out = [...list];
+  for (let at = out.length - 1; at > 0; at -= 1) {
+    const other = Math.floor(random() * (at + 1));
+    [out[at], out[other]] = [out[other], out[at]];
+  }
+  return out;
+}
 
 function takeSome<T>(random: Random, list: readonly T[], count: number): T[] {
   const pool = [...list];
@@ -206,7 +219,7 @@ function possibleCards(spec: Spec, puzzle: Puzzle): Card[] {
   return [...new Map(all.map((card) => [cardKey(card), card])).values()];
 }
 
-function cardsFor(spec: Spec, random: Random, puzzle: Puzzle, variant: number): Card[] | null {
+function cardsFor(spec: Spec, random: Random, puzzle: Puzzle): Card[] | null {
   const truth = hiddenCard(puzzle);
   const count = spec.cardCount ?? 3;
   const others = possibleCards(spec, puzzle).filter((card) => !sameCard(card, truth));
@@ -220,13 +233,15 @@ function cardsFor(spec: Spec, random: Random, puzzle: Puzzle, variant: number): 
     wrong = [...first, ...takeSome(random, others.filter((card) => !first.includes(card)), count - 2)];
   } else wrong = takeSome(random, others, count - 1);
   if (wrong.length < count - 1) return null;
-  // The right card takes every place in turn across a level's puzzles, so its place gives nothing away.
-  const cards = [...wrong];
-  cards.splice((variant * (count === 3 ? 2 : 3) + 1) % count, 0, truth);
-  return cards;
+  // Shuffled with the puzzle's own seed, so the right card's place follows no pattern from puzzle to puzzle.
+  return shuffled(random, [...wrong, truth]);
 }
 
-/** The right number, the quick copy of the given number, and one more mistake a child really makes, smallest first. */
+/**
+ * The right number, the quick copy of the given number, and one more mistake a child really makes, in a seeded
+ * shuffle. Smallest first would give the answer away: on a plus machine the copy is always smaller, so the answer
+ * could never come first.
+ */
 function threeNumbers(random: Random, puzzle: Puzzle, answer: number): number[] | null {
   const given = puzzle.given as number;
   // Backwards, the classic slip is running the machine forwards.
@@ -235,7 +250,7 @@ function threeNumbers(random: Random, puzzle: Puzzle, answer: number): number[] 
   const third = forwards !== null ? [forwards] : near;
   const pool = [...new Set(third)].filter((n) => n >= 0 && n <= MOST && n !== answer && n !== given);
   if (!pool.length) return null;
-  return [answer, given, pick(random, pool)].sort((a, b) => a - b);
+  return shuffled(random, [answer, given, pick(random, pool)]);
 }
 
 interface Made {
@@ -314,18 +329,77 @@ const TRIES_PER_MACHINE = 300;
 /** Card levels move on sooner: some machines can never have enough tempting wrong cards, however the examples fall. */
 const TRIES_PER_CARD_MACHINE = 30;
 
-function build(spec: Spec, index: number): Level[] {
+/** How far a fixed way of guessing the answer's place may beat chance, over a level's puzzles in play order. */
+export const MOST_OVER_CHANCE = 1.3;
+
+/**
+ * How well the best fixed strategy does at guessing the place: always first, always last, cycling forwards or
+ * backwards, or the same place as 1 to 6 puzzles ago. As a multiple of chance, so 1 is no better than a guess.
+ */
+export function bestStrategy(places: readonly number[], count: number): number {
+  const chance = 1 / count;
+  const rate = (hits: number, tries: number): number => hits / tries / chance;
+  const scores = [
+    rate(places.filter((place) => place === 0).length, places.length),
+    rate(places.filter((place) => place === count - 1).length, places.length),
+    rate(places.filter((place, at) => place === at % count).length, places.length),
+    rate(places.filter((place, at) => place === count - 1 - (at % count)).length, places.length),
+    ...[1, 2, 3, 4, 5, 6].map((lag) => rate(places.slice(lag).filter((place, at) => place === places[at]).length, places.length - lag)),
+  ];
+  return Math.max(...scores);
+}
+
+/**
+ * Where the right answer sits on each of a level's puzzles: every place equally often, in a seeded order that no
+ * fixed strategy can follow. Of many seeded orders it keeps the first one that passes, or the best it saw.
+ */
+function plannedPlaces(random: Random, count: number, puzzles: number): number[] {
+  const even = Array.from({ length: puzzles }, (_, at) => at % count);
+  let best = even;
+  let bestScore = Infinity;
+  for (let tries = 0; tries < 4000; tries += 1) {
+    const order = shuffled(random, even);
+    const score = bestStrategy(order, count);
+    if (score < bestScore) {
+      best = order;
+      bestScore = score;
+    }
+    if (score <= MOST_OVER_CHANCE) break;
+  }
+  return best;
+}
+
+/** Moves the right answer to its planned place, with the wrong ones shuffled around it. */
+function placed<T>(random: Random, list: readonly T[], isRight: (item: T) => boolean, place: number): T[] {
+  const wrong = shuffled(random, list.filter((item) => !isRight(item)));
+  wrong.splice(place, 0, list.find(isRight) as T);
+  return wrong;
+}
+
+function build(spec: Spec, index: number, seed = SEED): Level[] {
+  const levels = makeVariants(spec, index, seed);
+  if (spec.answer === 'picker') return levels;
+  const random = seeded(seed + index * 7919 + 31337);
+  const places = plannedPlaces(random, spec.answer === 'cards' ? (spec.cardCount ?? 3) : 3, levels.length);
+  return levels.map((level, at) =>
+    level.answer === 'cards'
+      ? { ...level, cards: placed(random, level.cards, (card) => sameCard(card, level.truth as Card), places[at]) }
+      : { ...level, numbers: placed(random, level.numbers, (value) => value === level.truth, places[at]) },
+  );
+}
+
+function makeVariants(spec: Spec, index: number, seed: number): Level[] {
   const taken = new Set<string>();
   const used = new Set<string>();
   return Array.from({ length: VARIANTS }, (_, variant) => {
-    const random = seeded(SEED + index * 7919 + variant * 104729);
+    const random = seeded(seed + index * 7919 + variant * 104729);
     // Machines the level hasn't used yet go first, so its fresh puzzles also get fresh rules.
     const order = takeSome(random, combos(spec), Infinity).sort((a, b) => Number(used.has(machinesKey(a))) - Number(used.has(machinesKey(b))));
     for (const machines of order) {
       for (let tries = 0; tries < (spec.answer === 'cards' ? TRIES_PER_CARD_MACHINE : TRIES_PER_MACHINE); tries += 1) {
         const made = attempt(spec, random, machines);
         if (!made || taken.has(shapeOf(made))) continue;
-        const cards = spec.answer === 'cards' ? cardsFor(spec, random, made.puzzle, variant) : [];
+        const cards = spec.answer === 'cards' ? cardsFor(spec, random, made.puzzle) : [];
         const numbers =
           spec.answer === 'picker' ? [...PICKER] : spec.answer === 'three' ? threeNumbers(random, made.puzzle, made.truth as number) : [];
         if (!cards || !numbers) continue;
@@ -339,8 +413,9 @@ function build(spec: Spec, index: number): Level[] {
 }
 
 /** Makes every puzzle of the whole staircase from its seeds, by level and then variant. The same call always makes the same ones. */
-export const buildLevels = (): Level[][] => SPECS.map(build);
-export const buildLevel = (index: number): Level[] => build(SPECS[index], index);
+export const buildLevels = (): Level[][] => SPECS.map((spec, index) => build(spec, index));
+/** One level's puzzles, from the game's seed or another, so the tests can check many seeds. */
+export const buildLevel = (index: number, seed = SEED): Level[] => build(SPECS[index], index, seed);
 
 export const ALL_VARIANTS: readonly (readonly Level[])[] = buildLevels();
 
