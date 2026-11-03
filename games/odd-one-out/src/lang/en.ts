@@ -55,6 +55,8 @@ export const en = {
   misses: (n: number) => (n === 0 ? 'No mistakes.' : n === 1 ? '1 mistake.' : `${n} mistakes.`),
   retry: 'Try new puzzles',
   thing: (n: number) => `Thing ${n}`,
+  life: 'Pond friends',
+  newFriend: 'A new pond friend',
 };
 
 export type Text = typeof en;

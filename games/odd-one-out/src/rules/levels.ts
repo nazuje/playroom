@@ -3,7 +3,7 @@
 // is checked by the solver as it is made: exactly one thing breaks the rule the level meant, no other rule the
 // game knows singles out anything else, and the careless eye (careless.ts) does what the level needs.
 import { rivals } from './careless.ts';
-import { picsIn, type Group } from './pics.ts';
+import { alsoIn, clashes, picsIn, type Group } from './pics.ts';
 import { aboutOf, oddOnes, rulesSingling, singledBy, type Rule } from './solve.ts';
 import {
   ARROW,
@@ -54,7 +54,8 @@ type Plan =
   | { idea: 'parity'; layout: DotLayout; numerals: boolean; noise: readonly Noise[] }
   | { idea: 'honest'; noise: readonly Noise[] }
   | { idea: 'pair'; a: Noise; b: Noise; noise: readonly Noise[] }
-  | { idea: 'symmetry' | 'mirror' | 'sides'; noise: readonly Noise[] }
+  | { idea: 'symmetry' | 'sides'; noise: readonly Noise[] }
+  | { idea: 'mirror'; noise: readonly Noise[]; quarters?: boolean }
   | { idea: 'step'; feature: 'dots' | 'turn'; noise: readonly Noise[] }
   | { idea: 'alternate'; feature: 'color' | 'shape'; noise: readonly Noise[] };
 
@@ -121,13 +122,16 @@ const takeSome = <T>(random: Random, list: readonly T[], count: number): T[] => 
 /** Each try at a level is a set of this many puzzles of the same kind. */
 export const SET = 3;
 
-/** Wrong taps that end a try, counted over its whole set. Every puzzle here has four things or more. */
-export const MISS_LIMIT = 3;
+/**
+ * Wrong taps that end a try, counted over its whole set: two fewer than the things on the pond, and never more than
+ * three, so tapping every pad in turn can't win. Four things allow 2 misses, five and six allow 3.
+ */
+export const missLimitFor = (count: number): number => Math.min(count - 2, 3);
 /**
  * The first world is for age 4, so its tries never fail: a wrong tap still protests and costs a star, but the set
  * always finishes. Every later world has the limit.
  */
-export const missLimit = (puzzle: Pick<Puzzle, 'world'>): number => (puzzle.world === 'kinds' ? Infinity : MISS_LIMIT);
+export const missLimit = (puzzle: Pick<Puzzle, 'world' | 'things'>): number => (puzzle.world === 'kinds' ? Infinity : missLimitFor(puzzle.things.length));
 
 // ---------- The staircase ----------
 
@@ -137,7 +141,7 @@ const FOUR: readonly Group[] = ['animals', 'vehicles', 'food', 'toys'];
 const SIX: readonly Group[] = ['animals', 'vehicles', 'food', 'toys', 'clothes', 'plants'];
 
 const SYMMETRY: Plan = { idea: 'symmetry', noise: ['color', 'size', 'fill'] };
-const MIRROR: Plan = { idea: 'mirror', noise: ['color', 'size'] };
+const MIRROR: Plan = { idea: 'mirror', noise: ['color', 'size'], quarters: true };
 const PAIRINGS: readonly Plan[] = [
   { idea: 'pair', a: 'size', b: 'color', noise: ['shape'] },
   { idea: 'pair', a: 'shape', b: 'color', noise: ['size', 'fill'] },
@@ -256,25 +260,35 @@ function muddle(random: Random, things: Thing[], noise: readonly Noise[], shapes
   }
 }
 
-/** Puts the odd thing in at a random place. */
-function withOdd(random: Random, members: Thing[], odd: Thing, rule: Rule, layout: DotLayout = 'dice'): Made {
-  const answer = int(random, 0, members.length);
+/** Puts the odd thing in at the place this go chose for it. */
+function withOdd(place: number, members: Thing[], odd: Thing, rule: Rule, layout: DotLayout = 'dice'): Made {
+  const answer = place;
   return { things: [...members.slice(0, answer), odd, ...members.slice(answer)], answer, rule, layout };
 }
 
 const copies = (count: number, make: () => Thing): Thing[] => Array.from({ length: count }, make);
 
-function makeGroup(random: Random, plan: Extract<Plan, { idea: 'group' }>, count: number): Made {
+function makeGroup(random: Random, plan: Extract<Plan, { idea: 'group' }>, count: number, place: number): Made {
   const members = pick(random, plan.members);
   const odd = pick(
     random,
-    plan.odd.filter((group) => group !== members),
+    plan.odd.filter((group) => group !== members && !clashes(members, group)),
   );
-  const pics = takeSome(random, picsIn(members), count - 1).map(picture);
-  return withOdd(random, pics, picture(pick(random, picsIn(odd))), { kind: 'same', feature: 'group' });
+  // No picture a child could put in the other group: nothing in the odd group that could pass for the members' group,
+  // and no member that could pass for the odd one's.
+  const pics = takeSome(
+    random,
+    picsIn(members).filter((at) => !alsoIn(at).includes(odd)),
+    count - 1,
+  ).map(picture);
+  const oddPic = pick(
+    random,
+    picsIn(odd).filter((at) => !alsoIn(at).includes(members)),
+  );
+  return withOdd(place, pics, picture(oddPic), { kind: 'same', feature: 'group' });
 }
 
-function makeLook(random: Random, plan: Extract<Plan, { idea: 'color' | 'shape' | 'size' | 'fill' }>, count: number): Made {
+function makeLook(random: Random, plan: Extract<Plan, { idea: 'color' | 'shape' | 'size' | 'fill' }>, count: number, place: number): Made {
   const look = plan.idea;
   const pool = look === 'color' ? COLORS.map((_, at) => at) : look === 'shape' ? PLAIN_SHAPES : look === 'size' ? [0, 1, 2] : [0, 1];
   const [shared, other] = takeSome(random, pool, 2);
@@ -284,12 +298,12 @@ function makeLook(random: Random, plan: Extract<Plan, { idea: 'color' | 'shape' 
   const odd = members.pop() as Thing;
   for (const thing of members) thing[look] = shared;
   odd[look] = other;
-  return withOdd(random, members, odd, { kind: 'same', feature: look });
+  return withOdd(place, members, odd, { kind: 'same', feature: look });
 }
 
 const card = (dots: number, color: number): Thing => drawn({ shape: CARD, color, dots });
 
-function makeCount(random: Random, plan: Extract<Plan, { idea: 'count' }>, count: number): Made {
+function makeCount(random: Random, plan: Extract<Plan, { idea: 'count' }>, count: number, place: number): Made {
   const most = plan.layout === 'dice' ? 6 : 7;
   const shared = int(random, plan.layout === 'dice' ? 2 : 3, most - 1);
   const other = shared + pick(random, [1, -1]);
@@ -298,10 +312,10 @@ function makeCount(random: Random, plan: Extract<Plan, { idea: 'count' }>, count
   muddle(random, members, plan.noise, [CARD], true);
   const odd = members.pop() as Thing;
   odd.dots = other;
-  return withOdd(random, members, odd, { kind: 'same', feature: 'dots' }, plan.layout);
+  return withOdd(place, members, odd, { kind: 'same', feature: 'dots' }, plan.layout);
 }
 
-function makeParity(random: Random, plan: Extract<Plan, { idea: 'parity' }>, count: number): Made {
+function makeParity(random: Random, plan: Extract<Plan, { idea: 'parity' }>, count: number, place: number): Made {
   const evens = [2, 4, 6, 8];
   const odds = [1, 3, 5, 7, 9];
   const [shared, other] = random() < 0.5 ? [evens, odds] : [odds, evens];
@@ -311,10 +325,10 @@ function makeParity(random: Random, plan: Extract<Plan, { idea: 'parity' }>, cou
   const odd = card(pick(random, other), color);
   muddle(random, [...members, odd], plan.noise, [CARD], true);
   if (plan.numerals) for (const thing of [...members, odd]) thing.numeral = thing.dots;
-  return withOdd(random, members, odd, { kind: 'same', feature: 'parity' }, plan.layout);
+  return withOdd(place, members, odd, { kind: 'same', feature: 'parity' }, plan.layout);
 }
 
-function makeHonest(random: Random, plan: Extract<Plan, { idea: 'honest' }>, count: number): Made {
+function makeHonest(random: Random, plan: Extract<Plan, { idea: 'honest' }>, count: number, place: number): Made {
   const values = takeSome(random, [1, 2, 3, 4, 5, 6, 7, 8], count);
   const color = int(random, 0, COLORS.length - 1);
   const things = values.map((dots) => ({ ...card(dots, color), numeral: dots }));
@@ -322,7 +336,7 @@ function makeHonest(random: Random, plan: Extract<Plan, { idea: 'honest' }>, cou
   const odd = things.pop() as Thing;
   odd.numeral = Math.max(1, Math.min(MOST_DOTS, odd.dots + pick(random, [1, -1])));
   if (odd.numeral === odd.dots) odd.numeral = odd.dots + 1;
-  return withOdd(random, things, odd, { kind: 'same', feature: 'honest' });
+  return withOdd(place, things, odd, { kind: 'same', feature: 'honest' });
 }
 
 function lookPool(look: Noise): number[] {
@@ -332,7 +346,7 @@ function lookPool(look: Noise): number[] {
   return [0, 1];
 }
 
-function makePair(random: Random, plan: Extract<Plan, { idea: 'pair' }>, count: number): Made {
+function makePair(random: Random, plan: Extract<Plan, { idea: 'pair' }>, count: number, place: number): Made {
   const [a1, a2] = takeSome(random, lookPool(plan.a), 2);
   const [b1, b2] = takeSome(random, lookPool(plan.b), 2);
   const members = count - 1;
@@ -347,10 +361,10 @@ function makePair(random: Random, plan: Extract<Plan, { idea: 'pair' }>, count: 
   const flip = random() < 0.5;
   odd[plan.a] = flip ? a1 : a2;
   odd[plan.b] = flip ? b2 : b1;
-  return withOdd(random, shuffled(random, things), odd, { kind: 'pair', a: plan.a, b: plan.b });
+  return withOdd(place, shuffled(random, things), odd, { kind: 'pair', a: plan.a, b: plan.b });
 }
 
-function makeSymmetry(random: Random, plan: { noise: readonly Noise[] }, count: number): Made {
+function makeSymmetry(random: Random, plan: { noise: readonly Noise[] }, count: number, place: number): Made {
   const things = takeSome(random, EVEN_SHAPES, count - 1).map((shape) => drawn({ shape, color: int(random, 0, COLORS.length - 1) }));
   const odd = drawn({ shape: pick(random, LOPSIDED), color: int(random, 0, COLORS.length - 1), flip: int(random, 0, 1) });
   muddle(
@@ -360,16 +374,14 @@ function makeSymmetry(random: Random, plan: { noise: readonly Noise[] }, count: 
     EVEN_SHAPES,
     false,
   );
-  return withOdd(random, things, odd, { kind: 'same', feature: 'symmetric' });
+  return withOdd(place, things, odd, { kind: 'same', feature: 'symmetric' });
 }
 
-function makeMirror(random: Random, plan: { noise: readonly Noise[] }, count: number): Made {
+function makeMirror(random: Random, plan: { noise: readonly Noise[]; quarters?: boolean }, count: number, place: number): Made {
   const shape = pick(random, LOPSIDED);
-  const turns = takeSome(
-    random,
-    Array.from({ length: TURNS }, (_, at) => at),
-    count,
-  );
+  // Quarter turns only, until the grown-up world adds eighths. Five things on four quarter turns share one.
+  const pool = Array.from({ length: TURNS }, (_, at) => at).filter((turn) => !plan.quarters || turn % 2 === 0);
+  const turns = [...shuffled(random, pool), ...shuffled(random, pool)].slice(0, count);
   const flip = int(random, 0, 1);
   const things = turns.map((turn) => drawn({ shape, turn, flip, color: int(random, 0, COLORS.length - 1) }));
   muddle(
@@ -381,10 +393,10 @@ function makeMirror(random: Random, plan: { noise: readonly Noise[] }, count: nu
   );
   const odd = things.pop() as Thing;
   odd.flip = 1 - flip;
-  return withOdd(random, things, odd, { kind: 'same', feature: 'handed' });
+  return withOdd(place, things, odd, { kind: 'same', feature: 'handed' });
 }
 
-function makeSides(random: Random, plan: { noise: readonly Noise[] }, count: number): Made {
+function makeSides(random: Random, plan: { noise: readonly Noise[] }, count: number, place: number): Made {
   const things = copies(count, () => {
     const shape = pick(random, POLYGONS);
     return drawn({ shape, dots: SHAPES[shape].sides as number, color: int(random, 0, COLORS.length - 1) });
@@ -398,11 +410,11 @@ function makeSides(random: Random, plan: { noise: readonly Noise[] }, count: num
   );
   const odd = things.pop() as Thing;
   odd.dots += pick(random, [1, -1]);
-  return withOdd(random, things, odd, { kind: 'same', feature: 'sidesMatch' });
+  return withOdd(place, things, odd, { kind: 'same', feature: 'sidesMatch' });
 }
 
 /** A row where dots or turns go up or down by the same step, with one place wrong. Places matter here. */
-function makeStep(random: Random, plan: Extract<Plan, { idea: 'step' }>, count: number): Made {
+function makeStep(random: Random, plan: Extract<Plan, { idea: 'step' }>, count: number, place: number): Made {
   const color = int(random, 0, COLORS.length - 1);
   let values: number[];
   let wrong: (right: number) => number;
@@ -437,13 +449,13 @@ function makeStep(random: Random, plan: Extract<Plan, { idea: 'step' }>, count: 
     [],
     plan.feature === 'dots',
   );
-  const answer = int(random, 0, count - 1);
+  const answer = place;
   things[answer] = { ...things[answer], [plan.feature]: wrong(values[answer]) };
   return { things, answer, rule: { kind: 'step', feature: plan.feature }, layout: 'dice' };
 }
 
 /** A row where two looks take turns, with one place wrong. */
-function makeAlternate(random: Random, plan: Extract<Plan, { idea: 'alternate' }>, count: number): Made {
+function makeAlternate(random: Random, plan: Extract<Plan, { idea: 'alternate' }>, count: number, place: number): Made {
   const look = plan.feature;
   const pool = look === 'color' ? COLORS.map((_, at) => at) : PLAIN_SHAPES;
   const [first, second, third] = takeSome(random, pool, 3);
@@ -451,35 +463,35 @@ function makeAlternate(random: Random, plan: Extract<Plan, { idea: 'alternate' }
   const things = copies(count, () => ({ ...base }));
   muddle(random, things, plan.noise, PLAIN_SHAPES, false);
   things.forEach((thing, at) => (thing[look] = at % 2 === 0 ? first : second));
-  const answer = int(random, 0, count - 1);
+  const answer = place;
   things[answer][look] = random() < 0.5 ? third : answer % 2 === 0 ? second : first;
   return { things, answer, rule: { kind: 'alternate', feature: look }, layout: 'dice' };
 }
 
-function makeOne(random: Random, plan: Plan, count: number): Made {
+function makeOne(random: Random, plan: Plan, count: number, place: number): Made {
   switch (plan.idea) {
     case 'group':
-      return makeGroup(random, plan, count);
+      return makeGroup(random, plan, count, place);
     case 'count':
-      return makeCount(random, plan, count);
+      return makeCount(random, plan, count, place);
     case 'parity':
-      return makeParity(random, plan, count);
+      return makeParity(random, plan, count, place);
     case 'honest':
-      return makeHonest(random, plan, count);
+      return makeHonest(random, plan, count, place);
     case 'pair':
-      return makePair(random, plan, count);
+      return makePair(random, plan, count, place);
     case 'symmetry':
-      return makeSymmetry(random, plan, count);
+      return makeSymmetry(random, plan, count, place);
     case 'mirror':
-      return makeMirror(random, plan, count);
+      return makeMirror(random, plan, count, place);
     case 'sides':
-      return makeSides(random, plan, count);
+      return makeSides(random, plan, count, place);
     case 'step':
-      return makeStep(random, plan, count);
+      return makeStep(random, plan, count, place);
     case 'alternate':
-      return makeAlternate(random, plan, count);
+      return makeAlternate(random, plan, count, place);
     default:
-      return makeLook(random, plan, count);
+      return makeLook(random, plan, count, place);
   }
 }
 
@@ -495,7 +507,7 @@ export function carelessBudget(spec: Pick<Spec, 'careless' | 'world' | 'count'>,
   if (spec.world === 'kinds') return { least: 0, most: spec.count - 1 };
   const slipsHere = go % SET === Math.floor(go / SET) % SET;
   if (spec.careless === 'wins') return { least: slipsHere ? 1 : 0, most: slipsHere ? 1 : 0 };
-  if (spec.careless === 'loses') return { least: MISS_LIMIT, most: spec.count - 2 };
+  if (spec.careless === 'loses') return { least: missLimitFor(spec.count), most: spec.count - 2 };
   return { least: 1, most: spec.count - 1 };
 }
 
@@ -527,11 +539,13 @@ function build(spec: Spec, index: number, go: number): Puzzle {
   const random = seeded(SEED + index * 7919 + go * 104729);
   const budget = carelessBudget(spec, go);
   const distinct = spec.world === 'pairs' || spec.world === 'tricky';
-  // Each go settles on one plan, so a level's kinds of puzzle come up evenly however easy each is to make.
+  // Each go settles on one plan, so a level's kinds of puzzle come up evenly however easy each is to make, and on
+  // one place for the odd one, drawn from the seed, so no tapping pattern can learn where it will be.
   const first = int(random, 0, spec.plans.length - 1);
+  const place = int(random, 0, spec.count - 1);
   for (let attempt = 0; attempt < ATTEMPTS * spec.plans.length; attempt += 1) {
     const plan = spec.plans[(first + Math.floor(attempt / ATTEMPTS)) % spec.plans.length];
-    const made = makeOne(random, plan, spec.count);
+    const made = makeOne(random, plan, spec.count, place);
     const glance = int(random, 0, spec.count - 1);
     // The cheap checks first: the careless eye, then the solver.
     const eye = rivals(made.things, made.answer, glance);

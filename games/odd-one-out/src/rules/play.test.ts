@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS, missLimit, puzzleFor, SET, setFor, type Puzzle } from './levels.ts';
 import { addMiss, cleanMisses, missesSoFar, settle, starsFor } from './misses.ts';
-import { answer, buddyOf, danceFor, groupsOf, members, startPlay } from './play.ts';
+import { answer, buddyOf, danceFor, EXITS, exitFor, groupsOf, members, startPlay, surpriseFor, type Exit } from './play.ts';
 import { addSkip, addWin, cleanProgress, emptyProgress, isOpen, nextLevel, totalStars } from './progress.ts';
 import { featureOf } from './solve.ts';
 
@@ -59,20 +59,40 @@ describe('answering', () => {
     }
   });
 
-  it('ends a try after 3 misses, counted over the whole set, from the second world on', () => {
+  it('ends a try after two fewer misses than things, at most 3, counted over the whole set, from the second world on', () => {
     for (const id of [6, 11, 16, 21]) {
       const set = setFor(id, 0);
-      expect(missLimit(set[0])).toBe(3);
+      const limit = missLimit(set[0]);
+      expect(limit).toBe(Math.min(set[0].things.length - 2, 3));
+      // One miss on the first puzzle, then the rest on the second: the try still ends at the limit.
       let play = answer(startPlay(set), wrongs(set[0])[0])!.play;
       play = answer(play, set[0].answer)!.play;
       expect(play.misses).toBe(1);
       expect(play.tried).toEqual([]);
       const off = wrongs(set[1]);
-      play = answer(play, off[0])!.play;
-      expect(play.failed).toBe(false);
-      play = answer(play, off[1])!.play;
+      for (let miss = 1; miss < limit; miss += 1) {
+        expect(play.failed).toBe(false);
+        play = answer(play, off[miss - 1])!.play;
+      }
       expect(play.failed).toBe(true);
       expect(answer(play, set[1].answer)).toBeNull();
+    }
+  });
+
+  it('never lets tapping every pad of a 4-thing puzzle in turn win a set', () => {
+    for (let set = 0; set < 10; set += 1) {
+      const puzzles = setFor(6, set);
+      let play = startPlay(puzzles);
+      for (const each of puzzles) {
+        for (let at = 0; at < each.things.length && !play.failed && play.at === puzzles.indexOf(each); at += 1) {
+          const result = answer(play, at);
+          if (result) play = result.play;
+          if (result?.right) break;
+        }
+        if (play.failed) break;
+      }
+      // Each puzzle has 3 wrong ones, so tapping in turn only wins when the odd one keeps coming up first.
+      if (play.won) expect(puzzles.reduce((sum, each) => sum + each.answer, 0)).toBeLessThan(2);
     }
   });
 
@@ -139,5 +159,31 @@ describe('misses and progress', () => {
   it('survives anything left in storage', () => {
     expect(cleanProgress('nonsense')).toEqual(emptyProgress());
     expect(cleanProgress({ stars: { 1: 7, 2: 'x', 99: 3 }, skipped: [4, 'y', 400] })).toEqual({ stars: { 1: 3 }, skipped: [4] });
+  });
+});
+
+describe('variety', () => {
+  const sets = LEVELS.flatMap((level) => Array.from({ length: 12 }, (_, set) => setFor(level.id, set)));
+
+  it('sends the odd one off every way, never the same way twice in a row', () => {
+    const seen = new Set<Exit>();
+    for (const set of sets) {
+      let previous: Exit | null = null;
+      for (const each of set) {
+        const exit = exitFor(each, previous);
+        expect(exit).not.toBe(previous);
+        seen.add(exit);
+        previous = exit;
+      }
+    }
+    expect([...seen].sort()).toEqual([...EXITS].sort());
+  });
+
+  it('brings a rare surprise in about one set in eight, both kinds', () => {
+    const surprises = sets.map(surpriseFor);
+    const share = surprises.filter(Boolean).length / sets.length;
+    expect(share).toBeGreaterThan(1 / 14);
+    expect(share).toBeLessThan(1 / 5);
+    expect(new Set(surprises.filter(Boolean))).toEqual(new Set(['fish', 'ducks']));
   });
 });

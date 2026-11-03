@@ -1,4 +1,5 @@
 import { playNote, playSound } from '@playroom/kit';
+import type { Exit, Surprise } from './rules/play.ts';
 
 const pending = new Set<number>();
 
@@ -24,13 +25,39 @@ export const SCALE: readonly number[] = [392, 440, 523, 587, 659, 784, 880, 1047
 
 export const pickSound = (): void => playSound('pop');
 
-/** The lily pad springs, the odd one flies off with a slide whistle up, and lands in the water far away. */
-export function launchSound(): void {
-  playSound('boing');
-  notes([[60, 523], [130, 659], [200, 784], [270, 988]], 'sine', 0.09, 0.14);
-  later(560, () => playSound('pop'));
-  later(600, () => notes([[0, 330], [70, 262], [140, 220]], 'triangle', 0.1, 0.12));
+/** The sound of each way the odd one leaves. */
+export function exitSound(exit: Exit): void {
+  if (exit === 'bounce') {
+    // The lily pad springs, a slide whistle up, and a plop far away.
+    playSound('boing');
+    notes([[60, 523], [130, 659], [200, 784], [270, 988]], 'sine', 0.09, 0.14);
+    later(600, () => notes([[0, 330], [70, 262], [140, 220]], 'triangle', 0.1, 0.12));
+  } else if (exit === 'frog') {
+    // A ribbit, a slurp and a big gulp.
+    notes([[120, 196], [200, 247]], 'square', 0.07, 0.08);
+    later(420, () => notes([[0, 880], [60, 660], [120, 440]], 'sine', 0.06, 0.12));
+    later(700, () => playSound('burp'));
+  } else if (exit === 'bird') {
+    // Wings swooping in, a honk, and away.
+    playSound('whoosh');
+    later(520, () => playSound('toot'));
+    later(760, () => playSound('whoosh'));
+  } else {
+    // A hop, a dive and a big splash.
+    notes([[0, 523], [90, 784]], 'triangle', 0.08, 0.14);
+    later(560, () => playSound('pop'));
+    later(600, () => notes([[0, 262], [60, 196], [120, 147], [180, 131]], 'sine', 0.12, 0.2));
+  }
 }
+
+/** A rare surprise: a twinkly rainbow arpeggio for the fish, a little quack quack quack for the ducklings. */
+export function surpriseSound(kind: Surprise): void {
+  if (kind === 'fish') notes([[0, 523], [110, 659], [220, 784], [330, 1047], [440, 1319]], 'sine', 0.18, 0.16);
+  else notes([[0, 330], [300, 392], [520, 392], [740, 392]], 'square', 0.06, 0.07);
+}
+
+/** A new pond friend joins, on the win card. */
+export const friendSound = (): void => notes([[0, 784], [120, 1047], [240, 1319]], 'triangle', 0.2, 0.2);
 
 /** A thing that belongs protests: a bonk and a grumpy "hmph" of two low notes. */
 export function protestSound(kind: number): void {

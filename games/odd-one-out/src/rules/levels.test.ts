@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rivals } from './careless.ts';
-import { carelessGoal, fair, ideasOf, LEVEL_COUNT, LEVELS, makePuzzle, missLimit, puzzleFor, puzzleKey, SET, setFor, WORLDS, type Puzzle } from './levels.ts';
-import { GROUPS, NOT_SORTABLE, PICS, picsIn } from './pics.ts';
+import { carelessGoal, fair, ideasOf, LEVEL_COUNT, LEVELS, makePuzzle, missLimit, missLimitFor, puzzleFor, puzzleKey, seeded, SET, setFor, WORLDS, type Puzzle } from './levels.ts';
+import { ALSO, alsoIn, clashes, CLASHING, GROUPS, NOT_SORTABLE, PICS, picsIn } from './pics.ts';
 import { aboutOf, featureOf, oddOnes, rulesFor, rulesSingling, singledBy, solve, type Feature, type Rule } from './solve.ts';
 import { ARROW, CARD, drawn, PLAIN_SHAPES, picture, SHAPES, shapeId, thingKey, type Thing } from './things.ts';
 
@@ -39,6 +39,34 @@ describe('the pictures', () => {
       const shared = groups.filter((_, at) => at !== puzzle.answer);
       expect(new Set(shared).size, named(puzzle)).toBe(1);
       expect(groups[puzzle.answer], named(puzzle)).not.toBe(shared[0]);
+    }
+  });
+});
+
+describe('pictures that could sit in two groups', () => {
+  const glyphOf = (thing: Thing) => PICS[thing.pic as number].glyph;
+  const groupOf = (thing: Thing) => PICS[thing.pic as number].group;
+
+  it('lists the pairings that are never allowed', () => {
+    expect(CLASHING).toEqual([
+      ['food', 'plants'],
+      ['vehicles', 'toys'],
+    ]);
+    // The ones a tester caught: a tomato is a plant too, and a red car looks like a toy car.
+    expect(ALSO['🍅']).toContain('plants');
+    expect(ALSO['🚗']).toContain('toys');
+    for (const glyph of ['🐶', '🐱', '🐷', '🐰', '🐨', '🐵']) expect(ALSO[glyph], glyph).toContain('toys');
+    for (const glyph of Object.keys(ALSO)) expect(PICS.map((pic) => pic.glyph), glyph).toContain(glyph);
+  });
+
+  it('never puts food with plants, vehicles with toys, or any picture with a group it could also be in', () => {
+    for (const puzzle of inWorld('kinds')) {
+      const odd = puzzle.things[puzzle.answer];
+      const friends = puzzle.things.filter((_, at) => at !== puzzle.answer);
+      const shared = groupOf(friends[0]);
+      expect(clashes(shared, groupOf(odd)), `${named(puzzle)} ${shared} and ${groupOf(odd)}`).toBe(false);
+      expect(alsoIn(odd.pic as number), `${named(puzzle)} ${glyphOf(odd)} among ${shared}`).not.toContain(shared);
+      for (const friend of friends) expect(alsoIn(friend.pic as number), `${named(puzzle)} ${glyphOf(friend)} with ${glyphOf(odd)}`).not.toContain(groupOf(odd));
     }
   });
 });
@@ -155,6 +183,30 @@ describe('every puzzle', () => {
     }
   });
 
+  it('puts the odd one where no tapping pattern can learn: not always one place, not a cycle, not where it was last time', () => {
+    const MANY = 120;
+    for (const world of WORLDS) {
+      const levels = LEVELS.filter((level) => level.world === world);
+      const count = levels[0].count;
+      const answers = levels.map((level) => Array.from({ length: MANY }, (_, go) => (puzzleFor(level.id, go) as Puzzle).answer));
+      const all = answers.flat();
+      // Three standard deviations above chance, over every go of the world's levels.
+      const chance = 1 / count;
+      const most = chance + 3 * Math.sqrt((chance * (1 - chance)) / all.length);
+      for (let place = 0; place < count; place += 1) expect(all.filter((at) => at === place).length / all.length, `${world} always ${place}`).toBeLessThan(most);
+      const cycle = answers.flatMap((row) => row.map((at, go) => (at === go % count ? 1 : 0)));
+      expect(cycle.reduce((sum: number, hit) => sum + hit, 0) / cycle.length, `${world} cycle`).toBeLessThan(most);
+      const again = answers.flatMap((row) => row.slice(1).map((at, go) => (at === row[go] ? 1 : 0)));
+      expect(again.reduce((sum: number, hit) => sum + hit, 0) / again.length, `${world} same as last time`).toBeLessThan(most);
+    }
+  });
+
+  it('turns mirror puzzles only by quarter turns on the fourth world', () => {
+    for (const puzzle of inWorld('pairs').filter((one) => one.idea === 'mirror')) {
+      for (const thing of puzzle.things) expect(thing.turn % 2, named(puzzle)).toBe(0);
+    }
+  });
+
   it('moves the odd one around the pond', () => {
     for (const level of LEVELS) {
       const places = new Set(Array.from({ length: GOES }, (_, go) => (puzzleFor(level.id, go) as Puzzle).answer));
@@ -229,8 +281,39 @@ describe('the staircase', () => {
     expect(LEVELS.filter((level) => level.world === 'tricky').every((level) => carelessGoal(level.id) === 'loses')).toBe(true);
   });
 
-  it('never fails a try on the first world, and fails one after 3 misses everywhere else', () => {
-    for (const puzzle of everyGo) expect(missLimit(puzzle)).toBe(puzzle.world === 'kinds' ? Infinity : 3);
+  it('never fails a try on the first world, and elsewhere allows two fewer misses than things, at most 3', () => {
+    expect([4, 5, 6].map(missLimitFor)).toEqual([2, 3, 3]);
+    for (const puzzle of everyGo) expect(missLimit(puzzle)).toBe(puzzle.world === 'kinds' ? Infinity : Math.min(puzzle.things.length - 2, 3));
+  });
+
+  it('makes tapping every pad in reading order, or at random, rarely win a try', () => {
+    const random = seeded(7);
+    for (const level of LEVELS.filter((one) => one.world !== 'kinds')) {
+      let byOrder = 0;
+      let byChance = 0;
+      const tries = 2000;
+      const sweeps = 30;
+      for (let set = 0; set < sweeps; set += 1) {
+        const puzzles = setFor(level.id, set);
+        // Left to right: the misses on a puzzle are the odd one's place.
+        if (puzzles.reduce((sum, puzzle) => sum + puzzle.answer, 0) < missLimit(puzzles[0])) byOrder += 1;
+      }
+      for (let go = 0; go < tries; go += 1) {
+        const puzzles = setFor(level.id, go % sweeps);
+        let misses = 0;
+        for (const puzzle of puzzles) {
+          const order = puzzle.things.map((_, at) => ({ at, key: random() })).sort((a, b) => a.key - b.key);
+          misses += order.findIndex(({ at }) => at === puzzle.answer);
+        }
+        if (misses < missLimit(puzzles[0])) byChance += 1;
+      }
+      const late = level.world === 'pairs' || level.world === 'tricky';
+      // A try ends on the 2nd miss with four things and the 3rd with five or six, never on a miss that lets tapping
+      // everything solve a puzzle, and random tapping wins a late set under 10% of the time.
+      expect(missLimit(setFor(level.id, 0)[0])).toBeLessThanOrEqual(level.count - 1);
+      expect(byChance / tries, `level ${level.id} at random`).toBeLessThan(late ? 0.1 : 0.12);
+      expect(byOrder / sweeps, `level ${level.id} left to right`).toBeLessThanOrEqual(0.2);
+    }
   });
 
   it('makes guessing at random rarely win a late try', () => {
@@ -246,9 +329,9 @@ describe('the staircase', () => {
       }
       return ways.slice(0, limit).reduce((sum, p) => sum + p, 0);
     };
-    expect(chance(6, 3)).toBeLessThan(0.05);
-    expect(chance(5, 3)).toBeLessThan(0.09);
-    expect(chance(4, 3)).toBeLessThan(0.16);
+    expect(chance(6, missLimitFor(6))).toBeLessThan(0.05);
+    expect(chance(5, missLimitFor(5))).toBeLessThan(0.09);
+    expect(chance(4, missLimitFor(4))).toBeLessThan(0.07);
   });
 });
 

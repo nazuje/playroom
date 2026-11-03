@@ -36,6 +36,8 @@ function armedButton(className: string, label: string, onChoose: () => void, wai
 
 export interface MapOptions {
   progress: Progress;
+  /** Every pond friend earned so far. */
+  life: readonly string[];
   onLevel: (id: number) => void;
 }
 
@@ -80,13 +82,25 @@ function worldBlock(world: WorldId, options: MapOptions, next: number | null): H
   return block;
 }
 
+/** The pond friends earned so far, with a ripple waiting for each one still to come. */
+function lifeShelf(life: readonly string[]): HTMLElement {
+  const shelf = element('section', 'life');
+  shelf.setAttribute('aria-label', text().life);
+  for (let at = 0; at < LEVELS.length; at += 1) {
+    const spot = element('span', at < life.length ? 'life-friend' : 'life-spot');
+    spot.textContent = life[at] ?? '';
+    shelf.append(spot);
+  }
+  return shelf;
+}
+
 /** Every world on one scrolling pond: lily pads to hop along, one sign per world. */
 export function showMap(host: HTMLElement, options: MapOptions): () => void {
   shownAt = performance.now();
   const panel = element('div', 'map');
   const sheet = element('div', 'map-sheet');
   const next = nextLevel(options.progress);
-  sheet.append(...WORLDS.map((world) => worldBlock(world, options, next)));
+  sheet.append(lifeShelf(options.life), ...WORLDS.map((world) => worldBlock(world, options, next)));
   panel.append(sheet);
   host.append(panel);
   window.setTimeout(() => panel.classList.add('armed'), TILES_AFTER_MS);
@@ -96,6 +110,8 @@ export function showMap(host: HTMLElement, options: MapOptions): () => void {
 
 export interface WonOptions {
   report: WinReport;
+  /** The pond friend a first win brings, or null. */
+  newFriend: string | null;
   onNext: (() => void) | null;
   onAgain: () => void;
   onMap: () => void;
@@ -113,7 +129,7 @@ function starRow(stars: number): HTMLElement {
 }
 
 /** The win card: a big lily pad with a lotus on top. */
-export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: WonOptions): () => void {
+export function showWon(host: HTMLElement, { report, newFriend, onNext, onAgain, onMap }: WonOptions): () => void {
   const panel = element('div', 'card');
   panel.dataset.stars = String(report.stars);
   const lotus = element('span', 'card-lotus');
@@ -133,6 +149,12 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
   map.dataset.action = 'map';
   row.append(again, map);
   panel.append(row, lotus, stars, line);
+  if (newFriend) {
+    const friend = element('p', 'card-friend');
+    friend.textContent = `+ ${newFriend}`;
+    friend.setAttribute('aria-label', `${text().newFriend}: ${newFriend}`);
+    panel.append(friend);
+  }
   // Three stars already says "no mistakes", so the count only shows when there were some.
   if (report.misses > 0) panel.append(small);
   if (onNext) {
@@ -151,6 +173,8 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
 export interface FinaleOptions {
   report: WinReport;
   totalStars: number;
+  /** Every pond friend, who all come to the party. */
+  life: readonly string[];
   onMap: () => void;
 }
 
@@ -169,21 +193,23 @@ function confetti(): void {
   });
 }
 
-const PARADE = ['🐸', '🦆', '🐢', '🦋', '🐙', '🐧'];
+const PARADE_SIZE = 6;
 
 /** The end of the game: a pond party where every friend leaps over a trophy, every star so far, and one button. */
-export function showFinale(host: HTMLElement, { report, totalStars, onMap }: FinaleOptions): () => void {
+export function showFinale(host: HTMLElement, { report, totalStars, life, onMap }: FinaleOptions): () => void {
   const panel = element('div', 'card card-finale');
   panel.dataset.stars = String(report.stars);
   const party = element('div', 'finale-pond');
   const cup = element('span', 'finale-cup');
   cup.textContent = '🏆';
   party.append(cup);
-  PARADE.forEach((glyph, at) => {
+  // The last six pond friends earned come to the party.
+  const parade = life.slice(-PARADE_SIZE);
+  parade.forEach((glyph, at) => {
     const friend = element('span', 'finale-friend');
     friend.textContent = glyph;
     friend.style.setProperty('--delay', `${at * 0.28}s`);
-    friend.style.setProperty('--x', `${(at / (PARADE.length - 1)) * 100}%`);
+    friend.style.setProperty('--x', `${(at / Math.max(1, parade.length - 1)) * 100}%`);
     party.append(friend);
   });
   const line = element('p', 'card-line');

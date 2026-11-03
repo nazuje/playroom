@@ -6,8 +6,8 @@ import { text } from '../lang/index.ts';
 import type { Puzzle } from '../rules/levels.ts';
 import { starsFor } from '../rules/misses.ts';
 import { PICS } from '../rules/pics.ts';
-import { answer, buddyOf, danceFor, members, puzzleOf, startPlay, type Play } from '../rules/play.ts';
-import { danceNote, doneSound, hintSound, launchSound, pickSound, protestSound, sinkSound, stopSounds } from '../sounds.ts';
+import { answer, buddyOf, danceFor, exitFor, members, puzzleOf, startPlay, surpriseFor, type Exit, type Play } from '../rules/play.ts';
+import { danceNote, doneSound, exitSound, hintSound, pickSound, protestSound, sinkSound, stopSounds, surpriseSound } from '../sounds.ts';
 import { button, onPress } from '../ui.ts';
 import type { DemoStep, Guide } from '../view/guide.ts';
 import type { PondView } from '../view/pond.ts';
@@ -23,6 +23,8 @@ const FIRST_NUDGE_MS = 3500;
 const SWEEP_STEP_MS = 300;
 const BUSY_RETRY_MS = 1500;
 const DEMO_AFTER_MS = 900;
+/** How long the hand points at the odd one at the end of a demo. */
+const DEMO_POINT_MS = 1600;
 const SHOWN_KEY = 'odd-one-out:shown';
 
 export interface WinReport {
@@ -74,6 +76,9 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   let totalFails = options.failsBefore;
   let idleTimer = 0;
   let retry: HTMLButtonElement | null = null;
+  let demoing = false;
+  let lastExit: Exit | null = null;
+  const surprise = surpriseFor(puzzles);
   const timers = new Set<number>();
 
   function later(ms: number, run: () => void): void {
@@ -179,7 +184,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     idleTimer = window.setTimeout(() => {
       if (stopped || play.won) return;
       // While a demo or a bounce is still going, the nudge waits a moment rather than a whole quiet spell.
-      if (busy || guide.busy) {
+      if (busy || guide.busy || demoing) {
         armIdle(BUSY_RETRY_MS);
         return;
       }
@@ -190,6 +195,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   function woke(): void {
     if (!guide.busy) guide.hide();
+    demoing = false;
     armIdle();
   }
 
@@ -199,12 +205,27 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   }
 
   /** The first time an idea appears, two friends show it once without words. */
+  /**
+   * The first time an idea appears, it shows itself once without words: every friend dances the idea together while
+   * the odd one stands still, puzzled, with a ❓. Then the hand points at the odd one, without tapping it, and goes.
+   */
   function runDemo(): void {
     const seen = shown();
     if (seen.includes(puzzle.idea)) return;
     store.set(SHOWN_KEY, [...seen, puzzle.idea]);
     later(DEMO_AFTER_MS, () => {
-      if (!busy) guide.demo(duetSteps(pairOf()));
+      if (busy || play.won || play.failed) return;
+      demoing = true;
+      const shownOn = puzzle;
+      const wait = Math.max(1200, pond.dance(danceFor(puzzle.idea), danceNote));
+      pond.puzzled(puzzle.answer, wait + DEMO_POINT_MS);
+      later(wait, () => {
+        if (puzzle === shownOn && !busy && demoing) guide.point(pond.pad(puzzle.answer));
+      });
+      later(wait + DEMO_POINT_MS, () => {
+        if (demoing && puzzle === shownOn) guide.hide();
+        demoing = false;
+      });
     });
   }
 
@@ -223,6 +244,11 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     cheers += 1;
     void say(line);
     pond.lights(solvedOne ? play.at : puzzles.length, puzzles.length);
+    // The rare surprise comes after the set's second puzzle, while the pond is still in view.
+    if (surprise && solvedOne && play.at === 2) {
+      pond.surprise(surprise);
+      surpriseSound(surprise);
+    }
     later(wait, doneSound);
     later(wait + AFTER_DANCE_MS, solvedOne ? nextPuzzle : win);
   }
@@ -269,8 +295,10 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     guide.hide();
     if (result.right) {
       mark();
-      launchSound();
-      const wait = pond.launch(index);
+      const exit = exitFor(puzzle, lastExit);
+      lastExit = exit;
+      exitSound(exit);
+      const wait = pond.launch(index, exit);
       later(wait, () => celebrate(result.solvedOne));
       return;
     }

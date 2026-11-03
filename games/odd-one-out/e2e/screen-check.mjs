@@ -118,13 +118,35 @@ async function tour(browser, screen, language) {
   const tag = `${screen.name}-${language}`;
   const { page, problems } = await openPage(browser, { ...screen, language, progress: allOpen(LEVELS) });
   await shot(page, `${tag}-map`);
+  if ((await page.locator('.map .life .life-friend').count()) !== LEVELS.length) problems.push(`${tag}: the map's pond friends don't show every finished level`);
 
   // Level 1: the first demo, the idle hand, a tap on the water, wrong taps, then the bounce and the dance.
   await openLevel(page, 1);
-  await page.waitForTimeout(1500);
+  // The first demo: every friend dances while the odd one stands still, puzzled, then the hand points at it.
+  await page.waitForTimeout(1300);
+  // Read the dance before the screenshot, which can take long enough for the dance to end.
+  const demo = await page.evaluate(() => ({
+    puzzled: [...document.querySelectorAll('#pond .pad.puzzled')].map((pad) => Number(pad.dataset.index)),
+    dancing: [...document.querySelectorAll('#pond .pad[class*="dance-"]')].map((pad) => Number(pad.dataset.index)),
+  }));
   await shot(page, `${tag}-l1-demo`);
-  // On the first world the first nudge comes after about 3.5 seconds: the hand sweeps the pads as they hop.
-  await page.waitForTimeout(1900);
+  const first = await puzzleOn(page);
+  if (demo.puzzled.join() !== String(first.answer)) problems.push(`${tag}: the demo's puzzled one is ${demo.puzzled.join() || 'none'}, not the odd one`);
+  if (demo.dancing.sort().join() !== members(first).join()) problems.push(`${tag}: in the demo ${demo.dancing.length} friends danced, not all ${first.things.length - 1}`);
+  await page.waitForTimeout(1200);
+  await shot(page, `${tag}-l1-demo-point`);
+  const pointed = await page.evaluate((index) => {
+    const finger = document.querySelector('.hand:not([hidden])');
+    const box = document.querySelector(`#pond .pad[data-index="${index}"]`)?.getBoundingClientRect();
+    if (!finger || !box) return false;
+    const x = parseFloat(finger.style.left);
+    const y = parseFloat(finger.style.top);
+    return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+  }, first.answer);
+  if (!pointed) problems.push(`${tag}: the demo's hand did not point at the odd one`);
+  if ((await dataset(page)).screen !== 'play' || (await page.locator('#pond .pad.launched').count())) problems.push(`${tag}: the demo tapped the odd one for the child`);
+  // On the first world the first nudge comes soon after the demo: the hand sweeps the pads as they hop.
+  await page.waitForTimeout(900);
   problems.push(...nudgeProblems(`${tag} level 1`, await watchNudge(page, 3600), 4));
   await page.touchscreen.tap(screen.width / 2, (await page.locator('#dock').boundingBox()).y - 12);
   await page.waitForTimeout(60);

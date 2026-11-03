@@ -50,6 +50,8 @@ export const sl: Text = {
   misses: (n) => (n === 0 ? 'Brez napake.' : `Napake: ${n}.`),
   retry: 'Poskusi nove uganke',
   thing: (n) => `Stvar ${n}`,
+  life: 'Prijatelji v ribniku',
+  newFriend: 'Nov prijatelj v ribniku',
 };
 
 /** Every line the game can say in Slovenian. Speech here is short, because the puzzles are pictures. */

@@ -105,3 +105,23 @@ export function groupsOf(puzzle: Puzzle): number[][] {
   if (rule.kind === 'alternate') return [keep.filter((at) => at % 2 === 0), keep.filter((at) => at % 2 === 1)];
   return [keep];
 }
+
+/** The ways the odd one can leave: bounced off by the leaf, gulped by a frog, carried off by a bird, or a dive. */
+export type Exit = 'bounce' | 'frog' | 'bird' | 'dive';
+export const EXITS: readonly Exit[] = ['bounce', 'frog', 'bird', 'dive'];
+
+/** A puzzle's exit, from its seed, never the same one twice in a row. */
+export function exitFor(puzzle: Puzzle, previous: Exit | null): Exit {
+  const chosen = EXITS[Math.floor(puzzle.seed / 7) % EXITS.length];
+  return chosen === previous ? EXITS[(EXITS.indexOf(chosen) + 1) % EXITS.length] : chosen;
+}
+
+/** The rare surprises: a rainbow fish leaping over the pond, or a duck leading her ducklings across. */
+export type Surprise = 'fish' | 'ducks';
+
+/** About one set in eight brings a surprise, after its second puzzle, decided by the set's first seed. */
+export function surpriseFor(puzzles: readonly Puzzle[]): Surprise | null {
+  const seed = puzzles[0]?.seed ?? 0;
+  if (seed % 8 !== 3) return null;
+  return Math.floor(seed / 8) % 2 === 0 ? 'fish' : 'ducks';
+}

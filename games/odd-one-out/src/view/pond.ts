@@ -4,10 +4,11 @@
 // belongs with, and a try that runs out tumbles everyone into the water.
 import { text } from '../lang/index.ts';
 import type { Puzzle } from '../rules/levels.ts';
-import { groupsOf, members, type Dance } from '../rules/play.ts';
+import { groupsOf, members, type Dance, type Exit, type Surprise } from '../rules/play.ts';
 import { thingKey } from '../rules/things.ts';
 import { calm, element } from '../ui.ts';
 import { paintOf, thingArt } from './art.ts';
+import { playExit, playSurprise } from './exits.ts';
 import { FOOT, fit, type Fit } from './fit.ts';
 
 export interface PondView {
@@ -17,10 +18,14 @@ export interface PondView {
   onTap(listener: (index: number) => void): void;
   /** A tap on open water, away from every pad. */
   onWater(listener: () => void): void;
-  /** Bounces the odd one off into the pond, and says how long that takes. */
-  launch(index: number): number;
+  /** Sends the odd one off its pad one of the four ways, and says how long that takes. */
+  launch(index: number, exit: Exit): number;
+  /** A rare surprise across the pond. */
+  surprise(kind: Surprise): void;
   /** A thing that belongs shakes its head, with a little ✋ above it. */
   protest(index: number): void;
+  /** The odd one stands still and scratches its head with a ❓, while its friends dance without it. */
+  puzzled(index: number, ms: number): void;
   /** A thing and one friend light up together, to show they belong together. */
   link(a: number, b: number): void;
   /** The friends dance together, with a note for each beat. Says how long it takes. */
@@ -39,7 +44,6 @@ export interface PondView {
 const HOP_MS = 520;
 const LINK_MS = 1300;
 const PROTEST_MS = 800;
-const FLY_MS = 620;
 
 export function createPond(host: HTMLElement): PondView {
   let puzzle: Puzzle | null = null;
@@ -115,20 +119,6 @@ export function createPond(host: HTMLElement): PondView {
     return sizes;
   }
 
-  /** A splash where something lands: a ring of ripples and a few drops. */
-  function splash(x: number, y: number): void {
-    const ring = element('div', 'splash');
-    ring.style.left = `${x}px`;
-    ring.style.top = `${y}px`;
-    for (let drop = 0; drop < 6; drop += 1) {
-      const one = element('span', 'drop');
-      one.style.setProperty('--angle', `${drop * 60 + 15}deg`);
-      ring.append(one);
-    }
-    document.body.append(ring);
-    window.setTimeout(() => ring.remove(), 1000);
-  }
-
   return {
     show(next) {
       puzzle = next;
@@ -152,40 +142,16 @@ export function createPond(host: HTMLElement): PondView {
     onWater(next) {
       water = next;
     },
-    launch(index) {
+    launch(index, exit) {
       const one = board.querySelector<HTMLElement>(`[data-index="${index}"]`);
-      const art = one?.querySelector<HTMLElement>('.plate');
-      if (!one || !art) return 0;
+      if (!one) return 0;
       one.classList.add('launched');
-      if (calm()) {
-        one.classList.add('gone');
-        return 300;
-      }
-      replay(one.querySelector('.leaf'), 'spring', 500);
-      const box = one.getBoundingClientRect();
-      const pond = stage.getBoundingClientRect();
-      // It flies to whichever side of the pond is further away, high over the others, and splashes down there.
-      const left = box.left + box.width / 2 - pond.left < pond.width / 2;
-      const landX = left ? pond.right - 40 : pond.left + 40;
-      const landY = pond.top + pond.height * 0.82;
-      const dx = landX - (box.left + box.width / 2);
-      const dy = landY - (box.top + box.height / 2);
-      const spin = left ? 540 : -540;
-      const flight = art.animate(
-        [
-          { transform: 'translate(0, 0) rotate(0deg) scale(1)' },
-          { transform: `translate(0, ${box.height * 0.12}px) scale(1.05, 0.8)`, offset: 0.12 },
-          { transform: `translate(${dx * 0.5}px, ${-Math.max(160, box.height * 1.6)}px) rotate(${spin * 0.6}deg) scale(0.9)`, offset: 0.55 },
-          { transform: `translate(${dx}px, ${dy}px) rotate(${spin}deg) scale(0.35)`, opacity: 0.9 },
-        ],
-        { duration: FLY_MS, easing: 'cubic-bezier(0.3, 0.7, 0.5, 1)', fill: 'forwards' },
-      );
-      window.setTimeout(() => {
-        flight.cancel();
-        one.classList.add('gone');
-        splash(landX, landY);
-      }, FLY_MS);
-      return FLY_MS + 200;
+      const wait = playExit(exit, one, stage);
+      window.setTimeout(() => one.classList.add('gone'), wait);
+      return wait;
+    },
+    surprise(kind) {
+      playSurprise(kind, stage);
     },
     protest(index) {
       const one = board.querySelector<HTMLElement>(`[data-index="${index}"]`);
@@ -197,6 +163,20 @@ export function createPond(host: HTMLElement): PondView {
       bubble.setAttribute('aria-hidden', 'true');
       one.append(bubble);
       window.setTimeout(() => bubble.remove(), PROTEST_MS + 300);
+    },
+    puzzled(index, ms) {
+      const one = board.querySelector<HTMLElement>(`[data-index="${index}"]`);
+      if (!one) return;
+      one.classList.add('puzzled');
+      one.querySelector('.bubble')?.remove();
+      const bubble = element('span', 'bubble');
+      bubble.textContent = '❓';
+      bubble.setAttribute('aria-hidden', 'true');
+      one.append(bubble);
+      window.setTimeout(() => {
+        one.classList.remove('puzzled');
+        bubble.remove();
+      }, ms);
     },
     link(a, b) {
       for (const index of [a, b]) {

@@ -144,3 +144,53 @@ export const PICS: readonly Pic[] = [
 export const NOT_SORTABLE: readonly string[] = ['🧸', '🐟', '🐠', '🦀', '🦐', '🐔', '🥚', '🌽', '🥦', '🍄', '🦄', '🎠', '🪅', '🏎️', '🛴', '🐻', '🐼', '🥥'];
 
 export const picsIn = (group: Group): number[] => PICS.flatMap((pic, at) => (pic.group === group ? [at] : []));
+
+/**
+ * Groups that never meet in one puzzle, because a child could fairly put many of one group in the other: fruit and
+ * vegetables are plants too, and a car, a bike or a fire engine looks just like a toy.
+ */
+export const CLASHING: readonly (readonly [Group, Group])[] = [
+  ['food', 'plants'],
+  ['vehicles', 'toys'],
+];
+
+export const clashes = (a: Group, b: Group): boolean => CLASHING.some(([one, two]) => (one === a && two === b) || (one === b && two === a));
+
+/**
+ * Single pictures that could sit in a second group, beyond the clashing groups: they never meet that group in a
+ * puzzle.
+ */
+export const ALSO: Readonly<Record<string, readonly Group[]>> = {
+  // Fruit and vegetables are plants too, already kept apart by the clashing groups, and listed so the tests see them.
+  '🍅': ['plants'],
+  '🥕': ['plants'],
+  '🍓': ['plants'],
+  // A car, a bike or a fire engine could be a toy one.
+  '🚗': ['toys'],
+  '🚓': ['toys'],
+  '🚕': ['toys'],
+  '🚒': ['toys'],
+  '🚲': ['toys'],
+  // Skates have wheels and a kite flies, a bit like something that takes you places.
+  '🛼': ['vehicles'],
+  '🪁': ['vehicles'],
+  // A round cartoon face could be a cuddly toy, so face-only animals never meet the toys.
+  '🐶': ['toys'],
+  '🐱': ['toys'],
+  '🐮': ['toys'],
+  '🐷': ['toys'],
+  '🐸': ['toys'],
+  '🦁': ['toys'],
+  '🐰': ['toys'],
+  '🐵': ['toys'],
+  '🐨': ['toys'],
+  '🦊': ['toys'],
+  '🐴': ['toys'],
+};
+
+/** The groups a picture could also be put in, which it must never meet in a puzzle. */
+export function alsoIn(at: number): Group[] {
+  const pic = PICS[at];
+  const clashing = GROUPS.filter((group) => group !== pic.group && clashes(pic.group, group));
+  return [...new Set([...clashing, ...(ALSO[pic.glyph] ?? [])])];
+}

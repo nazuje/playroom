@@ -381,6 +381,26 @@ body[data-screen='map'] #play {
   }
 }
 
+/* In the first demo of an idea, the odd one stands still and tilts its head, puzzled, while the others dance. */
+.pad.puzzled .plate {
+  animation: puzzled 1.6s ease-in-out infinite;
+}
+
+@keyframes puzzled {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  30% {
+    transform: rotate(-14deg);
+  }
+
+  60% {
+    transform: rotate(-14deg) translateY(-3px);
+  }
+}
+
 /* A friend it belongs with: both light up with the same ring. */
 .pad.linked .plate {
   box-shadow: 0 0 0 5px var(--lotus), 0 0 22px 6px var(--lotus-light);
@@ -558,6 +578,63 @@ body[data-screen='map'] #play {
   }
 }
 
+/* ---------- Visitors: the frog, the flamingo, the rainbow fish and the ducklings ---------- */
+
+.sprite {
+  position: fixed;
+  z-index: 7;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 4px 3px rgba(5, 50, 60, 0.35));
+  pointer-events: none;
+}
+
+.splash-big::before {
+  inset: -54px;
+  border-width: 6px;
+}
+
+.splash-big .drop {
+  width: 14px;
+  height: 14px;
+  animation-name: drop-big;
+}
+
+@keyframes drop-big {
+  to {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(-90px) scale(0.5);
+  }
+}
+
+.rainbow {
+  position: fixed;
+  z-index: 6;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    transparent 0 54%,
+    #9b5de5 54% 60%,
+    #2f7de1 60% 66%,
+    #3bbf4f 66% 72%,
+    #ffd23f 72% 78%,
+    #fb8b24 78% 84%,
+    #e63946 84% 90%,
+    transparent 90%
+  );
+  opacity: 0;
+  animation: rainbow 2.2s ease-in-out forwards;
+  pointer-events: none;
+}
+
+@keyframes rainbow {
+  20%,
+  70% {
+    opacity: 0.75;
+  }
+}
+
 /* ---------- Lotus buds, one per puzzle of the set, blooming as each is done ---------- */
 
 .buds {
@@ -617,8 +694,9 @@ body[data-screen='map'] #play {
   z-index: 4;
   display: flex;
   flex: none;
+  gap: 10px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   height: calc(68px + var(--safe-bottom));
   padding: 0 14px var(--safe-bottom);
   border-top: 4px solid #d8c08a;
@@ -630,6 +708,22 @@ body[data-screen='map'] #play {
 /* Behind a card the whole dock is gone, so nothing below it can be tapped. */
 body[data-screen='won'] #dock > * {
   visibility: hidden;
+}
+
+/* The pond friends earned so far sit on the bank, the newest first. */
+#bank {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.6rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+#dock-end {
+  flex: none;
 }
 
 .skip {
@@ -751,6 +845,38 @@ body[data-screen='won'] #overlay {
 
 .world {
   margin: 0 0 22px;
+  text-align: center;
+}
+
+/* Every pond friend earned so far, and a ripple for each one still to come. */
+.life {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 0 auto 20px;
+  padding: 10px 12px;
+  border-radius: 22px;
+  background: rgba(255, 250, 242, 0.85);
+  box-shadow: 0 4px 0 rgba(5, 50, 60, 0.3);
+}
+
+.life-friend,
+.life-spot {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.life-spot::before {
+  width: 18px;
+  height: 18px;
+  border: 2px dashed rgba(31, 154, 152, 0.55);
+  border-radius: 50%;
+  content: '';
 }
 
 /* A wooden sign on a post for each world. */
@@ -771,6 +897,7 @@ body[data-screen='won'] #overlay {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
+  justify-content: center;
 }
 
 .tile {
@@ -884,6 +1011,13 @@ body[data-screen='won'] #overlay {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
+}
+
+.card-friend {
+  margin: 0;
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: bubble 0.5s 0.8s cubic-bezier(0.3, 1.8, 0.5, 1) backwards;
 }
 
 .card-small {

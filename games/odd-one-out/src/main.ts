@@ -5,10 +5,11 @@ import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
 import { levelById, LEVELS, setFor } from './rules/levels.ts';
 import { addMiss, cleanMisses, missesSoFar, settle, type MissLog } from './rules/misses.ts';
-import { addSkip, addWin, cleanProgress, isOpen, totalStars, type Progress } from './rules/progress.ts';
+import { lifeEarned, lifeOf } from './rules/life.ts';
+import { addSkip, addWin, cleanProgress, isDone, isOpen, totalStars, type Progress } from './rules/progress.ts';
 import { showFinale, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
-import { pickSound, stopSounds, winSound } from './sounds.ts';
+import { friendSound, pickSound, stopSounds, winSound } from './sounds.ts';
 import { button, element, onPress } from './ui.ts';
 import { createGuide } from './view/guide.ts';
 import { createPond } from './view/pond.ts';
@@ -31,7 +32,10 @@ useClips(clips);
 const bar = byId('topbar');
 const overlay = byId('overlay');
 const pondHost = byId('pond');
-const dock = byId('dock');
+/** The skip button's corner of the near bank. */
+const dock = byId('dock-end');
+/** The near bank, where every pond friend earned so far sits. */
+const bank = byId('bank');
 const heading = element('h1', 'title');
 const home = homeButton();
 const levels = button('bar-btn');
@@ -103,6 +107,21 @@ function setScreen(name: string): void {
 function saveProgress(next: Progress): void {
   progress = next;
   store.set(PROGRESS_KEY, progress);
+  drawBank();
+}
+
+/** The pond friends on the near bank, the newest first. */
+function drawBank(): void {
+  bank.replaceChildren(
+    ...lifeEarned(progress)
+      .reverse()
+      .map((glyph) => {
+        const friend = element('span', 'bank-friend');
+        friend.textContent = glyph;
+        return friend;
+      }),
+  );
+  bank.setAttribute('aria-label', text().life);
 }
 
 function clearOverlay(): void {
@@ -126,7 +145,7 @@ function pickLevel(): void {
   document.body.dataset.level = '';
   const draw = (): void => {
     closeOverlay();
-    closeOverlay = showMap(overlay, { progress, onLevel: openLevel });
+    closeOverlay = showMap(overlay, { progress, life: lifeEarned(progress), onLevel: openLevel });
   };
   draw();
   redraw = draw;
@@ -143,6 +162,8 @@ function nextAfter(id: number): number | null {
 function onWin(report: WinReport): void {
   const { puzzle, stars } = report;
   const id = puzzle.id;
+  // The first win of a level brings a new pond friend, which the card shows.
+  const newFriend = isDone(progress, id) ? null : lifeOf(id);
   saveProgress(addWin(progress, id, stars));
   saveMisses(settle(missLog, id));
   fails.delete(id);
@@ -151,6 +172,7 @@ function onWin(report: WinReport): void {
   setScreen('won');
   document.body.dataset.stars = String(stars);
   winSound();
+  if (newFriend) window.setTimeout(friendSound, 900);
   const next = nextAfter(id);
   const line = text()[`stars${stars}` as 'stars1' | 'stars2' | 'stars3'];
   // The last level gets the end of the game: confetti, a cheer and one big button.
@@ -159,9 +181,10 @@ function onWin(report: WinReport): void {
   const draw = (): void => {
     closeOverlay();
     closeOverlay = finale
-      ? showFinale(overlay, { report, totalStars: totalStars(progress), onMap: pickLevel })
+      ? showFinale(overlay, { report, totalStars: totalStars(progress), life: lifeEarned(progress), onMap: pickLevel })
       : showWon(overlay, {
           report,
+          newFriend,
           onNext: next ? () => openLevel(next) : null,
           onAgain: () => openLevel(id),
           onMap: pickLevel,
@@ -227,6 +250,7 @@ onPress(repeat, () => {
 
 onLanguageChange(() => {
   labelPage();
+  drawBank();
   play?.relabel();
   redraw();
 });
@@ -238,4 +262,5 @@ window.addEventListener('keydown', (event) => {
 });
 
 labelPage();
+drawBank();
 pickLevel();
