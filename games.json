@@ -787,5 +787,32 @@
       }
     },
     "color": "#06d6a0"
+  },
+  {
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "status": "ready",
+    "slug": "odd-one-out",
+    "title": "Odd One Out",
+    "emoji": "🦄",
+    "tagline": "Which one does not belong?",
+    "skills": [
+      "logic",
+      "challenge"
+    ],
+    "ages": "4-12",
+    "translations": {
+      "sl": {
+        "title": "Kdo ne spada zraven?",
+        "tagline": "Najdi tistega, ki je drugačen!"
+      }
+    },
+    "color": "#d877e0"
   }
 ]
