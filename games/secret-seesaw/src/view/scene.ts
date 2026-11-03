@@ -3,6 +3,7 @@
 // every plank and glows when the sides are equal.
 import { describe, difference, findItem, isolated, opposite, SIDES, type Board, type Effect, type Item, type Mystery, type SideName, type Values } from '../rules/board.ts';
 import type { Level } from '../rules/levels.ts';
+import { peakSideCount } from '../rules/solve.ts';
 import { calm, element, onPress } from '../ui.ts';
 import { itemButton, peek, unpeek } from './items.ts';
 
@@ -18,6 +19,8 @@ const POST = 26;
 const LARGEST_ITEM = 88;
 const SMALLEST_ITEM = 52;
 const GHOST_MS = 520;
+const TUMBLE_DEGREES = 27;
+const FALL_MS = 950;
 
 interface Basket {
   anchor: HTMLElement;
@@ -51,6 +54,8 @@ export interface Scene {
   wiggle(id: string): void;
   itemRect(id: string): DOMRect | null;
   cheer(): void;
+  /** Everything falls off, each plank slamming down on the side given (-1 left, 1 right). */
+  tumble(leans: readonly number[]): void;
   layout(): void;
   /** Who hears taps on the items. */
   onTap(listener: (id: string) => void): void;
@@ -153,11 +158,12 @@ export function createScene(host: HTMLElement): Scene {
 
   function itemSize(rig: Rig, basketWidth: number): number {
     const rise = rig.arm * Math.sin(radians(MOST_DEGREES));
-    const room = rig.pivotY - rise - POST - PLATE - 4;
+    // A tray only rises this high on a wrong guess, for a moment, so half of it is enough room.
+    const room = rig.pivotY - rise / 2 - POST - PLATE - 4;
     for (let size = LARGEST_ITEM; size > SMALLEST_ITEM; size -= 2) {
       const columns = Math.max(1, Math.floor((basketWidth + GAP) / (size + GAP)));
       const rows = Math.ceil(capacity / columns);
-      if (rows * (size + GAP) <= room) return size;
+      if (rows * size + (rows - 1) * GAP <= room) return size;
     }
     return SMALLEST_ITEM;
   }
@@ -315,9 +321,8 @@ export function createScene(host: HTMLElement): Scene {
       level = nextLevel;
       board = nextBoard;
       values = nextLevel.values;
-      // Room for what a side usually grows to: a few tray weights, or a swap on the last world.
-      const extra = nextLevel.open ? Math.min(3, nextLevel.tray.length) : nextLevel.world === 'two' ? 2 : 0;
-      capacity = mostOnASide(nextBoard) + extra;
+      // Room for what a side grows to: a few tray weights, or the biggest stack on the way to the answer.
+      capacity = nextLevel.open ? mostOnASide(nextBoard) + Math.min(3, nextLevel.tray.length) : peakSideCount(nextLevel);
       rigs = nextBoard.seesaws.map((_, at) => makeRig(at));
       host.replaceChildren(...rigs.map((rig) => rig.root));
       host.dataset.count = String(rigs.length);
@@ -374,6 +379,38 @@ export function createScene(host: HTMLElement): Scene {
     },
     cheer() {
       for (const rig of rigs) rig.root.classList.add('cheering');
+    },
+    tumble(leans) {
+      rigs.forEach((rig, at) => {
+        rig.target = (leans[at] ?? 1) * TUMBLE_DEGREES;
+        rig.root.classList.add('tumbling');
+      });
+      kick();
+      let turn = 0;
+      for (const from of host.querySelectorAll<HTMLElement>('.item')) {
+        const box = from.getBoundingClientRect();
+        const copy = from.cloneNode(true) as HTMLElement;
+        copy.removeAttribute('data-item');
+        copy.classList.add('ghost');
+        copy.setAttribute('aria-hidden', 'true');
+        Object.assign(copy.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+        document.body.append(copy);
+        turn += 1;
+        const side = box.left + box.width / 2 < window.innerWidth / 2 ? -1 : 1;
+        const spin = (turn % 2 ? 1 : -1) * (200 + turn * 40);
+        const motion = calm()
+          ? [{ opacity: 1 }, { opacity: 0 }]
+          : [
+              { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
+              { transform: `translate(${side * 30}px, -40px) rotate(${spin / 6}deg)`, opacity: 1, offset: 0.25 },
+              { transform: `translate(${side * (80 + turn * 12)}px, ${window.innerHeight}px) rotate(${spin}deg)`, opacity: 0.9 },
+            ];
+        copy.animate(motion, { duration: FALL_MS, delay: turn * 40, easing: 'cubic-bezier(0.5, 0, 0.9, 0.6)', fill: 'backwards' }).finished.then(
+          () => copy.remove(),
+          () => copy.remove(),
+        );
+      }
+      for (const rig of rigs) for (const side of SIDES) rig.baskets[side].stack.replaceChildren();
     },
     layout,
     onTap(listener) {

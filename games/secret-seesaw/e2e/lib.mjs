@@ -8,7 +8,7 @@ import { launchOptions } from '../../../scripts/playtest.mjs';
 
 export const GAME = fileURLToPath(new URL('..', import.meta.url));
 export const SHOTS = join(GAME, '.shots');
-export const PORT = Number(process.env.PORT ?? 5361);
+export const PORT = Number(process.env.PORT ?? 5190);
 export const URL_HOME = `http://localhost:${PORT}/`;
 const VITE = join(GAME, '..', '..', 'node_modules', '.bin', 'vite');
 const MOST_TRIES = 100;
@@ -86,16 +86,23 @@ export async function openLevel(page, id) {
 export const ready = (page) =>
   page.waitForFunction(() => document.body.dataset.status === 'playing' || document.body.dataset.screen !== 'play', null, { timeout: 8000 });
 
-/** Picks a number: straight from the row, or through the sheet on a narrow screen. */
+/** Picks a number: straight from the row or grid, or on a phone by stepping to it and opening the box. */
 export async function answer(page, value) {
-  const sheet = await page.evaluate(() => document.body.dataset.picker === 'sheet' && document.querySelector('.picker') !== null);
-  if (sheet) {
-    await touch(page, '.prompt');
-    await page.waitForFunction(() => document.querySelector('.picker[data-open="true"]'));
-    await page.waitForTimeout(260);
+  if (!(await page.locator('.stepper').count())) {
+    await touch(page, `[data-choice="${value}"]`);
+    return;
   }
-  await touch(page, `[data-choice="${value}"]`);
+  for (let steps = 0; steps < 50; steps += 1) {
+    const shown = Number(await page.locator('.step-shown').getAttribute('data-stepped'));
+    if (shown === value) break;
+    await touch(page, shown < value ? '.step-more' : '.step-less');
+    await page.waitForFunction((was) => document.querySelector('.step-shown')?.dataset.stepped !== String(was), shown);
+  }
+  await touch(page, '[data-action="open"]');
 }
+
+/** The puzzle this try really shows: the first try is the level as designed, later ones are fresh. */
+export const variant = (page) => page.evaluate(() => Number(document.body.dataset.variant ?? 0));
 
 /** What each seesaw shows, as the rules write it: "box+box+3=7". */
 export const pictures = (page) => page.locator('.rig').evaluateAll((rigs) => rigs.map((rig) => rig.dataset.picture));

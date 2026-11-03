@@ -13,24 +13,6 @@ export interface SeesawPlan {
   right: Token[];
 }
 
-export interface Level {
-  id: number;
-  world: WorldId;
-  seesaws: SeesawPlan[];
-  /** What each mystery really weighs. */
-  values: Values;
-  /** The mysteries to work out, in order. Empty on "make it level" boards. */
-  ask: Mystery[];
-  /** Three big numbers to pick from, or every number from 0 to 20. */
-  answer: 'three' | 'picker' | 'none';
-  /** The numbers shown, smallest first. */
-  choices: number[];
-  /** Weights in the tray, on "make it level" boards. */
-  tray: number[];
-  /** The side tray weights go on. */
-  open: SideName | null;
-}
-
 export const MOST_ANSWER = 20;
 export const MOST_WEIGHT = 20;
 const PICKER = Array.from({ length: MOST_ANSWER + 1 }, (_, n) => n);
@@ -270,9 +252,31 @@ const SPECS: Spec[] = [
 ];
 
 const SEED = 20261103;
+/** A big prime, so each try's seed lands far from every other level's. */
+const VARIANT_STEP = 104729;
 
-function build(spec: Spec, index: number): Level {
-  const random = seeded(SEED + index * 7919);
+export interface Level {
+  id: number;
+  world: WorldId;
+  /** 0 is the puzzle everyone meets first. Every later try gets a fresh one of the same shape. */
+  variant: number;
+  seesaws: SeesawPlan[];
+  /** What each mystery really weighs. */
+  values: Values;
+  /** The mysteries to work out, in order. Empty on "make it level" boards. */
+  ask: Mystery[];
+  /** Three big numbers to pick from, or every number from 0 to 20. */
+  answer: 'three' | 'picker' | 'none';
+  /** The numbers shown, smallest first. */
+  choices: number[];
+  /** Weights in the tray, on "make it level" boards. */
+  tray: number[];
+  /** The side tray weights go on. */
+  open: SideName | null;
+}
+
+function build(spec: Spec, index: number, variant: number): Level {
+  const random = seeded(SEED + index * 7919 + variant * VARIANT_STEP);
   const made = draw(random, spec.make);
   const ask = made.ask ?? (made.values.box === undefined ? [] : ['box' as Mystery]);
   const first = ask[0];
@@ -281,6 +285,7 @@ function build(spec: Spec, index: number): Level {
   return {
     id: index + 1,
     world: spec.world,
+    variant,
     seesaws: made.seesaws,
     values: made.values,
     ask,
@@ -291,12 +296,19 @@ function build(spec: Spec, index: number): Level {
   };
 }
 
-/** Makes the whole staircase from its seeds. The same call always makes the same levels. */
-export const buildLevels = (): Level[] => SPECS.map(build);
+/** Makes the whole staircase from its seeds, as first met. The same call always makes the same levels. */
+export const buildLevels = (): Level[] => SPECS.map((spec, index) => build(spec, index, 0));
 
 export const LEVELS: readonly Level[] = buildLevels();
 
 export const levelById = (id: number): Level | undefined => LEVELS.find((level) => level.id === id);
+
+/** A level as a given try meets it: the same shape and idea, with its own numbers. */
+export function levelFor(id: number, variant: number): Level | undefined {
+  const spec = SPECS[id - 1];
+  if (!spec) return undefined;
+  return variant === 0 ? LEVELS[id - 1] : build(spec, id - 1, variant);
+}
 
 function itemFor(token: Token, id: string): Item {
   return typeof token === 'number' ? { id, kind: 'weight', value: token } : { id, kind: 'mystery', mystery: token };

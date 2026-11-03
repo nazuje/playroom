@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describe as picture } from './board.ts';
 import { levelById, type Level } from './levels.ts';
-import { guess, openLean, place, startPlay, starsFor, tap, valuesWith } from './play.ts';
+import { guess, missesAllowed, openLean, place, startPlay, starsFor, tap, valuesWith } from './play.ts';
 import { addSkip, addWin, cleanProgress, emptyProgress, isOpen, nextLevel, totalStars } from './progress.ts';
 
 const level = (id: number): Level => levelById(id) as Level;
@@ -34,6 +34,30 @@ describe('answering', () => {
     expect(play.board.seesaws.map(picture)).toEqual([`${two.values.box}+hat=15`, `hat=${two.values.box}+3`]);
     play = guess(play, two.values.hat as number)!.play;
     expect(play.won).toBe(true);
+  });
+
+  it('ends a try after two misses with three choices, so trying them all cannot win', () => {
+    const three = level(1);
+    let play = startPlay(three);
+    const wrong = three.choices.filter((value) => value !== three.values.box);
+    play = guess(play, wrong[0])!.play;
+    expect(play.failed).toBe(false);
+    play = guess(play, wrong[1])!.play;
+    expect(play.failed).toBe(true);
+    expect(guess(play, three.values.box as number)).toBeNull();
+    expect(tap(play, play.board.seesaws[0].left[0].id).effect.type).toBe('stuck');
+  });
+
+  it('ends a picker try after three misses, counted across both mysteries', () => {
+    const two = level(22);
+    let play = startPlay(two);
+    play = guess(play, 0)!.play;
+    play = guess(play, two.values.box as number)!.play;
+    play = guess(play, 0)!.play;
+    expect(play.failed).toBe(false);
+    play = guess(play, 1)!.play;
+    expect(play.failed).toBe(true);
+    expect(missesAllowed(level(6))).toBe(Infinity);
   });
 
   it('weighs a wrong guess honestly for the wobble', () => {

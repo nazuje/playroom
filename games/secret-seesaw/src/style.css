@@ -768,34 +768,12 @@ body[data-screen='map'] #play {
   font-size: inherit;
 }
 
-.picker {
-  flex: 1 1 100%;
-  max-width: 860px;
-}
-
 .picker-grid {
   display: grid;
+  flex: 1 1 520px;
   grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 8px;
-}
-
-.picker-close {
-  display: none;
-}
-
-body[data-picker='inline'] .prompt {
-  pointer-events: none;
-}
-
-/* On narrow screens the 0 to 20 picker waits in a sheet behind the big "box = ?" button. */
-
-body[data-picker='sheet'] .prompt {
-  min-height: 80px;
-  padding: 6px 22px 6px 12px;
-  border-radius: 24px;
-  background: var(--navy);
-  box-shadow: 0 6px 0 var(--tangerine-dark), 0 10px 16px rgba(0, 0, 0, 0.25);
-  animation: prompt-bob 1.8s ease-in-out infinite;
+  max-width: 860px;
 }
 
 @keyframes prompt-bob {
@@ -804,44 +782,131 @@ body[data-picker='sheet'] .prompt {
   }
 }
 
-body[data-picker='sheet'] .picker {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 9;
-  max-width: none;
-  padding: 64px 14px calc(var(--safe-bottom) + 18px);
-  border-radius: 28px 28px 0 0;
-  background: var(--tent-deep);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
-  transform: translateY(110%);
-  transition: transform 0.22s ease-out;
+/* On a phone the picker is a − / + stepper and an open button: one row, so the board always shows. */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
 
-body[data-picker='sheet'] .picker[data-open='true'] {
-  transform: translateY(0);
-}
-
-body[data-picker='sheet'] .picker-grid {
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  max-width: 520px;
-  margin: 0 auto;
-}
-
-body[data-picker='sheet'] .picker-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
+.step {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
-  font-size: 1.3rem;
-  color: var(--cream);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--navy);
+  background: radial-gradient(circle at 35% 30%, #ffb27a, var(--tangerine) 60%);
+  box-shadow: 0 5px 0 var(--tangerine-dark);
+  touch-action: manipulation;
+}
+
+.step:active,
+.step-open:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--tangerine-dark);
+}
+
+.step-shown {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  min-width: 96px;
+  height: 72px;
+  padding: 0 8px 0 2px;
+  border-radius: 20px;
   background: var(--navy);
+}
+
+.step-shown .mystery-icon {
+  --size: 44px;
+}
+
+.step-number {
+  min-width: 1.6ch;
+  font-size: 2.3rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--tangerine);
+}
+
+.step-shown.tried .step-number {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.step-open {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  height: 72px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cream);
+  background: var(--raspberry);
+  box-shadow: 0 5px 0 var(--raspberry-dark);
+  touch-action: manipulation;
+}
+
+.step-open .mystery-icon {
+  --size: 36px;
+}
+
+.step-open .box-lid {
+  transform: translateY(-30%) rotate(-25deg);
+}
+
+@media (max-width: 380px) {
+  .stepper {
+    gap: 6px;
+  }
+
+  .step-shown {
+    min-width: 88px;
+  }
+}
+
+/* A hand pointing at what to tap, and the thing it points at pulsing. */
+
+.pointer {
+  position: fixed;
+  z-index: 9;
+  font-size: 2.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.4));
+  transform: translateX(-30%);
+  animation: point 0.9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes point {
+  50% {
+    transform: translate(-30%, -12px);
+  }
+}
+
+.nudge {
+  animation: hint-pulse 0.9s ease-in-out infinite;
+}
+
+/* Everything tumbles off: the drum squashes as the plank slams. */
+
+.rig.tumbling .drum {
+  animation: drum-bounce 0.35s ease-in-out 3;
 }
 
 .skip {
@@ -1048,6 +1113,23 @@ body[data-picker='sheet'] .picker-close {
   width: 64px;
   padding: 0;
   font-size: 1.5rem;
+}
+
+.card-face {
+  font-size: 4rem;
+  line-height: 1;
+  animation: face-roll 0.6s cubic-bezier(0.3, 1.6, 0.6, 1);
+}
+
+@keyframes face-roll {
+  from {
+    transform: rotate(-180deg) scale(0.3);
+  }
+}
+
+.card-skip {
+  padding: 0 16px;
+  font-size: 1rem;
 }
 
 @media (max-width: 380px) {

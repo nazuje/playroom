@@ -42,7 +42,7 @@ export type Values = Partial<Record<Mystery, number>>;
 export type Effect =
   | { type: 'pair'; seesaw: number; ids: [string, string] }
   | { type: 'take'; seesaw: number; amount: number; gone: string[]; changed: string[] }
-  | { type: 'swap'; seesaw: number; from: number; id: string; added: string[] }
+  | { type: 'swap'; seesaw: number; from: number; id: string; added: string[]; changed: string[] }
   | { type: 'back'; seesaw: number; id: string }
   | { type: 'place'; seesaw: number; id: string }
   | { type: 'stuck'; id: string; why: 'alone' | 'fixed' | 'empty' };
@@ -91,6 +91,7 @@ function withSeesaw(board: Board, index: number, seesaw: Seesaw, extra: Partial<
   return { ...board, ...extra, seesaws: board.seesaws.map((one, at) => (at === index ? seesaw : one)) };
 }
 
+const isPlain = (item: Item): boolean => item.kind === 'weight' && !item.loose && !item.opened;
 const isMystery = (item: Item, mystery: Mystery): boolean => item.kind === 'mystery' && item.mystery === mystery;
 const hasMystery = (items: readonly Item[]): boolean => items.some((item) => item.kind === 'mystery');
 
@@ -165,15 +166,28 @@ function tapMystery(board: Board, spot: Spot, mystery: Mystery): Move {
     const source = swapSource(board.seesaws[from], mystery);
     if (!source) continue;
     let made = board.made;
-    const added = source.map((item): Item => {
+    let side = [...seesaw[spot.side].slice(0, spot.index), ...seesaw[spot.side].slice(spot.index + 1)];
+    const added: Item[] = [];
+    const changed: string[] = [];
+    for (const item of source) {
+      // A plain weight joins one already on that side, so a stack never grows past what the screen holds.
+      const plain = item.kind === 'weight' ? side.findIndex(isPlain) : -1;
+      if (item.kind === 'weight' && plain >= 0) {
+        const into = side[plain] as WeightItem;
+        side = side.map((one, at) => (at === plain ? { ...into, value: into.value + item.value } : one));
+        changed.push(into.id);
+        continue;
+      }
       made += 1;
-      return { ...item, id: `n${made}` };
-    });
+      added.push({ ...item, id: `n${made}` });
+    }
+    const at = Math.min(spot.index, side.length);
+    side = [...side.slice(0, at), ...added, ...side.slice(at)];
     const next = copySeesaw(seesaw);
-    next[spot.side] = [...next[spot.side].slice(0, spot.index), ...added, ...next[spot.side].slice(spot.index + 1)];
+    next[spot.side] = side;
     return {
       board: withSeesaw(board, spot.seesaw, next, { made }),
-      effect: { type: 'swap', seesaw: spot.seesaw, from, id: spot.item.id, added: added.map((item) => item.id) },
+      effect: { type: 'swap', seesaw: spot.seesaw, from, id: spot.item.id, added: added.map((item) => item.id), changed },
     };
   }
   return { board, effect: { type: 'stuck', id: spot.item.id, why: 'alone' } };

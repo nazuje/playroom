@@ -51,3 +51,10 @@ export function winSound(): void {
   playSound('whoosh');
   later(200, () => playSound('tada'));
 }
+
+/** Everything slides off: a long whistle down, a clatter and a honk. */
+export function tumbleSound(): void {
+  notes([[0, 880], [90, 740], [180, 622], [270, 523], [360, 440], [450, 349], [540, 262]], 'sawtooth', 0.09, 0.07);
+  for (const ms of [620, 700, 790, 900]) later(ms, () => playSound('dig'));
+  later(1000, () => playSound('toot'));
+}

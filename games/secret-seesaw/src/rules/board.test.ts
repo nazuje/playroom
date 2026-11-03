@@ -69,6 +69,13 @@ describe('swapping a mystery for what it weighs', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('adds a swapped-in weight to a plain weight already on that side', () => {
+    const start = board(seesaw(['hat', 1, 'box', 'hat'], [11]), seesaw(['box'], ['hat', 1]));
+    const { board: after, effect } = tapItem(start, idOf(start, 0, 'left', 2), free);
+    expect(picture(after.seesaws[0])).toBe('hat+2+hat+hat=11');
+    expect(effect).toMatchObject({ type: 'swap', changed: [idOf(start, 0, 'left', 1)] });
+  });
+
   it('swaps nothing when the lone mystery is the one tapped', () => {
     const start = board(seesaw(['box', 'hat'], [15]), seesaw(['hat'], ['box', 3]));
     expect(tapItem(start, idOf(start, 1, 'left', 0), free).effect.type).toBe('stuck');

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allItems, describe as picture, difference, openMystery, tapItem, type Board } from './board.ts';
-import { boardFor, buildLevels, LEVELS, MOST_ANSWER, MOST_WEIGHT, trayMakes, WORLDS } from './levels.ts';
-import { balanced, readOff, solutions, stepsTo } from './solve.ts';
+import { boardFor, buildLevels, LEVELS, levelFor, MOST_ANSWER, MOST_WEIGHT, trayMakes, WORLDS, type Level } from './levels.ts';
+import { balanced, peakSideCount, readOff, solutions, stepsTo } from './solve.ts';
 
 const MOST_ON_A_SIDE = 6;
 const asking = LEVELS.filter((level) => level.ask.length > 0);
@@ -131,6 +131,58 @@ describe('every tap keeps a level seesaw level', () => {
         board = tapItem(board, items[turn % items.length].id, { fixedGiven: false }).board;
         expect(balanced(board, level.values), `level ${level.id}`).toBe(true);
       }
+    }
+  });
+});
+
+describe('every try gets a fresh puzzle of the same shape', () => {
+  const VARIANTS = 25;
+  const mysteriesOn = (plan: Level['seesaws'][number]) =>
+    [plan.left, plan.right].map((side) => side.filter((token) => typeof token === 'string').sort().join('+'));
+  const tries = (level: Level): Level[] => Array.from({ length: VARIANTS }, (_, variant) => levelFor(level.id, variant) as Level);
+
+  it('meets the first puzzle as it always was, and later tries differ', () => {
+    for (const level of LEVELS) {
+      expect(levelFor(level.id, 0)).toBe(level);
+      const kinds = new Set(tries(level).map((one) => JSON.stringify([one.seesaws, one.choices, one.tray])));
+      // The smallest tray level has only a couple of ways to be made, and 3 boxes = 18 a handful.
+      expect(kinds.size, `level ${level.id}`).toBeGreaterThanOrEqual(level.id === 6 ? 2 : 4);
+      expect(levelFor(level.id, 7)).toEqual(levelFor(level.id, 7));
+    }
+  });
+
+  it('keeps one whole answer, the same shape, and room on the screen for every try', () => {
+    for (const level of LEVELS) {
+      for (const one of tries(level)) {
+        const where = `level ${one.id} try ${one.variant}`;
+        expect(one.world).toBe(level.world);
+        expect(one.answer).toBe(level.answer);
+        expect(one.seesaws.map(mysteriesOn), where).toEqual(level.seesaws.map(mysteriesOn));
+        expect(one.open).toBe(level.open);
+        expect(peakSideCount(one), where).toBeLessThanOrEqual(MOST_ON_A_SIDE);
+        for (const value of Object.values(one.values)) expect(value).toBeLessThanOrEqual(MOST_ANSWER);
+        if (!one.ask.length) {
+          const lean = difference(boardFor(one).seesaws[0], {});
+          expect(trayMakes(one.tray, one.open === 'right' ? -lean : lean), where).not.toBeNull();
+          continue;
+        }
+        expect(solutions(one), where).toEqual([one.values]);
+        if (one.answer === 'three') expect(one.choices).toContain(one.values.box);
+        let board = boardFor(one);
+        for (const mystery of one.ask) {
+          const steps = stepsTo(board, mystery);
+          expect(steps, where).not.toBeNull();
+          for (const id of steps ?? []) board = tapItem(board, id, { fixedGiven: false }).board;
+          expect(readOff(board, mystery), where).toBe(one.values[mystery]);
+          board = openMystery(board, mystery, one.values[mystery] as number);
+        }
+      }
+    }
+  });
+
+  it('keeps the last world to two rows of two on a phone while it is worked out', () => {
+    for (const level of LEVELS.filter((one) => one.world === 'two')) {
+      for (const one of tries(level)) expect(peakSideCount(one), `level ${one.id} try ${one.variant}`).toBeLessThanOrEqual(4);
     }
   });
 });

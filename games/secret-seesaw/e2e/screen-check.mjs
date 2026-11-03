@@ -1,7 +1,8 @@
 // Screens, languages, mashing and calm mode on the built game. Pictures land in .shots/. Run `npx vite build`
-// first. It fails on any error, outside request, sideways scroll, lost progress or tap target under 64px.
-import { LEVELS } from '../src/rules/levels.ts';
-import { allOpen, answer, launch, openLevel, openPage, pictures, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
+// first. It fails on any error, outside request, sideways scroll, lost progress, tap target under 64px or an
+// answer dock covering the board, on every level at both phone sizes.
+import { LEVELS, levelFor } from '../src/rules/levels.ts';
+import { allOpen, answer, launch, openLevel, openPage, pictures, ready, screenIs, serve, SHOTS, touch, variant } from './lib.mjs';
 
 const SCREENS = [
   { name: 'phone', width: 390, height: 844 },
@@ -10,9 +11,6 @@ const SCREENS = [
 ];
 const SMALLEST_TARGET = 64;
 const MASH_TAPS = 50;
-
-/** Known limits, printed but not failed. */
-const notes = [];
 
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
@@ -38,10 +36,13 @@ async function everyLevelFits(page, screen, problems) {
   for (const level of LEVELS) {
     await openLevel(page, level.id);
     const small = await smallTargets(page);
-    // Two seesaws can't both fit 64px stacks on a 640px-tall phone, so there the floor is the 52px the view allows.
-    const squeezed = screen.height < 700 && level.seesaws.length > 1;
-    if (small.length && squeezed) notes.push(`${screen.name} level ${level.id}: targets ${small[0]}`);
-    else if (small.length) problems.push(`${screen.name} level ${level.id}: small targets ${small.join(', ')}`);
+    if (small.length) problems.push(`${screen.name} level ${level.id}: small targets ${small.join(', ')}`);
+    // The answers never cover the board: every item sits above the dock.
+    const covered = await page.evaluate(() => {
+      const dock = document.getElementById('dock').getBoundingClientRect().top;
+      return [...document.querySelectorAll('#scene .item')].filter((item) => item.getBoundingClientRect().bottom > dock + 1).length;
+    });
+    if (covered) problems.push(`${screen.name} level ${level.id}: the dock covers ${covered} item(s)`);
     const off = await page.locator('#scene .item').evaluateAll((items) =>
       items.filter((item) => {
         const box = item.getBoundingClientRect();
@@ -62,8 +63,8 @@ async function tour(browser, screen, language) {
   await shot(page, `${tag}-map`);
 
   // Level 1: a wrong number tips the seesaw, then the same comes off both sides, then the right number.
-  const first = LEVELS[0];
   await openLevel(page, 1);
+  const first = levelFor(1, await variant(page));
   await shot(page, `${tag}-l1`);
   const wrong = first.choices.find((value) => value !== first.values.box);
   await answer(page, wrong);
@@ -92,17 +93,54 @@ async function tour(browser, screen, language) {
   await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
-  // Level 22: swap the hat for what it weighs, then open the picker.
+  // Level 22: swap the hat for what it weighs. The answers stay under the board.
   await openLevel(page, 22);
   await touch(page, '#scene [data-item="s0l1"]');
   await page.waitForTimeout(160);
   await shot(page, `${tag}-l22-swap`);
   await page.waitForTimeout(700);
-  if (await page.evaluate(() => document.body.dataset.picker === 'sheet')) {
-    await touch(page, '.prompt');
-    await page.waitForTimeout(350);
+  await shot(page, `${tag}-l22-answer`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
+
+  // Level 12: tapping the lone box points at the answers. Three misses tumble everything, and the retry is fresh.
+  await openLevel(page, 12);
+  const twelve = levelFor(12, await variant(page));
+  await touch(page, '#scene [data-item="s0l0"]');
+  await page.waitForTimeout(300);
+  await shot(page, `${tag}-l12-box-tap`);
+  if (!(await page.locator('.pointer').count())) problems.push(`${tag}: tapping the box pointed at nothing`);
+  const misses = [0, 1, 19, 20].filter((value) => value !== twelve.values.box).slice(0, 3);
+  for (const [at, value] of misses.entries()) {
+    await answer(page, value);
+    if (at < misses.length - 1) await ready(page);
   }
-  await shot(page, `${tag}-l22-picker`);
+  await page.waitForTimeout(1350);
+  await shot(page, `${tag}-l12-tumble`);
+  await screenIs(page, 'lost');
+  await page.waitForTimeout(400);
+  await shot(page, `${tag}-l12-lost`);
+  await touch(page, '[data-action="try-again"]');
+  await page.waitForFunction(() => document.body.dataset.screen === 'play' && document.body.dataset.status === 'playing');
+  const retried = levelFor(12, await variant(page));
+  if (retried.variant === twelve.variant) problems.push(`${tag}: the retry was the same try`);
+  await shot(page, `${tag}-l12-retry`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
+
+  // Level 15: before any miss, a hand shows the first pair to take off both sides.
+  await openLevel(page, 15);
+  await page.waitForTimeout(2900);
+  await shot(page, `${tag}-l15-pair-hand`);
+  if (!(await page.locator('.pointer').count())) problems.push(`${tag}: no hand showed the first pair`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
+
+  // Level 2, left alone: a hand points at the answers.
+  await openLevel(page, 2);
+  await page.waitForTimeout(8600);
+  await shot(page, `${tag}-l2-idle-hand`);
+  if (!(await page.locator('.pointer').count())) problems.push(`${tag}: no hand after sitting still`);
   await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
@@ -175,7 +213,6 @@ async function main() {
     await browser.close();
     server.kill();
   }
-  console.log(`\nnotes: ${notes.length ? `\n${notes.join('\n')}` : 'none'}`);
   console.log(`problems: ${problems.length ? `\n${problems.join('\n')}` : 'none'}`);
   process.exit(problems.length ? 1 : 0);
 }

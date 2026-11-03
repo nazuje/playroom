@@ -1,15 +1,16 @@
 // A careless player: a child in a hurry who never moves anything on the seesaw. For a mystery it takes the
-// difference between the plain numbers on its seesaw, ignoring how many boxes there are and the other
-// seesaw, then tries the numbers next to that. After 5 wrong numbers it gives up, as the skip button lets a
-// child do. On "make it level" boards, where nothing is ever lost, it drops random tray weights and takes the
-// any one of its own back off when the seesaw tips too far, for up to 30 taps. The random numbers are seeded, so a run can be
-// repeated. Run `npx vite build` first.
+// difference between the plain numbers on its seesaw, ignoring how many boxes there are and the other seesaw,
+// then tries the numbers next to that. It never gives up on its own: it keeps guessing until the try tumbles,
+// takes the one-tap retry on the fresh puzzle, and stops only after 8 tries on a level. On "make it level"
+// boards, where nothing is ever lost, it drops random tray weights and takes any one of its own back off when
+// the seesaw tips too far, for up to 30 taps. The random numbers are seeded, so a run can be repeated. Run
+// `npx vite build` first.
 //
 // It passes when it wins every level of the first two worlds and loses the last three of each later world.
 import { LEVELS } from '../src/rules/levels.ts';
 import { allOpen, answer, launch, openLevel, openPage, pictures, ready, screenIs, serve, touch } from './lib.mjs';
 
-const GIVE_UP_AFTER = 5;
+const TRIES = 8;
 const MOST_TRAY_TAPS = 30;
 const TAP_WAIT_MS = 40;
 
@@ -34,23 +35,37 @@ function quickGuess(seesaws, mystery) {
 
 const status = (page) => page.evaluate(() => ({ ...document.body.dataset }));
 
-async function puzzle(page, level) {
-  let misses = 0;
+/** One try: quick guesses until it wins or tumbles. */
+async function oneTry(page, level) {
   for (const mystery of level.ask) {
     const quick = quickGuess(await pictures(page), mystery);
-    const tries = [...level.choices].sort((a, b) => Math.abs(a - quick) - Math.abs(b - quick) || b - a);
-    for (const value of tries) {
-      if (misses >= GIVE_UP_AFTER) return false;
+    const shown = await page.locator('[data-choice]').evaluateAll((items) => items.map((item) => Number(item.dataset.choice)));
+    const choices = shown.length ? shown : Array.from({ length: 21 }, (_, n) => n);
+    const guesses = choices.sort((a, b) => Math.abs(a - quick) - Math.abs(b - quick) || b - a);
+    for (const value of guesses) {
       await answer(page, value);
       await page.waitForTimeout(TAP_WAIT_MS);
       await ready(page);
       const now = await status(page);
       if (now.screen === 'won') return true;
+      if (now.screen === 'lost') return false;
       if (now.asking !== mystery) break;
-      misses += 1;
     }
   }
   return (await status(page)).screen === 'won';
+}
+
+/** Tries again and again on fresh puzzles. Returns the try it won on, or 0. */
+async function puzzle(page, level) {
+  for (let attempt = 1; attempt <= TRIES; attempt += 1) {
+    if (await oneTry(page, level)) return attempt;
+    await screenIs(page, 'lost');
+    if (attempt === TRIES) return 0;
+    await page.waitForSelector('[data-action="try-again"].armed');
+    await touch(page, '[data-action="try-again"]');
+    await page.waitForFunction(() => document.body.dataset.screen === 'play' && document.body.dataset.status === 'playing');
+  }
+  return 0;
 }
 
 async function levelBoard(page, random) {
@@ -91,12 +106,12 @@ async function main() {
   try {
     for (const level of LEVELS) {
       await openLevel(page, level.id);
-      const won = level.ask.length ? await puzzle(page, level) : await levelBoard(page, random);
-      const misses = Number((await status(page)).misses ?? 0);
+      const wonOn = level.ask.length ? await puzzle(page, level) : (await levelBoard(page, random)) ? 1 : 0;
+      const won = wonOn > 0;
       results.set(level.id, won);
       const world = byWorld.get(level.world) ?? { won: 0, levels: 0 };
       byWorld.set(level.world, { won: world.won + (won ? 1 : 0), levels: world.levels + 1 });
-      console.log(`level ${String(level.id).padStart(2)} ${level.world.padEnd(6)} ${won ? 'won ' : 'lost'} after ${misses} miss(es)`);
+      console.log(`level ${String(level.id).padStart(2)} ${level.world.padEnd(6)} ${won ? `won on try ${wonOn}` : `lost all ${TRIES} tries`}`);
       if (won) {
         await screenIs(page, 'won');
         await page.waitForSelector('.card-btn.armed');

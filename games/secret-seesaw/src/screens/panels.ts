@@ -4,21 +4,23 @@ import { LEVELS, WORLDS, type Level, type WorldId } from '../rules/levels.ts';
 import { isDone, isOpen, nextLevel, type Progress } from '../rules/progress.ts';
 import { pickSound } from '../sounds.ts';
 import { button, calm, element } from '../ui.ts';
-import type { WinReport } from './play.ts';
+import type { TryReport } from './play.ts';
 
 const WORLD_ART: Record<WorldId, string> = { box: '🎁', level: '⚖️', boxes: '📦', both: '↔️', two: '🎩' };
 /** Long enough for a mashing hand to stop before the next level can start. */
 const NEXT_AFTER_MS = 800;
+/** A retry comes back within a second, but not under a hand that is still mashing. */
+const RETRY_AFTER_MS = 350;
 
 /** A big button that ignores taps until a mashing hand has had time to lift. */
-function armedButton(className: string, label: string, onPress: () => void): HTMLButtonElement {
+function armedButton(className: string, label: string, onPress: () => void, afterMs = NEXT_AFTER_MS): HTMLButtonElement {
   const made = button(className);
   made.textContent = label;
   let armed = false;
   window.setTimeout(() => {
     armed = true;
     made.classList.add('armed');
-  }, NEXT_AFTER_MS);
+  }, afterMs);
   made.addEventListener('click', () => {
     if (!armed) return;
     pickSound();
@@ -77,7 +79,7 @@ export function showMap(host: HTMLElement, options: MapOptions): () => void {
 }
 
 export interface WonOptions {
-  report: WinReport;
+  report: TryReport;
   onNext: (() => void) | null;
   onAgain: () => void;
   onMap: () => void;
@@ -119,5 +121,34 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
     const box = stars.getBoundingClientRect();
     burst(box.left + box.width / 2, box.top + box.height / 2, 26);
   }
+  return () => panel.remove();
+}
+
+export interface LostOptions {
+  canSkip: boolean;
+  onRetry: () => void;
+  onSkip: () => void;
+  onMap: () => void;
+}
+
+/** After a tumble: one big button for a fresh try, and a small skip once a level has beaten a child 5 times. */
+export function showLost(host: HTMLElement, { canSkip, onRetry, onSkip, onMap }: LostOptions): () => void {
+  const panel = element('div', 'card card-lost');
+  const face = element('div', 'card-face');
+  face.textContent = '🙃';
+  const again = armedButton('card-btn card-main', `🔄 ${text().tryAgain}`, onRetry, RETRY_AFTER_MS);
+  again.dataset.action = 'try-again';
+  const row = element('div', 'card-row');
+  const map = armedButton('card-btn card-small-btn', '🗺️', onMap, RETRY_AFTER_MS);
+  map.setAttribute('aria-label', text().levels);
+  map.dataset.action = 'map';
+  row.append(map);
+  if (canSkip) {
+    const skip = armedButton('card-btn card-skip', `${text().skip} ⏭️`, onSkip, RETRY_AFTER_MS);
+    skip.dataset.action = 'skip';
+    row.append(skip);
+  }
+  panel.append(face, again, row);
+  host.append(panel);
   return () => panel.remove();
 }

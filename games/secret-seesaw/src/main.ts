@@ -3,17 +3,20 @@ import './style.css';
 import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, say, speak, stopSpeaking, store, useClips } from '@playroom/kit';
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
-import { levelById, LEVELS } from './rules/levels.ts';
+import { levelFor, LEVELS } from './rules/levels.ts';
 import { addSkip, addWin, cleanProgress, isOpen, nextLevel, totalStars, type Progress } from './rules/progress.ts';
-import { showMap, showWon } from './screens/panels.ts';
-import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
+import type { PickerPlace } from './screens/answers.ts';
+import { showLost, showMap, showWon } from './screens/panels.ts';
+import { startPlayScreen, type PlayScreen, type TryReport } from './screens/play.ts';
 import { pickSound, stopSounds, winSound } from './sounds.ts';
 import { button, element, onPress } from './ui.ts';
 import { createScene } from './view/scene.ts';
 
 const PROGRESS_KEY = 'secret-seesaw:progress';
-const MISSES_BEFORE_SKIP = 5;
-/** The picker sits under the seesaw when there's room for it, and in a pop-up sheet on narrow screens. */
+/** How many tries each level has had on this device, so every try after the first gets fresh numbers. */
+const TRIES_KEY = 'secret-seesaw:tries';
+const FAILS_BEFORE_SKIP = 5;
+/** The 0 to 20 grid sits under the seesaw when there's room for it. Phones get a − / + stepper instead. */
 const ROOM_FOR_PICKER = '(min-width: 640px) and (min-height: 600px)';
 
 function byId(id: string): HTMLElement {
@@ -49,7 +52,28 @@ let closeOverlay: () => void = () => {};
 let redraw: () => void = () => {};
 let spokenLast = (): string => text().pickLevel;
 let headingFor: (() => string) | null = null;
-const misses = new Map<number, number>();
+const fails = new Map<number, number>();
+let triesMade = cleanTries(store.get<unknown>(TRIES_KEY, null));
+
+function cleanTries(saved: unknown): Record<number, number> {
+  const clean: Record<number, number> = {};
+  if (typeof saved !== 'object' || saved === null) return clean;
+  for (const { id } of LEVELS) {
+    const count = (saved as Record<string, unknown>)[id];
+    if (typeof count === 'number' && Number.isFinite(count) && count > 0) clean[id] = Math.floor(count);
+  }
+  return clean;
+}
+
+/** The first try ever is the level as designed. Each later one, replays included, is a fresh puzzle. */
+function nextVariant(id: number): number {
+  const variant = triesMade[id] ?? 0;
+  triesMade = { ...triesMade, [id]: variant + 1 };
+  store.set(TRIES_KEY, triesMade);
+  return variant;
+}
+
+const pickerPlace = (): PickerPlace => (window.matchMedia(ROOM_FOR_PICKER).matches ? 'inline' : 'stepper');
 
 function labelPage(): void {
   document.documentElement.lang = getLanguage();
@@ -86,7 +110,6 @@ function clearScreen(): void {
   play = null;
   headingFor = null;
   dock.replaceChildren();
-  delete document.body.dataset.sheet;
 }
 
 function pickLevel(): void {
@@ -110,10 +133,10 @@ function nextAfter(id: number): number | null {
   return LEVELS.find((level) => level.id > id && isOpen(progress, level.id))?.id ?? null;
 }
 
-function onWin(report: WinReport): void {
+function onWin(report: TryReport): void {
   const { level, stars } = report;
   saveProgress(addWin(progress, level.id, stars));
-  misses.delete(level.id);
+  fails.delete(level.id);
   setScreen('won');
   document.body.dataset.stars = String(stars);
   winSound();
@@ -134,12 +157,37 @@ function onWin(report: WinReport): void {
   void say(next === null ? text().allDone : line, { queue: true });
 }
 
+function skipLevel(id: number): void {
+  saveProgress(addSkip(progress, id));
+  const next = nextLevel(progress);
+  if (next && next !== id) openLevel(next);
+  else pickLevel();
+}
+
+function onFail({ level }: TryReport): void {
+  const count = (fails.get(level.id) ?? 0) + 1;
+  fails.set(level.id, count);
+  setScreen('lost');
+  const canSkip = count >= FAILS_BEFORE_SKIP;
+  const draw = (): void => {
+    closeOverlay();
+    closeOverlay = showLost(overlay, { canSkip, onRetry: () => openLevel(level.id), onSkip: () => skipLevel(level.id), onMap: pickLevel });
+  };
+  draw();
+  redraw = draw;
+  spokenLast = () => text().tumble;
+  if (canSkip && count === FAILS_BEFORE_SKIP) void say(text().canSkip, { queue: true });
+}
+
 function openLevel(id: number): void {
-  const level = levelById(id);
-  if (!level || !isOpen(progress, id)) return;
+  if (!isOpen(progress, id)) return;
+  const variant = nextVariant(id);
+  const level = levelFor(id, variant);
+  if (!level) return;
   clearScreen();
   setScreen('play');
   document.body.dataset.level = String(id);
+  document.body.dataset.variant = String(variant);
   document.body.dataset.world = level.world;
   headingFor = () => text().level(id);
   labelPage();
@@ -148,16 +196,12 @@ function openLevel(id: number): void {
     level,
     scene,
     dock,
-    missesBefore: misses.get(id) ?? 0,
-    canSkipAfter: MISSES_BEFORE_SKIP,
-    onMiss: (total) => misses.set(id, total),
-    onSkip() {
-      saveProgress(addSkip(progress, id));
-      const next = nextLevel(progress);
-      if (next && next !== id) openLevel(next);
-      else pickLevel();
-    },
+    failedBefore: fails.get(id) ?? 0,
+    canSkipAfter: FAILS_BEFORE_SKIP,
+    pickerPlace,
+    onSkip: () => skipLevel(id),
     onWin,
+    onFail,
   });
   spokenLast = () => play?.spoken() ?? text().pickLevel;
 }
@@ -169,7 +213,8 @@ onPress(levels, () => {
 });
 onPress(restart, () => {
   pickSound();
-  play?.restart();
+  const id = Number(document.body.dataset.level);
+  if (id) openLevel(id);
 });
 onPress(repeat, () => speak(spokenLast()));
 
@@ -180,10 +225,11 @@ onLanguageChange(() => {
 });
 
 function choosePickerPlace(): void {
-  document.body.dataset.picker = window.matchMedia(ROOM_FOR_PICKER).matches ? 'inline' : 'sheet';
+  document.body.dataset.picker = pickerPlace();
 }
 window.matchMedia(ROOM_FOR_PICKER).addEventListener('change', () => {
   choosePickerPlace();
+  play?.relabel();
   scene.layout();
 });
 choosePickerPlace();

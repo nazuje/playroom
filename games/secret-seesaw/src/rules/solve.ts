@@ -1,7 +1,7 @@
 // Working a board out. The hint, the tests and the skilled bot all use this search, so the game never hints at
 // a move the bot can't play.
-import { allItems, boardKey, difference, isolated, MYSTERIES, tapItem, type Board, type Mystery, type Values } from './board.ts';
-import type { Level } from './levels.ts';
+import { allItems, boardKey, difference, isolated, MYSTERIES, openMystery, tapItem, type Board, type Mystery, type Values } from './board.ts';
+import { boardFor, type Level } from './levels.ts';
 
 const MOST_STEPS = 10;
 
@@ -68,3 +68,18 @@ export function solutions(level: Level, limit = 60): Values[] {
 
 /** Every seesaw is level with these values. */
 export const balanced = (board: Board, values: Values): boolean => board.seesaws.every((seesaw) => difference(seesaw, values) === 0);
+
+/** The most items any side holds while the level is worked out the shortest way, so the view can make room. */
+export function peakSideCount(level: Level): number {
+  let board = boardFor(level);
+  const count = (from: Board): number => Math.max(1, ...from.seesaws.flatMap((seesaw) => [seesaw.left.length, seesaw.right.length]));
+  let peak = count(board);
+  for (const mystery of level.ask) {
+    for (const id of stepsTo(board, mystery) ?? []) {
+      board = tapItem(board, id, { fixedGiven: false }).board;
+      peak = Math.max(peak, count(board));
+    }
+    board = openMystery(board, mystery, level.values[mystery] as number);
+  }
+  return peak;
+}

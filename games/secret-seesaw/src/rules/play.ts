@@ -14,11 +14,19 @@ export interface Play {
   /** Wrong numbers tried for the mystery being asked. */
   tried: number[];
   won: boolean;
+  /** Too many wrong numbers: the seesaw tipped everything off, and only a new try goes on. */
+  failed: boolean;
 }
 
 export function startPlay(level: Level): Play {
-  return { level, board: boardFor(level), asking: 0, found: {}, misses: 0, tried: [], won: false };
+  return { level, board: boardFor(level), asking: 0, found: {}, misses: 0, tried: [], won: false, failed: false };
 }
+
+/**
+ * Wrong numbers a try can take. With three choices two misses end it, so trying all three can't win, and the
+ * picker allows three. "Make it level" boards never fail: the tipping seesaw is their whole lesson.
+ */
+export const missesAllowed = (level: Level): number => (level.answer === 'three' ? 2 : level.answer === 'picker' ? 3 : Infinity);
 
 export const isLevelBoard = (level: Level): boolean => level.ask.length === 0;
 
@@ -30,7 +38,7 @@ export interface Tapped {
 }
 
 export function tap(play: Play, id: string): Tapped {
-  if (play.won) return { play, effect: { type: 'stuck', id, why: 'fixed' } };
+  if (play.won || play.failed) return { play, effect: { type: 'stuck', id, why: 'fixed' } };
   const { board, effect } = tapItem(play.board, id, { fixedGiven: isLevelBoard(play.level) });
   const next = { ...play, board };
   // Taking a weight back off can level the seesaw too, and that wins just the same.
@@ -53,7 +61,7 @@ export interface Placed extends Tapped {
 /** A tray weight goes onto the open side. Level wins at once. Tipping past level counts as a miss. */
 export function place(play: Play, trayId: string): Placed | null {
   const { open } = play.level;
-  if (play.won || !open) return null;
+  if (play.won || play.failed || !open) return null;
   const move = placeFromTray(play.board, trayId, 0, open);
   if (!move) return null;
   const next = { ...play, board: move.board };
@@ -70,11 +78,12 @@ export interface Guessed {
 
 export function guess(play: Play, value: number): Guessed | null {
   const mystery = asked(play);
-  if (play.won || !mystery) return null;
+  if (play.won || play.failed || !mystery) return null;
   const truth = play.level.values[mystery] as number;
   if (value !== truth) {
     const tried = play.tried.includes(value) ? play.tried : [...play.tried, value];
-    return { play: { ...play, misses: play.misses + 1, tried }, right: false, heavy: value > truth };
+    const misses = play.misses + 1;
+    return { play: { ...play, misses, tried, failed: misses >= missesAllowed(play.level) }, right: false, heavy: value > truth };
   }
   const asking = play.asking + 1;
   return {

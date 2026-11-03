@@ -1,23 +1,30 @@
-// One level on screen: taps on the seesaws, the tray, the answer buttons, the honest wobble of a wrong number
-// and the hint after two misses.
+// One try at a level on screen: taps on the seesaws, the tray, the answers, the honest wobble of a wrong number,
+// the tumble when a try runs out of misses, and the pointing hand and pulsing hints for a child who can't read.
 import { burst, say, speak } from '@playroom/kit';
 import { text } from '../lang/index.ts';
-import { findItem, type Effect, type Mystery } from '../rules/board.ts';
-import type { Level } from '../rules/levels.ts';
+import { allItems, findItem, type Effect, type Mystery } from '../rules/board.ts';
+import { MOST_ANSWER, type Level } from '../rules/levels.ts';
 import { asked, guess, isLevelBoard, openLean, place, startPlay, starsFor, tap, valuesWith, type Play } from '../rules/play.ts';
 import { stepsTo } from '../rules/solve.ts';
-import { hintSound, pairSound, pickSound, placeSound, rightSound, stopSounds, stuckSound, swapSound, weightSound, wrongSound } from '../sounds.ts';
+import { hintSound, pairSound, placeSound, rightSound, stopSounds, stuckSound, swapSound, tumbleSound, weightSound, wrongSound } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
-import { mysteryIcon, pips, weightFace } from '../view/items.ts';
+import { weightFace } from '../view/items.ts';
+import { clearPointer, pointAt } from '../view/pointer.ts';
 import type { Scene } from '../view/scene.ts';
+import { answerRow, answerTarget, type PickerPlace } from './answers.ts';
 
 const WRONG_MS = 1000;
 const RIGHT_MS = 900;
 const LEVEL_WIN_MS = 700;
+const TUMBLE_MS = 1300;
 const MISSES_BEFORE_HINT = 2;
 const SAY_AGAIN_AFTER_MS = 3500;
+/** Quiet this long and a hand points at what to tap next. */
+const IDLE_MS = 8000;
+/** On the "both sides" world a hand shows the first pair this soon, before anything goes wrong. */
+const SHOW_PAIR_MS = 2500;
 
-export interface WinReport {
+export interface TryReport {
   level: Level;
   stars: number;
   misses: number;
@@ -27,16 +34,16 @@ export interface PlayScreenOptions {
   level: Level;
   scene: Scene;
   dock: HTMLElement;
-  /** Misses on this level before this go, so the skip button can count every try. */
-  missesBefore: number;
+  /** Tries on this level that ended in a tumble, so the skip button can count them. */
+  failedBefore: number;
   canSkipAfter: number;
-  onMiss: (total: number) => void;
+  pickerPlace: () => PickerPlace;
   onSkip: () => void;
-  onWin: (report: WinReport) => void;
+  onWin: (report: TryReport) => void;
+  onFail: (report: TryReport) => void;
 }
 
 export interface PlayScreen {
-  restart(): void;
   relabel(): void;
   /** The line the 🔊 button repeats. */
   spoken(): string;
@@ -48,11 +55,13 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   let play: Play = startPlay(level);
   let busy = false;
   let stopped = false;
-  let sheetOpen = false;
+  let stepped = 0;
   let saidPair = false;
   let saidSwap = false;
-  let lastTwinLine = 0;
-  let totalMisses = options.missesBefore;
+  let movedPair = false;
+  let lastLine = 0;
+  let idleTimer = 0;
+  let idleShown = false;
   const timers = new Set<number>();
 
   function later(ms: number, run: () => void): void {
@@ -67,7 +76,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const body = document.body.dataset;
     body.misses = String(play.misses);
     body.asking = asked(play) ?? '';
-    body.status = play.won ? 'won' : busy ? 'busy' : 'playing';
+    body.status = play.won ? 'won' : play.failed ? 'failed' : busy ? 'busy' : 'playing';
   }
 
   const intro = (): string => {
@@ -86,6 +95,14 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (level.world === 'two' && first) void say(text().ask[first], { queue: true });
   }
 
+  /** A line that a tap can trigger again and again is said at most once every few seconds. */
+  function sayNow(line: string): void {
+    const now = Date.now();
+    if (now - lastLine < SAY_AGAIN_AFTER_MS) return;
+    lastLine = now;
+    speak(line);
+  }
+
   // ---------- The dock ----------
 
   function trayRow(): HTMLElement {
@@ -102,74 +119,19 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     return row;
   }
 
-  function choiceButton(value: number, big: boolean): HTMLButtonElement {
-    const made = button(big ? 'choice' : 'pick');
-    made.dataset.choice = String(value);
-    const digit = element('span', 'digit');
-    digit.textContent = String(value);
-    made.append(digit);
-    if (big) made.append(pips(value));
-    if (play.tried.includes(value)) {
-      made.classList.add('tried');
-      made.setAttribute('aria-disabled', 'true');
-    }
-    made.setAttribute('aria-label', String(value));
-    onPress(made, () => onChoice(value));
-    return made;
-  }
-
-  function prompt(mystery: Mystery): HTMLElement {
-    const sheet = level.answer === 'picker';
-    const made = sheet ? button('prompt') : element('div', 'prompt');
-    made.append(mysteryIcon(mystery));
-    const equals = element('span', 'prompt-equals');
-    equals.textContent = '= ?';
-    made.append(equals);
-    made.setAttribute('aria-label', text().answer(mystery));
-    if (made instanceof HTMLButtonElement) {
-      onPress(made, () => {
-        if (busy) return;
-        pickSound();
-        sheetOpen = !sheetOpen;
-        drawDock();
-      });
-    }
-    return made;
-  }
-
-  function answerRow(mystery: Mystery): HTMLElement {
-    const row = element('div', 'answer');
-    row.append(prompt(mystery));
-    if (level.answer === 'three') {
-      const choices = element('div', 'choices');
-      choices.append(...level.choices.map((value) => choiceButton(value, true)));
-      row.append(choices);
-      return row;
-    }
-    const picker = element('div', 'picker');
-    picker.dataset.open = String(sheetOpen);
-    const grid = element('div', 'picker-grid');
-    grid.append(...level.choices.map((value) => choiceButton(value, false)));
-    const close = button('picker-close');
-    close.textContent = '✕';
-    close.setAttribute('aria-label', text().close);
-    onPress(close, () => {
-      sheetOpen = false;
-      drawDock();
-    });
-    picker.append(close, grid);
-    row.append(picker);
-    return row;
+  function onStep(by: number): void {
+    if (busy || play.won || play.failed) return;
+    stepped = Math.max(0, Math.min(MOST_ANSWER, stepped + by));
+    weightSound(stepped);
+    speak(text().number(stepped));
+    drawDock();
   }
 
   function skipButton(): HTMLButtonElement {
     const made = button('skip');
     made.dataset.action = 'skip';
     made.textContent = `${text().skip} ⏭️`;
-    onPress(made, () => {
-      pickSound();
-      options.onSkip();
-    });
+    onPress(made, () => options.onSkip());
     return made;
   }
 
@@ -177,18 +139,60 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const mystery = asked(play);
     const parts: HTMLElement[] = [];
     if (isLevelBoard(level)) parts.push(trayRow());
-    else if (mystery && !play.won) parts.push(answerRow(mystery));
-    if (totalMisses >= options.canSkipAfter && !play.won) parts.push(skipButton());
+    else if (mystery && !play.won) {
+      parts.push(answerRow({ level, mystery, tried: play.tried, place: options.pickerPlace(), stepped, onChoice, onStep }));
+    }
+    if (options.failedBefore >= options.canSkipAfter && !play.won) parts.push(skipButton());
     dock.replaceChildren(...parts);
-    dock.dataset.mode = isLevelBoard(level) ? 'tray' : level.answer;
-    document.body.dataset.sheet = String(sheetOpen && level.answer === 'picker');
+    dock.dataset.mode = isLevelBoard(level) ? 'tray' : level.answer === 'picker' ? options.pickerPlace() : level.answer;
     mark();
   }
+
+  /** Shakes the answers awake and points at them, as tapping a box does. */
+  function focusAnswers(): void {
+    const { pulse, hand } = answerTarget(dock);
+    pointAt(pulse, hand);
+  }
+
+  // ---------- Pointing hands ----------
+
+  function pointIdle(): void {
+    if (isLevelBoard(level)) pointAt(dock.querySelector('.tray'), dock.querySelector('.tray-weight'));
+    else focusAnswers();
+  }
+
+  function armIdle(): void {
+    window.clearTimeout(idleTimer);
+    if (idleShown || stopped) return;
+    idleTimer = window.setTimeout(() => {
+      if (stopped || busy || play.won || play.failed) return;
+      idleShown = true;
+      pointIdle();
+      sayNow(spoken());
+    }, IDLE_MS);
+  }
+
+  /** A box with a twin across the seesaw: the move to discover on the "both sides" world. */
+  function showFirstPair(): void {
+    if (stopped || movedPair || play.misses > 0 || busy) return;
+    for (const seesaw of play.board.seesaws) {
+      const twin = seesaw.left.find((item) => item.kind === 'mystery' && seesaw.right.some((other) => other.kind === 'mystery' && other.mystery === item.mystery));
+      if (twin) {
+        pointAt(document.querySelector(`#scene [data-item="${twin.id}"]`));
+        return;
+      }
+    }
+  }
+
+  const onAnyTap = (): void => {
+    clearPointer();
+    armIdle();
+  };
 
   // ---------- Hints ----------
 
   function showHint(): void {
-    if (play.misses < MISSES_BEFORE_HINT || play.won) return;
+    if (play.misses < MISSES_BEFORE_HINT || play.won || play.failed) return;
     if (isLevelBoard(level)) {
       const need = -openLean(play);
       if (need < 0) {
@@ -208,12 +212,6 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     }
     hintSound();
     speak(text().hint);
-  }
-
-  function missed(): void {
-    totalMisses += 1;
-    options.onMiss(totalMisses);
-    if (totalMisses === options.canSkipAfter) void say(text().canSkip, { queue: true });
   }
 
   // ---------- Taps ----------
@@ -238,20 +236,24 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
         return;
       }
       stuckSound();
-      const now = Date.now();
-      if (now - lastTwinLine > SAY_AGAIN_AFTER_MS) {
-        lastTwinLine = now;
-        speak(text().findTwin);
-      }
+      sayNow(text().findTwin);
     }
   }
 
   function onTap(id: string): void {
-    if (busy || play.won) return;
+    if (busy || play.won || play.failed) return;
     const spot = findItem(play.board, id);
+    // Tapping the mystery being asked, with nothing to pair it with, means "let me answer".
+    if (spot?.item.kind === 'mystery' && spot.item.mystery === asked(play) && tap(play, id).effect.type === 'stuck') {
+      scene.wiggle(id);
+      focusAnswers();
+      sayNow(text().ask[spot.item.mystery]);
+      return;
+    }
     const value = spot?.item.kind === 'weight' ? spot.item.value : 0;
     const result = tap(play, id);
     play = result.play;
+    if (result.effect.type === 'pair') movedPair = true;
     if (result.effect.type !== 'stuck') scene.update(play.board, result.effect);
     soundFor(result.effect, value);
     if (result.effect.type === 'back') drawDock();
@@ -283,8 +285,6 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (placed.over) {
       wrongSound();
       speak(text().tooHeavy);
-      missed();
-      drawDock();
       showHint();
       return;
     }
@@ -299,23 +299,41 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     }
   }
 
+  /** Too many wrong numbers: everything tumbles off, and the next try is a fresh puzzle. */
+  function tumble(heavy: boolean, mystery: Mystery): void {
+    const lean = play.board.seesaws.map((seesaw) => {
+      const side = seesaw.left.some((item) => item.kind === 'mystery' && item.mystery === mystery) ? 'left' : 'right';
+      return heavy === (side === 'left') ? -1 : 1;
+    });
+    scene.unpeekAll();
+    scene.tumble(lean);
+    tumbleSound();
+    void say(text().tumble);
+    later(TUMBLE_MS, () => options.onFail({ level, stars: 0, misses: play.misses }));
+  }
+
   function onChoice(value: number): void {
     const mystery = asked(play);
-    if (busy || play.won || !mystery || play.tried.includes(value)) return;
+    if (busy || play.won || play.failed || !mystery || play.tried.includes(value)) {
+      if (mystery && play.tried.includes(value)) stuckSound();
+      return;
+    }
     const result = guess(play, value);
     if (!result) return;
     const before = play;
     play = result.play;
     busy = true;
-    sheetOpen = false;
     drawDock();
     scene.peekAll(mystery, value);
     if (!result.right) {
       scene.weigh(valuesWith(before, value));
       wrongSound();
       void say(result.heavy ? text().tooHeavy : text().tooLight);
-      missed();
       later(WRONG_MS, () => {
+        if (play.failed) {
+          tumble(result.heavy, mystery);
+          return;
+        }
         scene.unpeekAll();
         scene.weigh(level.values);
         busy = false;
@@ -336,46 +354,39 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
         return;
       }
       busy = false;
+      stepped = 0;
       drawDock();
       const next = asked(play);
       if (next) void say(text().ask[next], { queue: true });
     });
   }
 
-  function begin(): void {
-    play = startPlay(level);
-    busy = false;
-    sheetOpen = false;
-    saidPair = false;
-    saidSwap = false;
-    for (const timer of timers) window.clearTimeout(timer);
-    timers.clear();
-    // The dock first, so the seesaws are laid out in the room that is really left for them.
-    drawDock();
-    scene.show(level, play.board);
-  }
-
   scene.onTap(onTap);
-  begin();
+  // The dock first, so the seesaws are laid out in the room that is really left for them.
+  drawDock();
+  scene.show(level, play.board);
   sayIntro();
+  document.addEventListener('pointerdown', onAnyTap, true);
+  armIdle();
+  const hasPair = allItems(play.board).some((item) => item.kind === 'mystery') && level.world === 'both';
+  if (hasPair) later(SHOW_PAIR_MS, showFirstPair);
 
   return {
-    restart() {
-      stopSounds();
-      begin();
-      sayIntro();
-    },
     relabel() {
-      if (!play.won) drawDock();
-      scene.update(play.board);
+      if (!play.won && !play.failed) drawDock();
+      if (!play.failed) scene.update(play.board);
     },
     spoken,
     stop() {
       stopped = true;
       for (const timer of timers) window.clearTimeout(timer);
       timers.clear();
+      window.clearTimeout(idleTimer);
+      document.removeEventListener('pointerdown', onAnyTap, true);
+      clearPointer();
       stopSounds();
       delete document.body.dataset.status;
     },
   };
 }
+
