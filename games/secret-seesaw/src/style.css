@@ -1127,6 +1127,36 @@ body[data-screen='map'] #play {
   }
 }
 
+.card-finale {
+  gap: 14px;
+  padding-top: 28px;
+}
+
+.card-trophy {
+  font-size: 5rem;
+  line-height: 1;
+  animation: trophy-bounce 0.9s cubic-bezier(0.3, 1.6, 0.6, 1) both, trophy-sway 2.4s ease-in-out 0.9s infinite;
+}
+
+@keyframes trophy-bounce {
+  from {
+    transform: translateY(-80px) scale(0.3) rotate(-30deg);
+  }
+}
+
+@keyframes trophy-sway {
+  50% {
+    transform: rotate(8deg) scale(1.06);
+  }
+}
+
+.card-score {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--star);
+}
+
 .card-skip {
   padding: 0 16px;
   font-size: 1rem;

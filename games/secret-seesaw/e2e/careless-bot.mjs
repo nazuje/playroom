@@ -6,7 +6,8 @@
 // the seesaw tips too far, for up to 30 taps. The random numbers are seeded, so a run can be repeated. Run
 // `npx vite build` first.
 //
-// It passes when it wins every level of the first two worlds and loses the last three of each later world.
+// It passes when it wins every level of the first two worlds, loses the last three of each later world, and
+// never earns 3 stars past world 2: misses add up over every try, so a fresh puzzle can't wash them away.
 import { LEVELS } from '../src/rules/levels.ts';
 import { allOpen, answer, launch, openLevel, openPage, pictures, ready, screenIs, serve, touch } from './lib.mjs';
 
@@ -103,6 +104,7 @@ async function main() {
   const random = seeded(20261103);
   const byWorld = new Map();
   const results = new Map();
+  const perfectLate = [];
   try {
     for (const level of LEVELS) {
       await openLevel(page, level.id);
@@ -114,6 +116,9 @@ async function main() {
       console.log(`level ${String(level.id).padStart(2)} ${level.world.padEnd(6)} ${won ? `won on try ${wonOn}` : `lost all ${TRIES} tries`}`);
       if (won) {
         await screenIs(page, 'won');
+        const stars = Number(await page.evaluate(() => document.body.dataset.stars));
+        if (stars === 3 && level.world !== 'box' && level.world !== 'level') perfectLate.push(level.id);
+        console.log(`         ${'★'.repeat(stars)}`);
         await page.waitForSelector('.card-btn.armed');
         await touch(page, '[data-action="map"]');
       } else {
@@ -132,7 +137,8 @@ async function main() {
   const late = ['boxes', 'both', 'two'].flatMap((world) => LEVELS.filter((level) => level.world === world).slice(-3));
   const fair = early.every((level) => results.get(level.id)) && late.every((level) => !results.get(level.id));
   console.log(`early levels all won and late levels all lost: ${fair ? 'yes' : 'no'}`);
-  process.exit(fair && !problems.length ? 0 : 1);
+  console.log(`3 stars past world 2: ${perfectLate.length ? perfectLate.join(', ') : 'never'}`);
+  process.exit(fair && !perfectLate.length && !problems.length ? 0 : 1);
 }
 
 await main();

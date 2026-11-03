@@ -9,6 +9,10 @@ import type { TryReport } from './play.ts';
 const WORLD_ART: Record<WorldId, string> = { box: '🎁', level: '⚖️', boxes: '📦', both: '↔️', two: '🎩' };
 /** Long enough for a mashing hand to stop before the next level can start. */
 const NEXT_AFTER_MS = 800;
+/** The last card has one button, held back long enough that a mashing hand can't skip the party. */
+const FINALE_AFTER_MS = 600;
+const FINALE_BURSTS = 6;
+const FINALE_BURST_GAP_MS = 220;
 /** A retry comes back within a second, but not under a hand that is still mashing. */
 const RETRY_AFTER_MS = 350;
 
@@ -151,4 +155,41 @@ export function showLost(host: HTMLElement, { canSkip, onRetry, onSkip, onMap }:
   panel.append(face, again, row);
   host.append(panel);
   return () => panel.remove();
+}
+
+export interface FinaleOptions {
+  stars: number;
+  onMap: () => void;
+}
+
+/** Level 24 is won: a trophy, confetti from all over, and one big button back to the levels. */
+export function showFinale(host: HTMLElement, { stars, onMap }: FinaleOptions): () => void {
+  const panel = element('div', 'card card-finale');
+  const trophy = element('div', 'card-trophy');
+  trophy.textContent = '🏆';
+  const line = element('p', 'card-line');
+  line.textContent = text().allDone;
+  const score = element('p', 'card-score');
+  score.textContent = `★ ${stars}`;
+  const map = armedButton('card-btn card-main', `🗺️ ${text().levels}`, onMap, FINALE_AFTER_MS);
+  map.dataset.action = 'map';
+  map.dataset.finale = 'true';
+  panel.append(trophy, line, score, map);
+  host.append(panel);
+  const timers: number[] = [];
+  if (!calm()) {
+    for (let at = 0; at < FINALE_BURSTS; at += 1) {
+      timers.push(
+        window.setTimeout(() => {
+          const x = window.innerWidth * (0.15 + ((at * 0.37) % 0.7));
+          const y = window.innerHeight * (0.2 + ((at * 0.29) % 0.5));
+          burst(x, y, 30);
+        }, at * FINALE_BURST_GAP_MS),
+      );
+    }
+  }
+  return () => {
+    for (const timer of timers) window.clearTimeout(timer);
+    panel.remove();
+  };
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { describe as picture } from './board.ts';
 import { levelById, type Level } from './levels.ts';
-import { guess, missesAllowed, openLean, place, startPlay, starsFor, tap, valuesWith } from './play.ts';
+import { addMiss, cleanMisses, missesSoFar, settle, starsFor } from './misses.ts';
+import { guess, missesAllowed, openLean, place, startPlay, tap, valuesWith } from './play.ts';
 import { addSkip, addWin, cleanProgress, emptyProgress, isOpen, nextLevel, totalStars } from './progress.ts';
 
 const level = (id: number): Level => levelById(id) as Level;
@@ -68,6 +69,26 @@ describe('answering', () => {
 
   it('gives three stars for no misses, two for one or two, and one after that', () => {
     expect([0, 1, 2, 3, 9].map(starsFor)).toEqual([3, 2, 2, 1, 1]);
+  });
+
+  it('adds misses up over every try until the level is won, then starts the count again', () => {
+    // Two tumbles of two misses each on level 1, then a clean try: still 1 star, not "perfect".
+    let log = {};
+    for (let miss = 0; miss < 4; miss += 1) log = addMiss(log, 1);
+    log = addMiss(log, 2);
+    expect(missesSoFar(log, 1)).toBe(4);
+    expect(starsFor(missesSoFar(log, 1) + 0)).toBe(1);
+    log = settle(log, 1);
+    expect(missesSoFar(log, 1)).toBe(0);
+    expect(missesSoFar(log, 2)).toBe(1);
+    expect(starsFor(missesSoFar(log, 1))).toBe(3);
+  });
+
+  it('keeps the count through storage, whatever an older version left there', () => {
+    const saved = JSON.parse(JSON.stringify(addMiss(addMiss({}, 12), 12)));
+    expect(cleanMisses(saved)).toEqual({ 12: 2 });
+    expect(cleanMisses('junk')).toEqual({});
+    expect(cleanMisses({ 1: -3, 2: 'x', 3: 2.7, 999: 4 })).toEqual({ 3: 2 });
   });
 });
 

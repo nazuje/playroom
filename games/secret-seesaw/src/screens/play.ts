@@ -4,7 +4,8 @@ import { burst, say, speak } from '@playroom/kit';
 import { text } from '../lang/index.ts';
 import { allItems, findItem, type Effect, type Mystery } from '../rules/board.ts';
 import { MOST_ANSWER, type Level } from '../rules/levels.ts';
-import { asked, guess, isLevelBoard, openLean, place, startPlay, starsFor, tap, valuesWith, type Play } from '../rules/play.ts';
+import { starsFor } from '../rules/misses.ts';
+import { asked, guess, isLevelBoard, openLean, place, startPlay, tap, valuesWith, type Play } from '../rules/play.ts';
 import { stepsTo } from '../rules/solve.ts';
 import { hintSound, pairSound, placeSound, rightSound, stopSounds, stuckSound, swapSound, tumbleSound, weightSound, wrongSound } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
@@ -27,6 +28,7 @@ const SHOW_PAIR_MS = 2500;
 export interface TryReport {
   level: Level;
   stars: number;
+  /** Misses on this level over every try since it was last won. */
   misses: number;
 }
 
@@ -36,6 +38,10 @@ export interface PlayScreenOptions {
   dock: HTMLElement;
   /** Tries on this level that ended in a tumble, so the skip button can count them. */
   failedBefore: number;
+  /** Misses on earlier tries since the level was last won. Stars count them too. */
+  missesBefore: number;
+  /** Called on each miss, so the running count can be saved at once. */
+  onMiss: () => void;
   canSkipAfter: number;
   pickerPlace: () => PickerPlace;
   onSkip: () => void;
@@ -75,9 +81,13 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   function mark(): void {
     const body = document.body.dataset;
     body.misses = String(play.misses);
+    body.missesTotal = String(total());
     body.asking = asked(play) ?? '';
     body.status = play.won ? 'won' : play.failed ? 'failed' : busy ? 'busy' : 'playing';
   }
+
+  const total = (): number => options.missesBefore + play.misses;
+  const report = (): TryReport => ({ level, stars: starsFor(total()), misses: total() });
 
   const intro = (): string => {
     const first = level.ask[0];
@@ -157,7 +167,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   // ---------- Pointing hands ----------
 
   function pointIdle(): void {
-    if (isLevelBoard(level)) pointAt(dock.querySelector('.tray'), dock.querySelector('.tray-weight'));
+    // The hand goes under the open tray on the seesaw, never under one weight that might be the answer.
+    if (isLevelBoard(level)) pointAt(dock.querySelector('.tray'), document.querySelector('#scene .basket.open .plate'));
     else focusAnswers();
   }
 
@@ -266,7 +277,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     mark();
     scene.cheer();
     void say(text().levelWin);
-    later(LEVEL_WIN_MS, () => options.onWin({ level, stars: starsFor(play.misses), misses: play.misses }));
+    later(LEVEL_WIN_MS, () => options.onWin(report()));
   }
 
   function onTray(trayId: string): void {
@@ -283,6 +294,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
       return;
     }
     if (placed.over) {
+      options.onMiss();
       wrongSound();
       speak(text().tooHeavy);
       showHint();
@@ -309,7 +321,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     scene.tumble(lean);
     tumbleSound();
     void say(text().tumble);
-    later(TUMBLE_MS, () => options.onFail({ level, stars: 0, misses: play.misses }));
+    later(TUMBLE_MS, () => options.onFail(report()));
   }
 
   function onChoice(value: number): void {
@@ -326,6 +338,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     drawDock();
     scene.peekAll(mystery, value);
     if (!result.right) {
+      options.onMiss();
       scene.weigh(valuesWith(before, value));
       wrongSound();
       void say(result.heavy ? text().tooHeavy : text().tooLight);
@@ -350,7 +363,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
       if (play.won) {
         scene.cheer();
         mark();
-        options.onWin({ level, stars: starsFor(play.misses), misses: play.misses });
+        options.onWin(report());
         return;
       }
       busy = false;

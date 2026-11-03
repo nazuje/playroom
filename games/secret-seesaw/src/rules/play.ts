@@ -105,6 +105,3 @@ export function valuesWith(play: Play, value: number | null): Values {
   const mystery = asked(play);
   return mystery && value !== null ? { ...play.level.values, [mystery]: value } : play.level.values;
 }
-
-/** Three stars for no misses, two for one or two, one for any other win. */
-export const starsFor = (misses: number): number => (misses === 0 ? 3 : misses <= 2 ? 2 : 1);

@@ -55,6 +55,18 @@ async function puzzle(page, level) {
   return taps;
 }
 
+/** Winning level 24 throws the big party: a trophy card whose one button ignores taps for a moment. */
+async function finale(page, name) {
+  await page.waitForSelector('body[data-finale="true"] .card-trophy');
+  await page.waitForTimeout(150);
+  await touch(page, '[data-finale="true"]');
+  await page.waitForTimeout(100);
+  if ((await page.evaluate(() => document.body.dataset.screen)) !== 'won') throw new Error('An early tap skipped the finale');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${SHOTS}/finale-${name}.png` });
+  console.log(`${name} finale: trophy card, early tap ignored`);
+}
+
 /** Plays every level once, in order. The first round meets each level as designed, the replay a fresh puzzle. */
 async function round(page, name, rows) {
   for (const designed of LEVELS) {
@@ -74,6 +86,7 @@ async function round(page, name, rows) {
     rows.push({ id: level.id, stars, fresh });
     const pictured = level.seesaws.map((plan) => `${plan.left.join('+')}=${plan.right.join('+')}`).join(' | ');
     console.log(`${name} level ${String(level.id).padStart(2)} ${level.world.padEnd(6)} won with ${String(taps).padStart(2)} taps ${'★'.repeat(stars)} ${Date.now() - started} ms  ${pictured}`);
+    if (designed.id === LEVELS.length) await finale(page, name);
     await page.waitForSelector('.card-btn.armed');
     const next = page.locator('[data-action="next"]');
     if (await next.count()) await touch(page, '[data-action="next"]');

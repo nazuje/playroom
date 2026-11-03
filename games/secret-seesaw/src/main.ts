@@ -4,17 +4,20 @@ import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, sa
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
 import { levelFor, LEVELS } from './rules/levels.ts';
+import { addMiss, cleanMisses, missesSoFar, settle } from './rules/misses.ts';
 import { addSkip, addWin, cleanProgress, isOpen, nextLevel, totalStars, type Progress } from './rules/progress.ts';
 import type { PickerPlace } from './screens/answers.ts';
-import { showLost, showMap, showWon } from './screens/panels.ts';
+import { showFinale, showLost, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type TryReport } from './screens/play.ts';
-import { pickSound, stopSounds, winSound } from './sounds.ts';
+import { levelSound, pickSound, stopSounds, winSound } from './sounds.ts';
 import { button, element, onPress } from './ui.ts';
 import { createScene } from './view/scene.ts';
 
 const PROGRESS_KEY = 'secret-seesaw:progress';
 /** How many tries each level has had on this device, so every try after the first gets fresh numbers. */
 const TRIES_KEY = 'secret-seesaw:tries';
+/** Misses per level over every try until it is won. */
+const MISSES_KEY = 'secret-seesaw:misses';
 const FAILS_BEFORE_SKIP = 5;
 /** The 0 to 20 grid sits under the seesaw when there's room for it. Phones get a − / + stepper instead. */
 const ROOM_FOR_PICKER = '(min-width: 640px) and (min-height: 600px)';
@@ -54,6 +57,12 @@ let spokenLast = (): string => text().pickLevel;
 let headingFor: (() => string) | null = null;
 const fails = new Map<number, number>();
 let triesMade = cleanTries(store.get<unknown>(TRIES_KEY, null));
+let missLog = cleanMisses(store.get<unknown>(MISSES_KEY, null));
+
+function saveMisses(next: typeof missLog): void {
+  missLog = next;
+  store.set(MISSES_KEY, missLog);
+}
 
 function cleanTries(saved: unknown): Record<number, number> {
   const clean: Record<number, number> = {};
@@ -104,6 +113,7 @@ function clearOverlay(): void {
 }
 
 function clearScreen(): void {
+  delete document.body.dataset.finale;
   clearOverlay();
   stopSounds();
   play?.stop();
@@ -136,10 +146,15 @@ function nextAfter(id: number): number | null {
 function onWin(report: TryReport): void {
   const { level, stars } = report;
   saveProgress(addWin(progress, level.id, stars));
+  saveMisses(settle(missLog, level.id));
   fails.delete(level.id);
   setScreen('won');
   document.body.dataset.stars = String(stars);
   winSound();
+  if (level.id === LEVELS.length) {
+    showTheEnd();
+    return;
+  }
   const next = nextAfter(level.id);
   const line = text()[`stars${stars}` as 'stars1' | 'stars2' | 'stars3'];
   const draw = (): void => {
@@ -155,6 +170,21 @@ function onWin(report: TryReport): void {
   redraw = draw;
   spokenLast = () => line;
   void say(next === null ? text().allDone : line, { queue: true });
+}
+
+/** The whole staircase is climbed: the big celebration. */
+function showTheEnd(): void {
+  document.body.dataset.finale = 'true';
+  levelSound();
+  const draw = (): void => {
+    closeOverlay();
+    closeOverlay = showFinale(overlay, { stars: totalStars(progress), onMap: pickLevel });
+  };
+  draw();
+  redraw = draw;
+  spokenLast = () => text().allDone;
+  void say(text().allDone, { queue: true });
+  void say(text().finaleCheer, { queue: true });
 }
 
 function skipLevel(id: number): void {
@@ -197,6 +227,8 @@ function openLevel(id: number): void {
     scene,
     dock,
     failedBefore: fails.get(id) ?? 0,
+    missesBefore: missesSoFar(missLog, id),
+    onMiss: () => saveMisses(addMiss(missLog, id)),
     canSkipAfter: FAILS_BEFORE_SKIP,
     pickerPlace,
     onSkip: () => skipLevel(id),

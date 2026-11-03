@@ -42,11 +42,15 @@ function draw<T>(random: Random, make: (random: Random) => T | null): T {
   throw new Error('No level fits these rules');
 }
 
-/** Two close wrong numbers and the right one, smallest first. */
+/**
+ * The right number, the tempting wrong one (the number a quick look suggests, such as the total), and one close
+ * wrong number, smallest first. Including the tempting one means a quick guess is never right by luck.
+ */
 function threeChoices(random: Random, answer: number, tempting: number): number[] {
-  const near = [answer - 1, answer + 1, answer + 2, answer - 2, tempting];
-  const pool = [...new Set(near)].filter((n) => n >= 1 && n <= MOST_ANSWER && n !== answer);
-  const picked: number[] = [];
+  const valid = (n: number): boolean => n >= 1 && n <= MOST_ANSWER && n !== answer;
+  const near = [answer - 1, answer + 1, answer + 2, answer - 2];
+  const pool = [...new Set(near)].filter((n) => valid(n) && n !== tempting);
+  const picked: number[] = valid(tempting) ? [tempting] : [];
   while (picked.length < 2) {
     const at = Math.floor(random() * pool.length);
     picked.push(...pool.splice(at, 1));
@@ -148,14 +152,14 @@ function bothSides({ more, fewer, extra, flip }: { more: number; fewer: number; 
 // ---------- 5. A box and a hat on two seesaws ----------
 
 const two = {
-  /** box + a = b, hat = box + c */
+  /** box + box + a = b, hat = box + c */
   chain: (random: Random): Made | null => {
     const x = int(random, 3, 8);
     const a = int(random, 1, 6);
     const c = int(random, 3, 7);
-    if (x + a > MOST_WEIGHT || x === a) return null;
+    if (2 * x + a > MOST_WEIGHT || x === a) return null;
     return {
-      seesaws: [{ left: ['box', a], right: [x + a] }, { left: ['hat'], right: ['box', c] }],
+      seesaws: [{ left: ['box', 'box', a], right: [2 * x + a] }, { left: ['hat'], right: ['box', c] }],
       values: { box: x, hat: x + c },
       ask: ['box', 'hat'],
     };
@@ -238,9 +242,9 @@ const SPECS: Spec[] = [
   { world: 'boxes', answer: 'picker', make: manyBoxes({ count: 3, extra: true, most: 6, split: false }) },
   { world: 'boxes', answer: 'picker', make: manyBoxes({ count: 4, extra: true, most: 7, split: true }) },
 
-  { world: 'both', answer: 'picker', make: bothSides({ more: 2, fewer: 1, extra: false, flip: false }) },
-  { world: 'both', answer: 'picker', make: bothSides({ more: 2, fewer: 1, extra: true, flip: true }) },
-  { world: 'both', answer: 'picker', make: bothSides({ more: 3, fewer: 1, extra: true, flip: false }) },
+  { world: 'both', answer: 'picker', make: bothSides({ more: 3, fewer: 1, extra: false, flip: false }) },
+  { world: 'both', answer: 'picker', make: bothSides({ more: 3, fewer: 1, extra: true, flip: true }) },
+  { world: 'both', answer: 'picker', make: bothSides({ more: 4, fewer: 1, extra: true, flip: false }) },
   { world: 'both', answer: 'picker', make: bothSides({ more: 4, fewer: 2, extra: true, flip: true }) },
   { world: 'both', answer: 'picker', make: bothSides({ more: 5, fewer: 2, extra: true, flip: false }) },
 

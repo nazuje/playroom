@@ -25,6 +25,19 @@ async function smallTargets(page) {
   );
 }
 
+/** The hand's fingertip sits on a single number or tray weight, which would give an answer away. */
+const handOnOneAnswer = (page) =>
+  page.evaluate(() => {
+    const hand = document.querySelector('.pointer')?.getBoundingClientRect();
+    if (!hand) return false;
+    const x = hand.left + hand.width / 2;
+    const y = hand.top + hand.height * 0.2;
+    return [...document.querySelectorAll('[data-choice], .tray-weight')].some((one) => {
+      const box = one.getBoundingClientRect();
+      return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+    });
+  });
+
 async function sideways(page) {
   return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 }
@@ -136,11 +149,21 @@ async function tour(browser, screen, language) {
   await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
+  // Level 7, left alone: a hand points at the tray, under the open side, not at one weight.
+  await openLevel(page, 7);
+  await page.waitForTimeout(8600);
+  await shot(page, `${tag}-l7-idle-hand`);
+  if (!(await page.locator('.pointer').count())) problems.push(`${tag}: no hand on the tray level`);
+  if (await handOnOneAnswer(page)) problems.push(`${tag}: the tray hand rests on one weight`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
+
   // Level 2, left alone: a hand points at the answers.
   await openLevel(page, 2);
   await page.waitForTimeout(8600);
   await shot(page, `${tag}-l2-idle-hand`);
   if (!(await page.locator('.pointer').count())) problems.push(`${tag}: no hand after sitting still`);
+  if (await handOnOneAnswer(page)) problems.push(`${tag}: the idle hand rests on one answer`);
   await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
@@ -185,8 +208,20 @@ async function calmRun(browser) {
   await shot(page, 'calm-won');
   const saved = await page.evaluate(() => localStorage.getItem('playroom:secret-seesaw:progress'));
   if (!saved?.includes('"1":3')) problems.push(`calm: the win was not saved (${saved})`);
+  // A miss on level 2 is still counted after a reload, so a fresh try can't wash it away.
+  await page.waitForSelector('.card-btn.armed');
+  await touch(page, '[data-action="next"]');
+  await page.waitForFunction(() => document.body.dataset.screen === 'play' && document.body.dataset.status === 'playing');
+  const two = levelFor(2, await variant(page));
+  await answer(page, two.choices.find((value) => value !== two.values.box));
+  await page.waitForTimeout(200);
   await page.reload();
   await page.waitForSelector('body[data-screen="map"]');
+  await openLevel(page, 2);
+  const carried = await page.evaluate(() => document.body.dataset.missesTotal);
+  if (carried !== '1') problems.push(`calm: misses were not kept over a reload (${carried})`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
   // That reload was on purpose.
   problems.splice(0, problems.length, ...problems.filter((problem) => !problem.startsWith('the page went to')));
   if ((await page.locator('[data-level="2"]').getAttribute('data-open')) !== 'true') problems.push('calm: level 2 did not stay open after a reload');

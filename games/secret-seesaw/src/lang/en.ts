@@ -38,6 +38,7 @@ export const en = {
   hint: 'Look here!',
   canSkip: 'You can skip this level.',
   allDone: 'You finished every level!',
+  finaleCheer: 'Hooray! Every secret is out!',
   stars1: 'You did it!',
   stars2: 'Good thinking!',
   stars3: 'Perfect! No mistakes!',
