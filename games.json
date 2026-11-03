@@ -771,6 +771,33 @@
       "sl"
     ],
     "status": "ready",
+    "slug": "odd-one-out",
+    "title": "Odd One Out",
+    "emoji": "🦄",
+    "tagline": "Which one does not belong?",
+    "skills": [
+      "logic",
+      "challenge"
+    ],
+    "ages": "4-12",
+    "translations": {
+      "sl": {
+        "title": "Kdo ne spada zraven?",
+        "tagline": "Najdi tistega, ki je drugačen!"
+      }
+    },
+    "color": "#d877e0"
+  },
+  {
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "status": "ready",
     "slug": "spin-match",
     "title": "Spin Match",
     "emoji": "🌀",
@@ -798,21 +825,23 @@
       "sl"
     ],
     "status": "ready",
-    "slug": "odd-one-out",
-    "title": "Odd One Out",
-    "emoji": "🦄",
-    "tagline": "Which one does not belong?",
+    "slug": "block-count",
+    "title": "Block Count",
+    "emoji": "🧊",
+    "tagline": "How many blocks are in the tower?",
     "skills": [
+      "numbers",
       "logic",
+      "3d",
       "challenge"
     ],
     "ages": "4-12",
     "translations": {
       "sl": {
-        "title": "Kdo ne spada zraven?",
-        "tagline": "Najdi tistega, ki je drugačen!"
+        "title": "Preštej kocke",
+        "tagline": "Koliko kock je v stolpu?"
       }
     },
-    "color": "#d877e0"
+    "color": "#ef476f"
   }
 ]

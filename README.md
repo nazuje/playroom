@@ -39,6 +39,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🧩 Missing Piece / Manjkajoči košček](games/missing-piece/README.md) | Which piece fits the pattern? | 4-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🌀 Spin Match / Zavrti in najdi](games/spin-match/README.md) | Turn it in your head. Which one is the same? | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🦄 Odd One Out / Kdo ne spada zraven?](games/odd-one-out/README.md) | Which one does not belong? | 4-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [🧊 Block Count / Preštej kocke](games/block-count/README.md) | How many blocks are in the tower? | 4-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 

@@ -1,0 +1,1019 @@
+/* Block Count: a toy theatre at night. Candy-coloured blocks stand on a turntable on dark wooden boards, under a
+   warm spotlight, between raspberry velvet curtains, with a painted moon behind. The top bar is a gold marquee
+   with bulbs, the dock is the velvet front of the stage, answers are chunky cream number blocks, and levels are
+   theatre tickets on a playbill. The signature effect is the curtain call: the stack opens up and every block
+   takes a bow with its number, the hidden ones last, glowing through see-through glass. */
+
+:root {
+  --night: #1d0e30;
+  --plum: #2c1846;
+  --plum-2: #3f2462;
+  --plum-3: #5a3a82;
+  --velvet: #ef476f;
+  --velvet-2: #ff6b8d;
+  --velvet-dark: #a8284f;
+  --velvet-deep: #6e1838;
+  --gold: #ffcf5a;
+  --gold-2: #ffe49a;
+  --gold-dark: #c98d1f;
+  --cream: #fff4dc;
+  --cream-2: #f3dfb5;
+  --mint: #2ec4b6;
+  --mint-dark: #158a80;
+  --peg: #ff4fa3;
+  --ink: #2c1846;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  background: var(--night);
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Top bar: a gold marquee with bulbs ---------- */
+
+.topbar {
+  position: relative;
+  z-index: 8;
+  flex: none;
+  gap: 8px;
+  padding-bottom: 14px;
+  background:
+    radial-gradient(circle at 50% 50%, #fff6c8 0 3px, rgba(255, 207, 90, 0.5) 4px, transparent 6px) 6px 100% / 22px 12px repeat-x,
+    linear-gradient(180deg, var(--plum-2), var(--plum));
+  border-bottom: 4px solid var(--gold);
+  box-shadow: 0 4px 0 var(--gold-dark), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.bar-btn,
+.topbar .home-btn,
+.topbar .language-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 4px solid var(--gold);
+  border-radius: 50%;
+  font-size: 1.45rem;
+  color: inherit;
+  background: var(--cream);
+  box-shadow: 0 5px 0 var(--gold-dark);
+  touch-action: manipulation;
+}
+
+.bar-btn:active,
+.topbar .home-btn:active,
+.topbar .language-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--gold-dark);
+}
+
+.bar-btn[hidden] {
+  display: none;
+}
+
+.title {
+  min-width: 0;
+  margin: 0 auto 0 0;
+  padding: 3px 14px 5px;
+  overflow: hidden;
+  border: 3px dotted var(--gold-2);
+  border-radius: 10px;
+  font-size: clamp(1rem, 4.2vw, 1.45rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--gold-2);
+  text-shadow: 0 0 10px rgba(255, 207, 90, 0.55);
+  pointer-events: none;
+}
+
+@media (max-width: 440px) {
+  .topbar {
+    gap: 6px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .bar-btn,
+  .topbar .home-btn,
+  .topbar .language-btn {
+    width: 48px;
+    height: 48px;
+    border-width: 3px;
+    font-size: 1.25rem;
+  }
+
+  .title {
+    padding: 2px 8px 4px;
+  }
+}
+
+.title-short {
+  display: none;
+}
+
+@media (max-width: 400px) {
+  .title-long {
+    display: none;
+  }
+
+  .title-short {
+    display: inline;
+  }
+}
+
+/* ---------- The stage and the dock ---------- */
+
+#play {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#board {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+#board canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#dock {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 24px;
+  padding: 20px 10px calc(var(--safe-bottom) + 12px);
+  background:
+    linear-gradient(180deg, var(--gold) 0 6px, var(--gold-dark) 6px 9px, transparent 9px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 6px, transparent 6px 22px, rgba(255, 255, 255, 0.05) 22px 26px, transparent 26px 34px),
+    linear-gradient(180deg, var(--velvet-dark), var(--velvet-deep));
+}
+
+#dock:empty {
+  min-height: calc(var(--safe-bottom) + 24px);
+}
+
+body[data-screen='map'] #dock,
+body[data-screen='won'] #dock {
+  visibility: hidden;
+}
+
+/* Spots on the stage for the pointing hand. They never catch a tap. */
+.spots,
+.labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.spot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+}
+
+/* ---------- The curtain call: numbers over the blocks, and the total ---------- */
+
+.label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  padding: 0 6px;
+  border: 3px solid var(--plum);
+  border-radius: 17px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--plum);
+  background: var(--gold-2);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+  animation: label-in 0.35s cubic-bezier(0.3, 1.8, 0.6, 1);
+  transition: opacity 0.4s;
+}
+
+.label-hidden {
+  border-color: #fff;
+  color: #fff;
+  background: var(--velvet);
+  box-shadow: 0 0 0 4px rgba(239, 71, 111, 0.4), 0 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.label-tap {
+  border-color: #fff;
+  color: #fff;
+  background: var(--mint);
+}
+
+.label-fill {
+  background: var(--cream);
+}
+
+.label-old {
+  min-width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  padding: 0 4px;
+  border-width: 2px;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.label-old.label-hidden {
+  opacity: 0.95;
+}
+
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.3);
+  }
+}
+
+.total {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 2;
+  min-width: 96px;
+  padding: 6px 22px 8px;
+  border: 4px solid var(--gold);
+  border-radius: 40px;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  color: var(--plum);
+  background: var(--gold-2);
+  box-shadow: 0 0 0 6px rgba(255, 207, 90, 0.25), 0 6px 0 var(--gold-dark);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.total[hidden] {
+  display: none;
+}
+
+.total[data-tone='wrong'] {
+  border-color: var(--velvet);
+  color: #fff;
+  background: var(--velvet-dark);
+  box-shadow: 0 0 0 6px rgba(239, 71, 111, 0.25), 0 6px 0 var(--velvet-deep);
+}
+
+.total.pop {
+  animation: total-pop 0.45s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+@keyframes total-pop {
+  from {
+    transform: translateX(-50%) scale(0.3);
+  }
+}
+
+/* ↻ turns the turntable on the first two worlds. */
+.turn-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 4px solid var(--gold);
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--plum);
+  background: var(--cream);
+  box-shadow: 0 5px 0 var(--gold-dark);
+  touch-action: manipulation;
+}
+
+.turn-btn[hidden],
+body:not([data-screen='play']) .turn-btn {
+  display: none;
+}
+
+.turn-btn:active {
+  transform: translateY(4px) rotate(40deg);
+  box-shadow: 0 1px 0 var(--gold-dark);
+}
+
+.no-3d {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--gold-2);
+}
+
+/* ---------- Number blocks: chunky cream blocks with the digit and its dots ---------- */
+
+.num {
+  --size: 64px;
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--size) * 0.05);
+  width: var(--size);
+  height: var(--size);
+  border-radius: calc(var(--size) * 0.18);
+  color: var(--ink);
+  background: linear-gradient(145deg, #fffaf0, var(--cream) 55%, var(--cream-2));
+  box-shadow:
+    inset 0 0 0 calc(var(--size) * 0.05) rgba(255, 255, 255, 0.7),
+    calc(var(--size) * 0.07) calc(var(--size) * 0.09) 0 #c9a362;
+}
+
+.digit {
+  font-size: calc(var(--size) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pips {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), calc(var(--size) * 0.085));
+  gap: calc(var(--size) * 0.03);
+}
+
+.pip {
+  width: calc(var(--size) * 0.085);
+  height: calc(var(--size) * 0.085);
+  border-radius: 50%;
+  background: var(--velvet);
+}
+
+.num-big {
+  --size: 92px;
+}
+
+.num-pick {
+  --size: 58px;
+}
+
+.num-step {
+  --size: 80px;
+}
+
+.answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.choices {
+  display: flex;
+  gap: 18px;
+}
+
+.choice,
+.pick {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  touch-action: manipulation;
+}
+
+.choice {
+  width: 100px;
+  height: 104px;
+}
+
+.pick {
+  width: 64px;
+  height: 66px;
+}
+
+.choice:active .num,
+.pick:active .num {
+  transform: translate(4px, 5px);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.7), 1px 1px 0 #c9a362;
+}
+
+.choice.tried,
+.pick.tried,
+.map-card.tried {
+  opacity: 0.3;
+  filter: grayscale(0.8);
+}
+
+.picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 6px;
+  max-width: 1000px;
+}
+
+.picker-grid[data-count='30'] {
+  max-width: 1010px;
+}
+
+.answer.focus {
+  animation: focus-flash 0.6s ease-out;
+}
+
+@keyframes focus-flash {
+  30% {
+    transform: scale(1.04);
+    filter: brightness(1.15) drop-shadow(0 0 10px var(--gold));
+  }
+}
+
+/* On phones numbers come from a −/+ stepper under the stage, so the stage is never covered. */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.step-btn,
+.step-ok {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  border: 5px solid var(--gold);
+  border-radius: 50%;
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  background: radial-gradient(circle at 35% 30%, #fff, var(--cream-2));
+  box-shadow: 0 5px 0 var(--gold-dark);
+  touch-action: none;
+}
+
+.step-ok {
+  width: 76px;
+  height: 76px;
+  border-color: var(--mint-dark);
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(180deg, #5fe0d3, var(--mint));
+  box-shadow: 0 6px 0 var(--mint-dark);
+  touch-action: manipulation;
+}
+
+.step-btn:active,
+.step-ok:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--gold-dark);
+}
+
+.step-show {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+}
+
+.step-show.tried .num {
+  opacity: 0.4;
+}
+
+.step-show.tried .digit {
+  text-decoration: line-through;
+}
+
+.step-ok.ready {
+  animation: ready 1.4s ease-in-out infinite;
+}
+
+@keyframes ready {
+  50% {
+    box-shadow: 0 6px 0 var(--mint-dark), 0 0 0 8px rgba(46, 196, 182, 0.4);
+    transform: scale(1.06);
+  }
+}
+
+/* Map cards: the stack from above, each column coloured like its top block. */
+.maps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.map-card {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  padding: 8px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--cream);
+  box-shadow: 5px 6px 0 #c9a362;
+  touch-action: manipulation;
+}
+
+.map-card:active {
+  transform: translate(4px, 5px);
+  box-shadow: 1px 1px 0 #c9a362;
+}
+
+.map-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  gap: 3px;
+  width: 84px;
+}
+
+.map-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--top);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+
+.map-empty {
+  background: rgba(44, 24, 70, 0.1);
+  box-shadow: none;
+}
+
+.peg-dot {
+  position: absolute;
+  bottom: -9px;
+  left: -9px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--peg);
+}
+
+/* A try ran out: one big button for fresh blocks. */
+.retry {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  font-size: 2.6rem;
+  color: #fff;
+  background: var(--mint);
+  box-shadow: 0 6px 0 var(--mint-dark);
+  opacity: 0.55;
+  transition: opacity 0.2s;
+  touch-action: manipulation;
+  animation: pop 0.3s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+.retry.armed {
+  opacity: 1;
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.skip {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 2px solid var(--gold-2);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold-2);
+  background: var(--plum-2);
+}
+
+/* Every answer bounces in turn, so the row as a whole says "pick one". */
+.answer.wave .choice,
+.answer.wave .map-card,
+.answer.wave .pick {
+  animation: wave 0.45s calc(var(--i, 0) * 0.12s) ease-in-out;
+}
+
+@keyframes wave {
+  45% {
+    transform: translateY(-12px);
+  }
+}
+
+@media (max-width: 380px) {
+  .choices {
+    gap: 10px;
+  }
+
+  .map-card {
+    width: 96px;
+    height: 96px;
+  }
+
+  .map-grid {
+    width: 78px;
+  }
+}
+
+/* ---------- The pointing hand, for demos and nudges ---------- */
+
+.hand {
+  position: fixed;
+  z-index: 20;
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45));
+  transform: translate(-30%, 0);
+  pointer-events: none;
+}
+
+.hand[hidden] {
+  display: none;
+}
+
+.hand-tap {
+  animation: hand-tap 0.9s ease-in-out infinite;
+}
+
+@keyframes hand-tap {
+  0%,
+  100% {
+    transform: translate(-30%, 14px);
+  }
+
+  45% {
+    transform: translate(-30%, -4px) scale(0.92);
+  }
+}
+
+.step-btn.poked,
+.step-ok.poked {
+  animation: poked 0.5s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+@keyframes poked {
+  40% {
+    transform: scale(1.15) rotate(-8deg);
+  }
+}
+
+.answer.demo-glow {
+  border-radius: 20px;
+  box-shadow: 0 0 0 4px rgba(255, 207, 90, 0.8), 0 0 24px rgba(255, 207, 90, 0.6);
+  animation: focus-flash 0.9s ease-in-out infinite;
+}
+
+/* ---------- Overlay: the playbill of levels and the win card ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 12px) 12px calc(var(--safe-bottom) + 12px);
+  pointer-events: none;
+}
+
+#overlay > * {
+  pointer-events: auto;
+}
+
+.map {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: calc(var(--safe-top) + 100px) 14px calc(var(--safe-bottom) + 24px);
+  overscroll-behavior: contain;
+  background: linear-gradient(180deg, rgba(29, 14, 48, 0.25), rgba(29, 14, 48, 0.55));
+}
+
+.map-sheet {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.world {
+  margin: 0 0 16px;
+  padding: 12px 14px 16px;
+  border: 3px solid rgba(255, 207, 90, 0.6);
+  border-radius: 18px;
+  background: rgba(44, 24, 70, 0.82);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.world-name {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--gold-2);
+}
+
+.world-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* A level is a ticket with notched ends. */
+.tile {
+  --stub: var(--cream);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 0 50%, transparent 9px, var(--stub) 10px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent 9px, var(--stub) 10px) right / 51% 100% no-repeat;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+  touch-action: manipulation;
+}
+
+.tile::after {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  border-left: 2px dashed rgba(44, 24, 70, 0.2);
+  content: '';
+}
+
+.tile[data-done='true'] {
+  --stub: var(--gold);
+}
+
+.tile-next {
+  --stub: var(--mint);
+  color: #fff;
+  filter: drop-shadow(0 4px 0 var(--mint-dark)) drop-shadow(0 0 10px rgba(46, 196, 182, 0.8));
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.tile-shut {
+  --stub: var(--plum-3);
+  color: var(--gold-2);
+  cursor: default;
+}
+
+.tile-number {
+  position: relative;
+  z-index: 1;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tile-stars {
+  position: relative;
+  z-index: 1;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  color: var(--velvet-dark);
+}
+
+.tile-next .tile-stars {
+  color: #fff;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(360px, 100%);
+  padding: 44px 22px 22px;
+  overflow: hidden;
+  border: 5px solid var(--gold);
+  border-radius: 20px;
+  text-align: center;
+  background: var(--cream);
+  box-shadow: 0 8px 0 var(--gold-dark), 0 18px 40px rgba(0, 0, 0, 0.5);
+  animation: card-in 0.35s cubic-bezier(0.3, 1.5, 0.6, 1);
+}
+
+/* A little velvet curtain across the top of the playbill. */
+.card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 24px;
+  background:
+    radial-gradient(circle at 50% 0, var(--velvet) 0 14px, transparent 15px) 0 6px / 28px 24px repeat-x,
+    linear-gradient(var(--velvet) 0 10px, transparent 10px);
+  content: '';
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+.card-stars {
+  display: flex;
+  gap: 8px;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.star {
+  color: rgba(44, 24, 70, 0.18);
+}
+
+.star-on {
+  color: var(--gold);
+  text-shadow: 0 3px 0 var(--gold-dark);
+  animation: star-pop 0.4s var(--delay) cubic-bezier(0.3, 1.8, 0.6, 1) backwards;
+}
+
+@keyframes star-pop {
+  from {
+    transform: scale(0) rotate(-180deg);
+  }
+}
+
+.card-line {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.card-small {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.card-btn {
+  min-height: 56px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--gold-2);
+  background: var(--plum-2);
+  box-shadow: 0 5px 0 var(--plum);
+  opacity: 0.55;
+  transition: opacity 0.2s;
+  touch-action: manipulation;
+}
+
+.card-btn.armed {
+  opacity: 1;
+}
+
+.card-main {
+  min-width: 220px;
+  min-height: 72px;
+  font-size: 1.35rem;
+  color: #fff;
+  background: var(--velvet);
+  box-shadow: 0 6px 0 var(--velvet-dark);
+}
+
+.card-row {
+  display: flex;
+  gap: 14px;
+}
+
+.card-small-btn {
+  width: 64px;
+  padding: 0;
+  font-size: 1.5rem;
+}
+
+/* ---------- The end of the show ---------- */
+
+.card-finale {
+  gap: 14px;
+}
+
+.finale-bow {
+  display: flex;
+  gap: 6px;
+  font-size: 3.4rem;
+  line-height: 1;
+}
+
+.finale-piece {
+  animation: bow 1.4s calc(var(--i) * 0.2s) ease-in-out infinite;
+}
+
+@keyframes bow {
+  50% {
+    transform: translateY(-10px) rotate(-8deg);
+  }
+}
+
+.finale-total {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-next,
+  .retry.armed,
+  .answer.focus,
+  .answer.wave .choice,
+  .answer.wave .map-card,
+  .answer.wave .pick,
+  .answer.demo-glow,
+  .step-ok.ready,
+  .step-btn.poked,
+  .step-ok.poked,
+  .finale-piece,
+  .label,
+  .total.pop,
+  .card,
+  .star-on {
+    animation: none;
+  }
+
+  .label {
+    transition: none;
+  }
+}
