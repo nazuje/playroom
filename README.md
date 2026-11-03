@@ -33,6 +33,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🔦 Beam Bender / Zrcalni žarek](games/beam-bender/README.md) | Turn the mirrors and hit every target! | 6-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🌋 Lava Climb / Beg pred lavo](games/lava-climb/README.md) | Jump higher before the lava gets you! | 6-12 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🏝️ My Island / Moj otok](games/my-island/README.md) | Your own little island to explore, grow and share! | 4-10 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [⚖️ Secret Seesaw / Skrivnostna gugalnica](games/secret-seesaw/README.md) | What is hiding in the box? Make it balance! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 

@@ -1,0 +1,60 @@
+import type { Mystery } from '../rules/board.ts';
+import type { WorldId } from '../rules/levels.ts';
+
+export const en = {
+  title: 'Secret Seesaw',
+  description:
+    'A balance puzzle on a circus seesaw. Keep both sides equal and work out what is hiding in the box, from first sums to real equations. For ages 5 to 12, alone or side by side with a grown-up.',
+  home: 'Back to the games',
+  sayAgain: 'Say it again',
+  showLevels: 'Pick a level',
+  restart: 'Start this level again',
+  pickLevel: 'Pick a level!',
+  worlds: {
+    box: 'The box',
+    level: 'Make it level',
+    boxes: 'Many boxes',
+    both: 'Both sides',
+    two: 'Box and hat',
+  } satisfies Record<WorldId, string>,
+  ideas: {
+    box: 'Both sides weigh the same. What is in the box?',
+    level: 'Add weights to make the seesaw level!',
+    boxes: 'All the boxes are the same. What is in one box?',
+    both: 'Boxes on both sides! Take the same off both sides.',
+    two: 'A box and a hat! Use both seesaws.',
+  } satisfies Record<WorldId, string>,
+  ask: {
+    box: 'What is in the box?',
+    hat: 'What is under the hat?',
+  } satisfies Record<Mystery, string>,
+  tooHeavy: 'Too heavy!',
+  tooLight: 'Too light!',
+  stillLevel: 'Still level!',
+  findTwin: 'Find the same on the other side!',
+  swapped: 'Swapped! It weighs the same.',
+  levelWin: 'Level! Both sides weigh the same.',
+  hint: 'Look here!',
+  canSkip: 'You can skip this level.',
+  allDone: 'You finished every level!',
+  stars1: 'You did it!',
+  stars2: 'Good thinking!',
+  stars3: 'Perfect! No mistakes!',
+  number: (n: number) => String(n),
+  cheer: (n: number) => `Yes! It's ${n}!`,
+  next: 'Next level',
+  levels: 'Levels',
+  again: 'Play again',
+  skip: 'Skip',
+  close: 'Close',
+  level: (n: number) => `Level ${n}`,
+  locked: (n: number) => `Level ${n} is locked`,
+  weight: (n: number) => `Weight ${n}`,
+  mystery: { box: 'Mystery box', hat: 'Mystery hat' } satisfies Record<Mystery, string>,
+  opened: (mystery: Mystery, n: number): string => (mystery === 'box' ? `Box, ${n}` : `Hat, ${n}`),
+  putOn: (n: number) => `Put on ${n}`,
+  answer: (mystery: Mystery): string => (mystery === 'box' ? 'Pick the number in the box' : 'Pick the number under the hat'),
+  misses: (n: number) => (n === 0 ? 'No mistakes.' : n === 1 ? '1 mistake.' : `${n} mistakes.`),
+};
+
+export type Text = typeof en;

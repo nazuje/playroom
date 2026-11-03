@@ -649,5 +649,33 @@
     },
     "color": "#19a974",
     "status": "ready"
+  },
+  {
+    "slug": "secret-seesaw",
+    "title": "Secret Seesaw",
+    "emoji": "⚖️",
+    "tagline": "What is hiding in the box? Make it balance!",
+    "skills": [
+      "numbers",
+      "logic",
+      "challenge"
+    ],
+    "ages": "5-12",
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "translations": {
+      "sl": {
+        "title": "Skrivnostna gugalnica",
+        "tagline": "Kaj se skriva v škatli?"
+      }
+    },
+    "color": "#0f7a7f",
+    "status": "ready"
   }
 ]
