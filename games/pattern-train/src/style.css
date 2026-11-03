@@ -1,7 +1,27 @@
 .title {
+  /* The title gives way first, so the buttons beside it keep their full size. */
+  min-width: 0;
   margin: 0;
   font-size: clamp(1.4rem, 5vw, 2.2rem);
   white-space: nowrap;
+}
+
+/* A phone: home, title, level and flag share 360px, so the title folds onto two lines. */
+@media (max-width: 480px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 1.15rem;
+    line-height: 1.1;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .level-btn {
+    padding: 6px 12px;
+  }
 }
 
 .level-btn {
@@ -444,8 +464,9 @@
   background: var(--paper-2);
 }
 
-/* The way back to the portal stays reachable above every overlay. */
-.home-btn {
+/* The way back to the portal, and the language switch, stay reachable above every overlay. */
+.home-btn,
+.language-btn {
   position: relative;
   z-index: 101;
 }
@@ -493,7 +514,7 @@
 
 .levels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 10px;
   width: 100%;
 }
@@ -519,6 +540,7 @@
 }
 
 .level-sample {
+  min-width: 0;
   overflow: hidden;
   font-size: 1.1rem;
   letter-spacing: -1px;

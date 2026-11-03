@@ -187,7 +187,7 @@ describe('growing patterns', () => {
       const lengths = train.hint.map(({ start, end }) => end - start);
       expect(lengths.length).toBeGreaterThanOrEqual(2);
       lengths.forEach((length, i) => expect(length).toBe(i + 2));
-      expect(train.hintNote).toContain(train.cars[0].name);
+      expect(train.rule).toBe('growing');
     }
   });
 });

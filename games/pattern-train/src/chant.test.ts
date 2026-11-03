@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BEAT_MS, MAX_WORD_MS, planChant, playChant, REST_MS, type Beat } from './chant.ts';
+import { en } from './lang/en.ts';
 import { makeTrain, seededRng, type Train } from './pattern.ts';
 
 function train(overrides: Partial<Train>): Train {
@@ -23,20 +24,20 @@ describe('planChant', () => {
   const nextTrain = train({ cars: [apple, banana, apple, banana, apple], blanks: [blankAt(4)], steps, question: 'next' });
 
   it('reads each car, then asks what comes next on the empty car', () => {
-    const beats = planChant(nextTrain, new Set());
+    const beats = planChant(nextTrain, new Set(), en);
     expect(beats.map((beat) => beat.word)).toEqual(['apple', 'banana', 'apple', 'banana', 'What comes next?']);
     expect(beats.at(-1)?.car).toBe(4);
   });
 
   it('rests a little longer at the end of each repeat', () => {
-    const beats = planChant(nextTrain, new Set());
+    const beats = planChant(nextTrain, new Set(), en);
     expect(beats[0].ms).toBe(BEAT_MS);
     expect(beats[1].ms).toBe(BEAT_MS + REST_MS);
     expect(beats[3].ms).toBe(BEAT_MS + REST_MS);
   });
 
   it('gives the same item the same note, and different items different notes', () => {
-    const beats = planChant(nextTrain, new Set());
+    const beats = planChant(nextTrain, new Set(), en);
     expect(beats[0].pitch).toBe(beats[2].pitch);
     expect(beats[1].pitch).toBe(beats[3].pitch);
     expect(beats[0].pitch).not.toBe(beats[1].pitch);
@@ -44,15 +45,15 @@ describe('planChant', () => {
 
   it('leaves a silent beat for a gap in the middle, then asks what is missing', () => {
     const gappy = train({ cars: [apple, banana, apple, banana], blanks: [blankAt(1)], steps: steps.slice(0, 2), question: 'missing' });
-    const beats = planChant(gappy, new Set());
+    const beats = planChant(gappy, new Set(), en);
     expect(beats.map((beat) => beat.word)).toEqual(['apple', null, 'apple', 'banana', "What's missing?"]);
     expect(beats.at(-1)?.car).toBe(1);
   });
 
   it('stops at the first of two empty cars, and reads the filled one after an answer', () => {
     const twoBlanks = train({ cars: [apple, banana, apple, banana, apple], blanks: [blankAt(3), blankAt(4)], steps });
-    expect(planChant(twoBlanks, new Set()).map((beat) => beat.car)).toEqual([0, 1, 2, 3]);
-    expect(planChant(twoBlanks, new Set([3])).map((beat) => beat.word)).toEqual([
+    expect(planChant(twoBlanks, new Set(), en).map((beat) => beat.car)).toEqual([0, 1, 2, 3]);
+    expect(planChant(twoBlanks, new Set([3]), en).map((beat) => beat.word)).toEqual([
       'apple',
       'banana',
       'apple',
@@ -62,7 +63,7 @@ describe('planChant', () => {
   });
 
   it('just reads a full train, with no question', () => {
-    const words = planChant(nextTrain, new Set([4])).map((beat) => beat.word);
+    const words = planChant(nextTrain, new Set([4]), en).map((beat) => beat.word);
     expect(words).toEqual(['apple', 'banana', 'apple', 'banana', 'apple']);
   });
 });

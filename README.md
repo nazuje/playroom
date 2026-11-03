@@ -10,7 +10,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | --- | --- | --- | --- | --- | --- |
 | [🌍 Globe Safari](games/globe-safari/README.md) | Spin the Earth and guess who lives there! | 3-9 |  | ✓ | 🇬🇧 |
 | [🦁 Memory Zoo / Živalski spomin](games/memory-zoo/README.md) | Find the animal pairs. Take turns! | 4-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
-| [🚂 Pattern Train](games/pattern-train/README.md) | What comes next on the train? | 5-9 | ✓ |  | 🇬🇧 |
+| [🚂 Pattern Train / Vlakec vzorcev](games/pattern-train/README.md) | What comes next on the train? | 5-9 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🎨 Color Lab](games/color-lab/README.md) | Mix paints and guess the color! | 4-9 | ✓ | ✓ | 🇬🇧 |
 | [🌻 Word Garden / Besedni vrt](games/word-garden/README.md) | Spell little words to grow flowers! | 5-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [👾 Yum Yum Monster / Lačna pošast](games/yum-yum-monster/README.md) | Feed the silly monster! | 3-5 | ✓ |  | 🇬🇧 🇸🇮 |
@@ -31,6 +31,8 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🚨 Maze Escape / Pobeg iz labirinta](games/maze-escape/README.md) | Sneak past the robots and escape the maze! | 5-9 | ✓ |  | 🇬🇧 🇸🇮 |
 | [☄️ Dodge Arena / Izmikaj se!](games/dodge-arena/README.md) | Dodge everything. How long can you last? | 6-12 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🔦 Beam Bender / Zrcalni žarek](games/beam-bender/README.md) | Turn the mirrors and hit every target! | 6-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [🌋 Lava Climb / Beg pred lavo](games/lava-climb/README.md) | Jump higher before the lava gets you! | 6-12 | ✓ |  | 🇬🇧 🇸🇮 |
+| [🏝️ My Island / Moj otok](games/my-island/README.md) | Your own little island to explore, grow and share! | 4-10 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 

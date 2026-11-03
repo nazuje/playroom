@@ -56,10 +56,17 @@
       "solo"
     ],
     "languages": [
-      "en"
+      "en",
+      "sl"
     ],
     "color": "#ef5b5b",
-    "status": "ready"
+    "status": "ready",
+    "translations": {
+      "sl": {
+        "title": "Vlakec vzorcev",
+        "tagline": "Kaj pride naslednje na vlakcu?"
+      }
+    }
   },
   {
     "slug": "color-lab",

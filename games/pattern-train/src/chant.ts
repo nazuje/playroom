@@ -1,4 +1,4 @@
-import type { Train } from './pattern.ts';
+import type { Item, Train } from './pattern.ts';
 
 /** One tick of the chant: light up a car, and say a word unless the car is a silent gap. */
 export interface Beat {
@@ -19,13 +19,14 @@ export const MAX_WORD_MS = 2400;
 const PITCHES = [1.3, 0.95, 1.15];
 const QUESTION_PITCH = 1.2;
 
-export const QUESTIONS: Record<Train['question'], string> = {
-  next: 'What comes next?',
-  missing: "What's missing?",
-};
+/** The words the chant says, in the language being played. */
+export interface ChantWords {
+  itemName: (item: Item) => string;
+  questions: Record<Train['question'], string>;
+}
 
 /** Plans the chant for a train whose cars at `filled` are loaded, including blanks already solved. */
-export function planChant(train: Train, filled: ReadonlySet<number>): Beat[] {
+export function planChant(train: Train, filled: ReadonlySet<number>, words: ChantWords): Beat[] {
   const open = train.blanks.map((blank) => blank.index).filter((index) => !filled.has(index));
   const notes = [...new Set(train.cars.map((car) => car.name))];
   const stepEnds = new Set(train.steps.map((step) => step.end - 1));
@@ -38,13 +39,13 @@ export function planChant(train: Train, filled: ReadonlySet<number>): Beat[] {
     const name = train.cars[car].name;
     beats.push({
       car,
-      word: open.includes(car) ? null : name,
+      word: open.includes(car) ? null : words.itemName(train.cars[car]),
       pitch: PITCHES[notes.indexOf(name) % PITCHES.length],
       ms: BEAT_MS + (stepEnds.has(car) ? REST_MS : 0),
     });
   }
   if (open.length > 0) {
-    beats.push({ car: open[0], word: QUESTIONS[train.question], pitch: QUESTION_PITCH, ms: QUESTION_MS });
+    beats.push({ car: open[0], word: words.questions[train.question], pitch: QUESTION_PITCH, ms: QUESTION_MS });
   }
   return beats;
 }

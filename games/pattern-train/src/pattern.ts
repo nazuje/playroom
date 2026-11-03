@@ -39,7 +39,6 @@ export interface Train {
   steps: Range[];
   /** The cars the grown-up hint brackets. */
   hint: Range[];
-  hintNote: string;
 }
 
 export const MAX_LEVEL = 6;
@@ -257,6 +256,5 @@ export function makeTrain(level: number, rng: Rng, avoidThemeId?: string): Train
     })),
     steps: draft.steps,
     hint: draft.hint,
-    hintNote: draft.rule === 'growing' ? `One more ${cars[0].name} each time!` : 'This part repeats.',
   };
 }

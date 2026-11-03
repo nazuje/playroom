@@ -31,34 +31,47 @@ function setContents(cell: HTMLElement, className: string, text: string, label: 
   cell.querySelector('.body')?.replaceChildren(contents);
 }
 
+/** What a screen reader hears for each car, read fresh so a language switch can relabel the train. */
+export interface SceneLabels {
+  engine: string;
+  emptyCar: string;
+  itemName: (item: Item) => string;
+}
+
 /** The drawn train: it knows how to fit, arrive, load, whistle and leave, but not the rules. */
 export class Scene {
   private readonly scene: HTMLElement;
   private readonly rows: HTMLElement;
   private readonly toot: HTMLElement;
+  private readonly labels: () => SceneLabels;
   private engine = makeCell('engine');
   private cars: HTMLElement[] = [];
+  /** What each car holds, or null while it is still empty. */
+  private loads: (Item | null)[] = [];
   private fit: TrainFit | null = null;
 
-  constructor(scene: HTMLElement, rows: HTMLElement, toot: HTMLElement) {
+  constructor(scene: HTMLElement, rows: HTMLElement, toot: HTMLElement, labels: () => SceneLabels) {
     this.scene = scene;
     this.rows = rows;
     this.toot = toot;
+    this.labels = labels;
     new ResizeObserver(() => this.layout()).observe(scene);
   }
 
   /** Draws a new train, off screen if it is about to arrive. */
   show(train: Train): void {
+    const labels = this.labels();
     this.engine = makeCell('engine');
-    setContents(this.engine, 'load', '🚂', 'engine');
+    setContents(this.engine, 'load', '🚂', labels.engine);
     const empty = new Set(train.blanks.map((blank) => blank.index));
-    this.cars = train.cars.map((item, index) => {
+    this.loads = train.cars.map((item, index) => (empty.has(index) ? null : item));
+    this.cars = this.loads.map((item) => {
       const cell = makeCell('car');
-      if (empty.has(index)) {
-        cell.classList.add('empty');
-        setContents(cell, 'ask', '?', 'empty car');
+      if (item) {
+        setContents(cell, 'load', item.emoji, labels.itemName(item));
       } else {
-        setContents(cell, 'load', item.emoji, item.name);
+        cell.classList.add('empty');
+        setContents(cell, 'ask', '?', labels.emptyCar);
       }
       return cell;
     });
@@ -169,8 +182,19 @@ export class Scene {
       flyer.remove();
     }
     cell.classList.remove('empty', 'active');
-    setContents(cell, 'load', item.emoji, item.name);
+    this.loads[index] = item;
+    setContents(cell, 'load', item.emoji, this.labels().itemName(item));
     cell.classList.add('landed');
+  }
+
+  /** Renames every car in the current language, leaving the train where it is. */
+  relabel(): void {
+    const labels = this.labels();
+    this.engine.setAttribute('aria-label', labels.engine);
+    this.cars.forEach((cell, i) => {
+      const item = this.loads[i];
+      cell.setAttribute('aria-label', item ? labels.itemName(item) : labels.emptyCar);
+    });
   }
 
   /** Marks the car the next answer goes into. */
