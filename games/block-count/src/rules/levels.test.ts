@@ -140,13 +140,6 @@ describe('every puzzle has one answer', () => {
     }
   });
 
-  it('moves the right token round on three-token levels', () => {
-    for (const { id } of LEVELS.filter((level) => level.answer === 'three')) {
-      const places = new Set(Array.from({ length: VARIANTS }, (_, variant) => levelFor(id, variant) as Level).map((level) => level.numbers.indexOf(level.truth)));
-      expect(places.size, `level ${id}`).toBe(3);
-    }
-  });
-
   it('has exactly one map that looks like the stage, among five different maps, with the mirror always there', () => {
     for (const level of everyPuzzle.filter((one) => one.ask === 'map')) {
       expect(level.maps, named(level)).toHaveLength(5);
@@ -157,10 +150,6 @@ describe('every puzzle has one answer', () => {
       // Each wrong map's stack also looks different from every other card's, so no two cards could both be right.
       const pictures = level.maps.map((map) => pictureFor(map, level.eye));
       expect(new Set(pictures).size, named(level)).toBe(5);
-    }
-    for (const { id } of LEVELS.filter((level) => level.ask === 'map')) {
-      const places = new Set(Array.from({ length: VARIANTS }, (_, variant) => (levelFor(id, variant) as Level).truth));
-      expect(places.size, `level ${id}`).toBe(5);
     }
   });
 });
@@ -209,6 +198,73 @@ describe('the careless eye', () => {
         const misses = setFor(id, go).reduce((sum, level) => sum + carelessMisses(level, seeded(go)), 0);
         expect(misses, `level ${id} set ${go}`).toBeLessThan(missLimit(setFor(id, go)[0]));
       }
+    }
+  });
+});
+
+describe('where the right answer sits', () => {
+  /** A habit of tapping: where the first tap of each puzzle goes, from the puzzle's place in the set and what came before. */
+  type Habit = (at: number, overall: number, last: number | null, cards: number) => number;
+  const habits: Record<string, Habit> = {
+    ...Object.fromEntries(Array.from({ length: 5 }, (_, place) => [`always card ${place + 1}`, (_at: number, _all: number, _last: number | null, cards: number) => place % cards])),
+    'left to right in each set': (at, _all, _last, cards) => at % cards,
+    'right to left in each set': (at, _all, _last, cards) => (cards - 1 - (at % cards) + cards) % cards,
+    'left to right on and on': (_at, all, _last, cards) => all % cards,
+    'right to left on and on': (_at, all, _last, cards) => (cards - 1 - (all % cards) + cards) % cards,
+    'the same as last time': (_at, _all, last) => last ?? 0,
+    'one along from last time': (_at, _all, last, cards) => ((last ?? -1) + 1) % cards,
+  };
+
+  const placeOf = (level: Level): number => (level.answer === 'maps' ? level.truth : level.numbers.indexOf(level.truth));
+  const cardsOf = (level: Level): number => (level.answer === 'maps' ? level.maps.length : level.numbers.length);
+
+  /** Plays every set of a level in order, as goes and retries deal them, and counts first taps that land. */
+  function play(id: number, habit: Habit): { hits: number; puzzles: number; perfectSets: number } {
+    let hits = 0;
+    let puzzles = 0;
+    let perfectSets = 0;
+    let last: number | null = null;
+    for (let go = 0; go < SETS; go += 1) {
+      let setHits = 0;
+      setFor(id, go).forEach((level, at) => {
+        const right = habit(at, puzzles, last, cardsOf(level)) === placeOf(level);
+        hits += right ? 1 : 0;
+        setHits += right ? 1 : 0;
+        puzzles += 1;
+        last = placeOf(level);
+      });
+      if (setHits === SET) perfectSets += 1;
+    }
+    return { hits, puzzles, perfectSets };
+  }
+
+  for (const answer of ['three', 'maps'] as const) {
+    const ids = LEVELS.filter((level) => level.answer === answer).map((level) => level.id);
+    const chance = answer === 'three' ? 1 / 3 : 1 / 5;
+    it(`gives no tapping habit much better than chance on ${answer === 'three' ? 'three-token' : 'map card'} levels`, () => {
+      for (const [name, habit] of Object.entries(habits)) {
+        let hits = 0;
+        let puzzles = 0;
+        let perfectSets = 0;
+        for (const id of ids) {
+          const result = play(id, habit);
+          // 15 stacks a level: well above chance on one level would show a pattern.
+          expect(result.hits / result.puzzles, `${name} on level ${id}`).toBeLessThanOrEqual(chance + 0.27);
+          hits += result.hits;
+          puzzles += result.puzzles;
+          perfectSets += result.perfectSets;
+        }
+        expect(hits / puzzles, `${name} over every ${answer} level`).toBeLessThanOrEqual(chance + 0.12);
+        // A habit that gets a whole set right first time is a 3-star run without looking.
+        expect(perfectSets, `${name}: sets won without a miss`).toBeLessThanOrEqual(answer === 'three' ? 3 : 1);
+      }
+    });
+  }
+
+  it('uses every place for the answer on every three-token and map level', () => {
+    for (const { id } of LEVELS.filter((level) => level.answer !== 'picker')) {
+      const places = new Set(Array.from({ length: VARIANTS }, (_, variant) => placeOf(levelFor(id, variant) as Level)));
+      expect(places.size, `level ${id}`).toBe(cardsOf(levelFor(id, 0) as Level));
     }
   });
 });

@@ -6,6 +6,7 @@ import clips from './lang/sl.clips.json';
 import { levelById, LEVELS, setFor } from './rules/levels.ts';
 import { addMiss, cleanMisses, missesSoFar, settle, type MissLog } from './rules/misses.ts';
 import { addSkip, addWin, cleanProgress, isOpen, nextLevel, totalStars, type Progress } from './rules/progress.ts';
+import { goldenFor } from './rules/surprise.ts';
 import { showFinale, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
 import { pickSound, stopSounds, winSound } from './sounds.ts';
@@ -177,13 +178,16 @@ function onWin(report: WinReport): void {
 
 function openLevel(id: number): void {
   if (!levelById(id) || !isOpen(progress, id) || !board.ok) return;
-  const puzzles = setFor(id, nextGo(id));
+  const go = nextGo(id);
+  const puzzles = setFor(id, go);
   if (!puzzles.length) return;
   const [level] = puzzles;
   clearScreen();
   setScreen('play');
   document.body.dataset.level = String(id);
   document.body.dataset.world = level.world;
+  const golden = goldenFor(id, go);
+  document.body.dataset.golden = golden === null ? '' : String(golden);
   headingFor = () => [text().level(id), `🎭 ${id}`];
   labelPage();
   stopSpeaking();
@@ -196,6 +200,7 @@ function openLevel(id: number): void {
     missesBefore: missesSoFar(missLog, id),
     failsBefore: fails.get(id) ?? 0,
     canSkipAfter: FAILS_BEFORE_SKIP,
+    golden,
     stepper: () => document.body.dataset.picker === 'stepper',
     onMiss: () => saveMisses(addMiss(missLog, id)),
     onFail: (total) => fails.set(id, total),

@@ -11,6 +11,7 @@ import {
   bowSound,
   bravoSound,
   failSound,
+  goldenSound,
   hintSound,
   knockSound,
   landSound,
@@ -48,6 +49,8 @@ const DEMO_AFTER_MS = 900;
 const HOLD_MS = 420;
 const REPEAT_MS = 110;
 const SHOWN_KEY = 'block-count:shown';
+/** How long the golden block's twirl adds to a curtain call. */
+const GOLDEN_MS = 1300;
 
 export interface WinReport {
   level: Level;
@@ -67,6 +70,8 @@ export interface PlayScreenOptions {
   missesBefore: number;
   failsBefore: number;
   canSkipAfter: number;
+  /** Which puzzle of the set hides the rare golden block, or null. */
+  golden: number | null;
   /** Numbers as a −/+ stepper, for phones, instead of a grid. */
   stepper: () => boolean;
   onMiss: () => void;
@@ -259,6 +264,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (totalFails >= options.canSkipAfter && !play.won) parts.push(skipButton());
     dock.replaceChildren(...parts);
     dock.dataset.mode = play.failed ? 'retry' : usesStepper() ? 'stepper' : level.answer;
+    // While the stack takes its bows, or a wrong answer wobbles, the answers rest, and look it.
+    dock.dataset.waiting = String(busy && !play.failed);
     mark();
   }
 
@@ -426,8 +433,18 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   const revealKind = (): RevealKind => level.ask;
 
+  /** The golden block, when this puzzle has it: the last to bow turns gold and twirls, with stars. */
+  function twirlGolden(step: RevealStep): void {
+    const index = step.blocks[step.blocks.length - 1];
+    board.twirl(index);
+    goldenSound();
+    if (calm()) return;
+    const box = board.spot('block', index)?.getBoundingClientRect();
+    if (box) burst(box.left, box.top, 24);
+  }
+
   /** Every block bows in turn with its number. Returns when the last one has bowed. */
-  function curtainCall(): number {
+  function curtainCall(golden: boolean): number {
     const kind = revealKind();
     const steps = board.revealPlan(kind);
     const sayEach = kind !== 'map' && steps.length <= SAY_EACH_UP_TO;
@@ -449,7 +466,11 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
         if (sayEach) speak(text().number(step.n));
       });
     });
-    return LEAD_MS + steps.length * per + (firstHidden >= 0 ? OPEN_BEFORE_MS : 0);
+    const done = LEAD_MS + steps.length * per + (firstHidden >= 0 ? OPEN_BEFORE_MS : 0);
+    const last = steps[steps.length - 1];
+    if (!golden || !last) return done;
+    later(done + 150, () => twirlGolden(last));
+    return done + GOLDEN_MS;
   }
 
   function cheerLine(): string {
@@ -460,11 +481,11 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   const bannerText = (): string => (level.ask === 'fill' ? `+${level.truth}` : level.ask === 'map' ? '✓' : String(level.truth));
 
-  function rightAnswer(advanced: boolean): void {
+  function rightAnswer(advanced: boolean, solvedAt: number): void {
     rightSound();
     board.banner(null);
     board.lock(true);
-    const done = curtainCall();
+    const done = curtainCall(options.golden === solvedAt);
     later(done + CHEER_AFTER_MS, () => {
       board.banner(bannerText(), 'right');
       bravoSound();
@@ -516,12 +537,13 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (busy || play.won || play.failed || isTried(pick)) return;
     const result = answer(play, pick);
     if (!result) return;
+    const solvedAt = play.at;
     play = result.play;
     busy = true;
     guide.hide();
     window.clearTimeout(holdTimer);
     drawDock();
-    if (result.right) rightAnswer(result.solvedOne);
+    if (result.right) rightAnswer(result.solvedOne, solvedAt);
     else wrongAnswer();
   }
 

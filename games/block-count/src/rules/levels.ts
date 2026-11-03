@@ -215,10 +215,23 @@ function tidy(heights: number[][]): boolean {
 
 // ---------- Answers ----------
 
-/** Three numbers in a row with the answer in turn low, middle and high, so its place gives nothing away. */
-function threeNumbers(truth: number, variant: number): number[] {
-  const place = variant % 3;
-  const low = Math.max(1, truth - place);
+/**
+ * Where the answer sits in each of a level's puzzles: every place equally often, shuffled from the level's own
+ * seed. So always tapping the same card wins only by chance, and no order (left to right, the same as last time)
+ * can be learned either.
+ */
+export function answerPlaces(index: number, cards: number): number[] {
+  const random = seeded(SEED * 3 + index * 50021);
+  return shuffled(random, Array.from({ length: VARIANTS }, (_, at) => at % cards));
+}
+
+/**
+ * Three numbers in a row with the answer at its place. A count of 2 can't sit on the right, since nothing under 1
+ * is offered, so it takes one of the places that fit.
+ */
+function threeNumbers(truth: number, place: number, random: Random): number[] {
+  const fits = [0, 1, 2].filter((one) => truth - one >= 1);
+  const low = truth - (fits.includes(place) ? place : pick(random, fits));
   return [low, low + 1, low + 2];
 }
 
@@ -227,7 +240,7 @@ function threeNumbers(truth: number, variant: number): number[] {
  * column a block too tall or too short. Each one looks different from the camera, so only one map fits the
  * stage. The mirror is always among them, because it is the slip a quick look makes first.
  */
-function mapCards(random: Random, heights: number[][], eye: Point, variant: number): number[][][] | null {
+function mapCards(random: Random, heights: number[][], eye: Point, place: number): number[][][] | null {
   const truthKey = heightsKey(heights);
   const tallest = tallestOf(heights);
   const nudged = shuffled(
@@ -254,7 +267,7 @@ function mapCards(random: Random, heights: number[][], eye: Point, variant: numb
   // The mirror must be there and different from the stack, or the quick look's first slip would be right.
   if (wrong.length < MAP_CARDS - 1 || heightsKey(mirrored(heights)) === truthKey) return null;
   const cards = [...wrong];
-  cards.splice((variant * 2 + 1) % MAP_CARDS, 0, heights);
+  cards.splice(place, 0, heights);
   if (mapsMatching(heights, eye, cards).length !== 1) return null;
   return cards;
 }
@@ -263,7 +276,7 @@ function mapCards(random: Random, heights: number[][], eye: Point, variant: numb
 
 const pickerNumbers = (most: number): number[] => Array.from({ length: most }, (_, at) => at + 1);
 
-function attempt(spec: Spec, index: number, variant: number, random: Random): Level | null {
+function attempt(spec: Spec, index: number, variant: number, random: Random, place: number): Level | null {
   const heights = index === 0 && variant === 0 && spec.first ? spec.first.map((row) => [...row]) : SHAPES[spec.shape](spec, random);
   if (!tidy(heights)) return null;
   const count = countOf(heights);
@@ -302,11 +315,11 @@ function attempt(spec: Spec, index: number, variant: number, random: Random): Le
     big: spec.world === 'see',
   };
   if (spec.answer === 'maps') {
-    const maps = mapCards(random, heights, eye, variant);
+    const maps = mapCards(random, heights, eye, place);
     if (!maps) return null;
     return { ...base, truth: maps.findIndex((map) => sameHeights(map, heights)), numbers: [], maps };
   }
-  const numbers = spec.answer === 'three' ? threeNumbers(truth, variant) : pickerNumbers(spec.most ?? 20);
+  const numbers = spec.answer === 'three' ? threeNumbers(truth, place, random) : pickerNumbers(spec.most ?? 20);
   if (!numbers.includes(truth)) return null;
   return { ...base, truth, numbers, maps: [] };
 }
@@ -316,10 +329,12 @@ const MOST_TRIES = 20000;
 function build(index: number): Level[] {
   const spec = SPECS[index];
   const taken = new Set<string>();
+  const places = answerPlaces(index, spec.answer === 'maps' ? MAP_CARDS : 3);
   return Array.from({ length: VARIANTS }, (_, variant) => {
     const random = seeded(SEED + index * 7919 + variant * 104729);
+    const place = places[variant];
     for (let tries = 0; tries < MOST_TRIES; tries += 1) {
-      const made = attempt(spec, index, variant, random);
+      const made = attempt(spec, index, variant, random, place);
       if (!made || taken.has(heightsKey(made.heights))) continue;
       taken.add(heightsKey(made.heights));
       return made;

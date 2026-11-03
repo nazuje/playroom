@@ -83,3 +83,9 @@ export function winSound(): void {
   playSound('whoosh');
   later(200, () => playSound('tada'));
 }
+
+/** The golden block twirls: a sparkly run up and a little fanfare. */
+export function goldenSound(): void {
+  notes([[0, 1047], [80, 1319], [160, 1568], [240, 2093], [320, 2637]], 'sine', 0.14, 0.16);
+  later(520, () => playSound('tada'));
+}

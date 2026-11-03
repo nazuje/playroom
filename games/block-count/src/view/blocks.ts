@@ -24,6 +24,8 @@ const DROP_S = 0.55;
 const DROP_FROM = 5;
 const POP_S = 0.42;
 const WOBBLE_S = 1.1;
+const TWIRL_S = 1.2;
+const GOLDEN = 0xffc928;
 /** How far the stack spreads apart when it shows its inside, as a share of each block's distance from the middle. */
 export const SPREAD = 0.32;
 
@@ -46,6 +48,9 @@ export interface Block {
   hoverUntil: number;
   /** Shown at all. Fresh blocks wait out of sight until they drop. */
   shown: boolean;
+  /** The rare golden block, and when it twirls. */
+  golden: boolean;
+  twirlAt: number;
 }
 
 /** A rounded panel on every face, so each block reads as a block even beside one of the same colour. */
@@ -123,7 +128,7 @@ export interface Blocks {
   /** Solid blocks, the ones a tap can hit. */
   solid: InstancedMesh;
   /** Puts these blocks on the turntable, all landing at the same moment. */
-  load(blocks: Omit<Block, 'landAt' | 'hopAt' | 'lit' | 'counted' | 'hoverUntil' | 'shown'>[], now: number, calm: boolean): void;
+  load(blocks: Omit<Block, 'landAt' | 'hopAt' | 'lit' | 'counted' | 'hoverUntil' | 'shown' | 'golden' | 'twirlAt'>[], now: number, calm: boolean): void;
   /** Where a block is drawn now, inside the turntable's group. */
   placeOf(index: number, out: Vector3): Vector3;
   wobble(now: number): void;
@@ -218,10 +223,21 @@ export function buildBlocks(parent: Group): Blocks {
         scale = 1 + Math.sin(hopped * Math.PI) * (calm ? 0.08 : 0.22);
         moving = true;
       }
+      // The golden block spins all the way round, high over the stack, and lands back in its place.
+      let spin = 0;
+      const twirled = (now - block.twirlAt) / TWIRL_S;
+      if (block.golden && twirled >= 0 && twirled < 1) {
+        if (!calm) {
+          spin = ease(twirled) * Math.PI * 2;
+          lift += Math.sin(twirled * Math.PI) * 1.1;
+        }
+        scale = Math.max(scale, 1 + Math.sin(twirled * Math.PI) * 0.3);
+        moving = true;
+      }
       let sway = 0;
       if (shake > 0) sway = Math.sin(now * 22 + block.y * 0.9) * shake * (block.y + 1) * 0.06;
       placer.position.set(spot.x + sway, spot.y + lift - (1 - squash) * 0.5, spot.z + sway * 0.4);
-      placer.rotation.set(0, 0, -sway * 0.35);
+      placer.rotation.set(0, spin, -sway * 0.35);
       placer.scale.set(scale / Math.sqrt(squash), scale * squash, scale / Math.sqrt(squash));
       placer.updateMatrix();
       tint.setHex(block.fresh ? FILL_COLOUR : layerColour(block.y));
@@ -229,6 +245,7 @@ export function buildBlocks(parent: Group): Blocks {
       if (block.counted) tint.lerp(glow, 0.16).multiplyScalar(1.12);
       else if (block.lit) tint.multiplyScalar(1.3);
       if (block.hidden && block.counted) tint.setHex(VELVET).lerp(white, 0.12 + 0.12 * Math.sin(now * 6));
+      if (block.golden) tint.setHex(GOLDEN).lerp(white, 0.15 + 0.15 * Math.sin(now * 8));
       if (shake > 0) tint.lerp(white, shake * 0.2);
       const target = glassOn && !block.hidden && !block.fresh ? glass : solid;
       const slot = target === glass ? glassCount++ : solidCount++;
@@ -271,6 +288,8 @@ export function buildBlocks(parent: Group): Blocks {
           counted: false,
           hoverUntil: 0,
           shown: !block.fresh,
+          golden: false,
+          twirlAt: -10,
         })),
       );
       spread = 0;

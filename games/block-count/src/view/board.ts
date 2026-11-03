@@ -55,6 +55,8 @@ export interface BoardView {
   banner(text: string | null, tone?: 'right' | 'wrong'): void;
   /** Lights the frame of the box, the peg or every block for a moment, for demos and hints. */
   flash(what: 'box' | 'peg' | 'stack'): void;
+  /** The rare surprise: this block turns gold and twirls. */
+  twirl(index: number): void;
   /** Lights a block as if tapped, for the first demo and the hint. It stays lit if it already was. */
   tapBlock(index: number): number;
   onTap(listener: (tap: Tap) => void): void;
@@ -129,6 +131,7 @@ export function createBoard(host: HTMLElement): BoardView {
       banner() {},
       flash() {},
       tapBlock: () => 0,
+      twirl() {},
       onTap() {},
       onTurn() {},
       spot: () => null,
@@ -344,7 +347,7 @@ export function createBoard(host: HTMLElement): BoardView {
   function loadStack(heights: Heights, fresh: [number, number, number][], hidden: readonly string[], now: number): void {
     const width = heights[0].length;
     const depth = heights.length;
-    const shown: Omit<Block, 'landAt' | 'hopAt' | 'lit' | 'counted' | 'hoverUntil' | 'shown'>[] = cubesOf(heights).map(([x, y, z]) => ({
+    const shown: Omit<Block, 'landAt' | 'hopAt' | 'lit' | 'counted' | 'hoverUntil' | 'shown' | 'golden' | 'twirlAt'>[] = cubesOf(heights).map(([x, y, z]) => ({
       x,
       y,
       z,
@@ -478,6 +481,7 @@ export function createBoard(host: HTMLElement): BoardView {
       host.dataset.box = String(level.box);
       host.dataset.turn = String(level.turn);
       delete host.dataset.locked;
+      delete host.dataset.golden;
       lastFit = '';
     },
     idle() {
@@ -563,6 +567,13 @@ export function createBoard(host: HTMLElement): BoardView {
       flashAt = clock();
       flashWhat = what;
       if (what === 'stack') bumpAt = clock();
+    },
+    twirl(index) {
+      const block = blocks.list[index];
+      if (!block) return;
+      block.golden = true;
+      block.twirlAt = clock();
+      host.dataset.golden = 'true';
     },
     tapBlock(index) {
       if (blocks.list[index]) light(index, true);

@@ -465,6 +465,17 @@ body:not([data-screen='play']) .turn-btn {
   max-width: 1010px;
 }
 
+/* Answers rest while the stack bows or wobbles: dimmed, and taps go nowhere. */
+.answer {
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+#dock[data-waiting='true'] .answer {
+  opacity: 0.38;
+  filter: grayscale(0.7);
+  pointer-events: none;
+}
+
 .answer.focus {
   animation: focus-flash 0.6s ease-out;
 }
@@ -750,107 +761,160 @@ body:not([data-screen='play']) .turn-btn {
   pointer-events: auto;
 }
 
+/* The playbill: rows of red velvet seats along the bottom, as if looking over them at the stage, and each act
+   on a gold marquee sign ringed with bulbs. The stage still shows above and between the signs. */
 .map {
   position: fixed;
   inset: 0;
   overflow-y: auto;
-  padding: calc(var(--safe-top) + 100px) 14px calc(var(--safe-bottom) + 24px);
+  padding: calc(var(--safe-top) + 100px) 14px calc(var(--safe-bottom) + 140px);
   overscroll-behavior: contain;
-  background: linear-gradient(180deg, rgba(29, 14, 48, 0.25), rgba(29, 14, 48, 0.55));
+}
+
+.map::before {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 150px;
+  background:
+    radial-gradient(ellipse 28px 34px at 50% 100%, #e0335f 0 88%, #8e1638 90% 100%, transparent 102%) 0 100% / 70px 56px repeat-x,
+    radial-gradient(ellipse 25px 30px at 50% 100%, #bb2148 0 88%, #6f102b 90% 100%, transparent 102%) 35px calc(100% - 46px) / 70px 50px repeat-x,
+    radial-gradient(ellipse 22px 26px at 50% 100%, #941a3d 0 88%, #530a21 90% 100%, transparent 102%) 0 calc(100% - 86px) / 64px 44px repeat-x,
+    linear-gradient(180deg, transparent, rgba(40, 6, 20, 0.9) 70%);
+  pointer-events: none;
+  content: '';
 }
 
 .map-sheet {
+  position: relative;
+  z-index: 1;
   max-width: 720px;
   margin: 0 auto;
 }
 
 .world {
-  margin: 0 0 16px;
-  padding: 12px 14px 16px;
-  border: 3px solid rgba(255, 207, 90, 0.6);
-  border-radius: 18px;
-  background: rgba(44, 24, 70, 0.82);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  position: relative;
+  margin: 10px 0 28px;
+  padding: 16px 18px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #8a1538, #5c0b26);
+  box-shadow: 0 0 0 7px var(--gold), 0 0 0 10px var(--gold-dark), 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* The bulbs round the marquee. */
+.world::before {
+  position: absolute;
+  inset: -5px;
+  border: 4px dotted #fff4c2;
+  border-radius: 20px;
+  filter: drop-shadow(0 0 4px rgba(255, 230, 140, 0.9));
+  pointer-events: none;
+  content: '';
 }
 
 .world-name {
-  margin: 0 0 10px;
-  font-size: 1.2rem;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
   color: var(--gold-2);
+  text-shadow: 0 0 10px rgba(255, 207, 90, 0.8), 0 2px 0 #3d0716;
 }
 
 .world-grid {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
 }
 
-/* A level is a ticket with notched ends. */
+/* A level is a ticket: cream with a red stub at one end, torn along a dashed line. */
 .tile {
-  --stub: var(--cream);
+  --body: var(--cream);
+  --stub: var(--velvet);
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 22px 1fr;
   align-items: center;
-  justify-content: center;
-  width: 84px;
-  height: 66px;
+  width: 92px;
+  height: 64px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
-  color: var(--ink);
+  border-radius: 6px;
+  color: var(--velvet-deep);
   background:
-    radial-gradient(circle at 0 50%, transparent 9px, var(--stub) 10px) left / 51% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, transparent 9px, var(--stub) 10px) right / 51% 100% no-repeat;
-  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+    linear-gradient(90deg, var(--stub) 0 22px, transparent 22px),
+    radial-gradient(circle at 22px 0, transparent 6px, var(--body) 7px) top / 100% 51% no-repeat,
+    radial-gradient(circle at 22px 100%, transparent 6px, var(--body) 7px) bottom / 100% 51% no-repeat;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.4));
   touch-action: manipulation;
+}
+
+.tile::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 22px;
+  border-left: 2px dashed rgba(110, 24, 56, 0.45);
+  content: '';
 }
 
 .tile::after {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 50%;
-  border-left: 2px dashed rgba(44, 24, 70, 0.2);
-  content: '';
+  top: 50%;
+  left: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+  writing-mode: vertical-rl;
+  transform: translateY(-50%) rotate(180deg);
+  content: '★★★';
 }
 
 .tile[data-done='true'] {
-  --stub: var(--gold);
+  --body: var(--gold);
 }
 
 .tile-next {
+  --body: #fff;
   --stub: var(--mint);
-  color: #fff;
-  filter: drop-shadow(0 4px 0 var(--mint-dark)) drop-shadow(0 0 10px rgba(46, 196, 182, 0.8));
+  filter: drop-shadow(0 4px 0 var(--mint-dark)) drop-shadow(0 0 12px rgba(255, 244, 194, 0.95));
   animation: bob 1.6s ease-in-out infinite;
 }
 
 .tile-shut {
-  --stub: var(--plum-3);
+  --body: #4a1028;
+  --stub: #2e0918;
   color: var(--gold-2);
   cursor: default;
+}
+
+.tile-shut::after {
+  opacity: 0.3;
 }
 
 .tile-number {
   position: relative;
   z-index: 1;
-  font-size: 1.6rem;
+  grid-column: 2;
+  font-size: 1.55rem;
   font-weight: 700;
   line-height: 1;
 }
 
 .tile-stars {
-  position: relative;
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  left: 22px;
   z-index: 1;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   letter-spacing: 1px;
+  text-align: center;
   color: var(--velvet-dark);
-}
-
-.tile-next .tile-stars {
-  color: #fff;
 }
 
 .card {

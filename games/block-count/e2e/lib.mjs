@@ -37,16 +37,17 @@ export async function serve() {
 export const launch = () => chromium.launch(launchOptions);
 
 /** A phone-like page with touch, and any saved game already in place. */
-export async function openPage(browser, { width = 390, height = 844, language = 'en', progress = null, motion = 'no-preference', shown = null } = {}) {
+export async function openPage(browser, { width = 390, height = 844, language = 'en', progress = null, motion = 'no-preference', shown = null, goes = null } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true, reducedMotion: motion });
-  await context.addInitScript(([chosen, saved, demos]) => {
+  await context.addInitScript(([chosen, saved, demos, played]) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', 'yes');
     localStorage.setItem('playroom:language', JSON.stringify(chosen));
     if (saved) localStorage.setItem('playroom:block-count:progress', JSON.stringify(saved));
     else localStorage.removeItem('playroom:block-count:progress');
     if (demos) localStorage.setItem('playroom:block-count:shown', JSON.stringify(demos));
-  }, [language, progress, shown]);
+    if (played) localStorage.setItem('playroom:block-count:goes', JSON.stringify(played));
+  }, [language, progress, shown, goes]);
   const page = await context.newPage();
   const problems = [];
   page.on('console', (message) => {

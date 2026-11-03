@@ -2,6 +2,7 @@
 // first. It fails on any error, outside request, sideways scroll, lost progress, tap target under 64px, or a
 // stack that is cut off or covered by the answers, checked on every level at each screen size.
 import { LEVELS } from '../src/rules/levels.ts';
+import { goldenFor } from '../src/rules/surprise.ts';
 import { afterAnswer, ALL_SHOWN, allOpen, answer, launch, openLevel, openPage, puzzleOn, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
 
 const SCREENS = [
@@ -257,6 +258,28 @@ async function calmRun(browser) {
   return problems;
 }
 
+/** A go with the golden block in its first puzzle shows it twirling in the curtain call, and the answers rest meanwhile. */
+async function goldenRun(browser) {
+  const id = 3;
+  let go = 0;
+  while (goldenFor(id, go) !== 0) go += 1;
+  const { page, problems } = await openPage(browser, { progress: allOpen(LEVELS), shown: ALL_SHOWN, goes: { [id]: go } });
+  await openLevel(page, id);
+  if ((await page.evaluate(() => document.body.dataset.golden)) !== '0') problems.push('golden: the set has no golden block');
+  const level = await puzzleOn(page);
+  await answer(page, level.truth);
+  await page.waitForTimeout(400);
+  if ((await page.evaluate(() => document.getElementById('dock').dataset.waiting)) !== 'true') problems.push('golden: the answers look tappable during the curtain call');
+  await shot(page, 'golden-waiting');
+  await page.waitForFunction(() => document.getElementById('board').dataset.golden === 'true', null, { timeout: 12000 }).catch(() => problems.push('golden: no block twirled'));
+  await page.waitForTimeout(500);
+  await shot(page, 'golden-twirl');
+  await ready(page);
+  if ((await page.evaluate(() => document.getElementById('dock').dataset.waiting)) !== 'false') problems.push('golden: the answers stayed dim on the next stack');
+  await page.context().close();
+  return problems;
+}
+
 async function main() {
   const server = await serve();
   const browser = await launch();
@@ -270,6 +293,9 @@ async function main() {
         problems.push(...found);
       }
     }
+    const golden = await goldenRun(browser);
+    console.log(`${golden.length ? '✗' : '✓'} golden block`);
+    problems.push(...golden);
     const calm = await calmRun(browser);
     console.log(`${calm.length ? '✗' : '✓'} calm mode`);
     problems.push(...calm);

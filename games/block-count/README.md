@@ -4,7 +4,7 @@ Block-counting puzzles in 3D, like the ones in IQ and spatial tests: how many bl
 
 ## The look
 
-A toy theatre at night. Chunky candy-coloured blocks stand on a gold turntable on dark wooden stage boards, under a warm spotlight, between raspberry velvet curtains, with a painted backdrop of purple hills, a moon and stars. Every layer has its own colour (mint, sunflower, bubblegum, lilac, tangerine), so a block's colour says how high it sits. Each face has a rounded panel, so blocks of the same colour side by side still read as separate blocks. The top bar is a gold marquee with bulbs, the dock is the velvet front of the stage with chunky cream number blocks, and levels are theatre tickets on a playbill, in five acts.
+A toy theatre at night. Chunky candy-coloured blocks stand on a gold turntable on dark wooden stage boards, under a warm spotlight, between raspberry velvet curtains, with a painted backdrop of purple hills, a moon and stars. Every layer has its own colour (mint, sunflower, bubblegum, lilac, tangerine), so a block's colour says how high it sits. Each face has a rounded panel, so blocks of the same colour side by side still read as separate blocks. The top bar is a gold marquee with bulbs, the dock is the velvet front of the stage with chunky cream number blocks, and levels are ticket stubs on a playbill: each act is a gold marquee sign ringed with bulbs, over rows of red velvet seats.
 
 The signature effect is the curtain call. When the answer is right, the stack spreads apart a little and every block takes a bow in turn, hopping up with a rising note and a number badge. The blocks you can see go first. Then the stack turns to see-through glass and the hidden blocks bow last, glowing pink with pink badges, so the player sees exactly which ones were hiding. On "fill the box", cream sugar cubes drop into every empty spot, counting up. On map questions, each column bows with its height. A wrong answer makes the whole stack wobble like jelly.
 
@@ -26,7 +26,9 @@ Everything is a tap, handled on `pointerdown`, so two fingers both work.
 - **Listen.** Each world starts with its idea out loud, then the question ("How many blocks?"). 🔊 says it again. Tapping the stage says the question and lights up the answers.
 - **Tap to count.** Tapping a block lights it up with a knock and says how many are lit, so a 4-year-old can count by tapping. Tapping it again unlights it. Only blocks you can see can be tapped, which is the lesson: the lit count can fall short.
 - **Turn.** On the first two worlds the turntable turns, by dragging the stage or with ↻, as a help. The answer never needs it.
-- **Answer.** On the first world, three big number blocks with dots, the right one taking every place in turn. After that every number from 1 up to 12, 20 or 30: a grid under the stage on a tablet, and on a phone a big −, a number block, a big + and a ✓, all under the stage so it is never covered. Holding − or + keeps counting. On map levels, five map cards.
+- **Answer.** On the first world, three big number blocks with dots in order, the right one at a place drawn from the level's seed. After that every number from 1 up to 12, 20 or 30: a grid under the stage on a tablet, and on a phone a big −, a number block, a big + and a ✓, all under the stage so it is never covered. Holding − or + keeps counting. On map levels, five map cards.
+- **Resting answers.** While the stack takes its bows or wobbles, the answers and the stepper dim and ignore taps, so nothing looks tappable that isn't.
+- **A surprise.** About one set in eight hides a golden block: the last block to bow turns gold and twirls high over the stack with a sparkle and stars. It only shows in the curtain call, so it never changes the puzzle.
 - **A set.** Each go at a level is a set of 3 stacks. Every retry, every 🔄 in the top bar and every replay deals a fresh set: each level has 15 stacks in 5 sets, and the count of goes is saved, so a reload doesn't bring back the same ones.
 - **Tries.** Misses count across the whole set. The first world never fails, and misses there only cost stars. With numbers to pick from, a try ends on the 4th wrong answer, about one slip a stack. With five map cards, it ends on the 3rd. The miss that ends a try opens the stack to show what was hiding, shows the right count in red, and puts one big 🔄 up, tappable within half a second.
 - **Help.** After 2 misses on a level, a hint: on the first world the stack counts itself slowly, lighting each block with its number, and later the stack opens up for a peek at what hides inside. After 8 seconds with no tap a 👆 points at the next thing to do: on the phone stepper the + until the number has moved, then ✓, and elsewhere the stack, while the whole row of answers bounces in turn, so no single answer looks like a hint. The first time each idea appears (counting by tapping, the turntable, the lesson, the stepper, filling the box, the map's peg), a hand shows it once without words.
@@ -51,9 +53,10 @@ The puzzles come from specs in `src/rules/levels.ts`: shape, floor sizes, talles
 
 - the fewest blocks that explain the view, held up from below, are the whole stack, with no slivers, and one more block anywhere would show;
 - hidden blocks only sit under other blocks, the first world hides none, and every later counting stack hides at least one;
-- each level has 15 different stacks in 5 sets of 3, and the three-token answer takes every place;
+- each level has 15 different stacks in 5 sets of 3;
+- on every three-token and map level the answer sits at each place equally often, shuffled from the level's seed, so no tapping habit (always the same card, left to right in each set or on and on, right to left, the same as last time, one along from last time) does much better than chance on any level or over them all, and none wins more than a set or two without a miss;
 - the answer is the count, or the blocks missing from the box, and it is offered;
-- each map question has five different maps, the mirror among them, exactly one matching the stage, and the right card takes every place.
+- each map question has five different maps, the mirror among them, and exactly one matching the stage.
 
 ## The careless eye
 
@@ -66,7 +69,7 @@ The rules are pure modules in `src/rules/`, with tests.
 - `stack.ts` is a stack as a height map, its blocks in counting order, mirrors and turns, and boxes.
 - `sight.ts` is the camera's fixed eye and what it can see of each block.
 - `solve.ts` is the solver: the fewest blocks that explain the view, whether one more block would show, and which maps look like the stage.
-- `levels.ts` makes the staircase and its sets, `careless.ts` the careless eye, `play.ts` one try at a set, `misses.ts` misses across tries, and `progress.ts` finished and skipped levels with the kit's `store`.
+- `levels.ts` makes the staircase, its sets and where answers sit, `surprise.ts` which sets hide the golden block, `careless.ts` the careless eye, `play.ts` one try at a set, `misses.ts` misses across tries, and `progress.ts` finished and skipped levels with the kit's `store`.
 
 The view is in `src/view/`: `theatre.ts` the toy theatre, `blocks.ts` the instanced blocks and their drops, hops, wobble, spread and glass, `board.ts` the stage on screen with the camera, taps, turning, number badges and the curtain call steps, `tokens.ts` the number blocks and map cards, and `guide.ts` the pointing hand. `screens/` holds the play screen, the playbill and the win cards. `sounds.ts` makes the knocks, the rising notes, the jelly wobbles and the fanfare from the kit's `playSound` and `playNote`.
 
@@ -78,7 +81,7 @@ These play a normal build from `dist/` (or `DIST`) served by `vite preview` on p
 npx vite build                 # in this folder
 node e2e/skilled-bot.mjs       # every level from a fresh save, then every replay until all 5 sets are won
 node e2e/careless-bot.mjs      # counts only what it sees and nudges, retries until 5 tries fail
-node e2e/screen-check.mjs      # 3 screens, both languages, every level's fit, a failed try and how fast 🔄 is ready, the idle hand, mashing, calm mode. Pictures land in .shots/
+node e2e/screen-check.mjs      # 3 screens, both languages, every level's fit, a failed try and how fast 🔄 is ready, the idle hand, mashing, the golden block and resting answers, calm mode. Pictures land in .shots/
 ```
 
 ## Run it
