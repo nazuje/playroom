@@ -16,6 +16,7 @@ const SMALLEST = 64;
 const BOARD_PADDING = 36;
 const SLAP_GAP_MS = 110;
 const SLAP_MS = 420;
+const SPEAKING_MS = 900;
 const REACTIONS = ['raspberry', 'squish', 'roll'] as const;
 
 /** How wide a row is, in fruit widths, so the biggest fruit that fits can be chosen. */
@@ -79,6 +80,7 @@ export function createBoard(host: HTMLElement): BoardView {
     row.append(bubble);
     row.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      speaking(row);
       const fruit = (event.target as HTMLElement).closest<HTMLElement>('.fruit');
       if (fruit) fruitListener(fruit.dataset.fruit as Fruit, id);
       else rowListener(id);
@@ -91,6 +93,14 @@ export function createBoard(host: HTMLElement): BoardView {
       else if ((event.target as HTMLElement).closest('.total')) rowListener(id);
     });
     return row;
+  }
+
+  /** A row being read out lights up and its fruits hop, so a tap shows even with the sound off. */
+  function speaking(row: HTMLElement): void {
+    row.classList.remove('speaking');
+    void row.offsetWidth;
+    row.classList.add('speaking');
+    later(SPEAKING_MS, () => row.classList.remove('speaking'));
   }
 
   function label(play: Play): void {

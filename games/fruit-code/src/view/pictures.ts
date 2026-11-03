@@ -75,7 +75,14 @@ export function termButton(term: Term, id: string): HTMLButtonElement {
     made.append(times);
   }
   const holder = element('span', 'fruit-body');
-  holder.append(fruitArt(term.fruit, term.shape === 'bunch' ? term.count : 1), eyes(), element('span', 'tongue'));
+  const art = fruitArt(term.fruit, term.shape === 'bunch' ? term.count : 1);
+  if (term.shape === 'bunch') {
+    // Every fruit in a bunch gets its own face, so no eyes float in the gap between them.
+    for (const one of art.querySelectorAll('.emoji')) one.append(eyes(), element('span', 'tongue'));
+    holder.append(art);
+  } else {
+    holder.append(art, eyes(), element('span', 'tongue'));
+  }
   const sticker = element('span', 'sticker');
   sticker.append(element('span', 'sticker-num'));
   made.append(holder, sticker);

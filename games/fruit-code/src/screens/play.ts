@@ -5,7 +5,8 @@ import { burst, say, speak, store } from '@playroom/kit';
 import { text } from '../lang/index.ts';
 import { loneFruit, type Fruit, type Term } from '../rules/equation.ts';
 import type { Level } from '../rules/levels.ts';
-import { answer, choicesOf, select, startPlay, starsFor, type Play } from '../rules/play.ts';
+import { starsFor } from '../rules/misses.ts';
+import { answer, choicesOf, select, startPlay, type Play } from '../rules/play.ts';
 import { nextStep, plan } from '../rules/solve.ts';
 import { fruitSound, hintSound, oopsSound, pickSound, rightSound, rowSound, stepSound, stopSounds } from '../sounds.ts';
 import { button, calm, element, onPress } from '../ui.ts';
@@ -27,6 +28,7 @@ const SHOWN_KEY = 'fruit-code:shown';
 export interface WinReport {
   level: Level;
   stars: number;
+  /** Misses over every try of this level since it was last won. */
   misses: number;
 }
 
@@ -35,14 +37,14 @@ export interface PlayScreenOptions {
   board: BoardView;
   dock: HTMLElement;
   guide: Guide;
-  /** Misses on this level before this try, so the hint can count them all. */
+  /** Misses on this level over every try so far, kept across visits until it is won. */
   missesBefore: number;
   /** Failed tries on this level before this one, for the skip button. */
   failsBefore: number;
   canSkipAfter: number;
   /** The 0 to 20 numbers as a −/+ stepper, for phones, instead of a grid. */
   stepper: () => boolean;
-  onMiss: (total: number) => void;
+  onMiss: () => void;
   onFail: (total: number) => void;
   onRetry: () => void;
   onSkip: () => void;
@@ -86,6 +88,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   function mark(): void {
     const body = document.body.dataset;
     body.misses = String(play.misses);
+    body.levelMisses = String(totalMisses);
     body.target = play.target;
     body.known = Object.keys(play.known).join(',');
     body.variant = String(level.variant);
@@ -275,7 +278,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (step?.kind === 'fruit' && step.fruit !== lone && play.target !== step.fruit) {
       return document.querySelector(`#board [data-row="${step.rows[0]}"] .fruit[data-fruit="${step.fruit}"]`);
     }
-    return dock.querySelector('.step-show, .choices, .picker-grid');
+    // The "= ?" sign, never one of the numbers, so the hand can't look like it is giving the answer.
+    return dock.querySelector('.step-show, .prompt');
   }
 
   function armIdle(): void {
@@ -309,8 +313,9 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
         key: 'choose',
         when: level.answer === 'three',
         steps: [
-          { at: first('[data-row="0"] .total'), ms: 1300 },
-          { at: () => dock.querySelector('.choices'), ms: 1400 },
+          { at: first('[data-row="0"]'), ms: 1500, className: 'speaking' },
+          { at: first('[data-row="q"] .total'), ms: 1100 },
+          { at: () => dock.querySelector('.prompt'), ms: 1300 },
         ],
       },
       {
@@ -348,7 +353,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   function missed(): void {
     totalMisses += 1;
-    options.onMiss(totalMisses);
+    options.onMiss();
   }
 
   function retarget(next: Play): boolean {
@@ -395,7 +400,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     board.update({ ...play, known: { ...level.values } });
     burstOn(null);
     mark();
-    options.onWin({ level, stars: starsFor(play.misses), misses: play.misses });
+    options.onWin({ level, stars: starsFor(totalMisses), misses: totalMisses });
   }
 
   function fail(): void {

@@ -47,10 +47,14 @@ async function puzzle(page, level) {
   return taps;
 }
 
-async function main() {
-  const server = await serve();
-  const browser = await launch();
-  const { page, problems } = await openPage(browser);
+const SCREENS = [
+  { name: 'phone', width: 390, height: 844, answers: 'stepper' },
+  { name: 'tablet', width: 1024, height: 768, answers: 'grid' },
+];
+
+/** Every level from a fresh save on one screen. Returns the stars per level. */
+async function playAll(browser, screen) {
+  const { page, problems } = await openPage(browser, { width: screen.width, height: screen.height });
   const rows = [];
   try {
     for (const { id } of LEVELS) {
@@ -60,34 +64,59 @@ async function main() {
         await openLevel(page, id);
       }
       await page.waitForFunction((wanted) => document.body.dataset.level === String(wanted) && document.body.dataset.status === 'playing', id);
+      const picker = await page.evaluate(() => document.body.dataset.picker);
+      if (picker !== screen.answers) throw new Error(`${screen.name}: the numbers are a ${picker}, not a ${screen.answers}`);
       const level = await puzzleOn(page, ALL_VARIANTS);
       const started = Date.now();
       const taps = await puzzle(page, level);
       await screenIs(page, 'won');
       const stars = Number(await page.evaluate(() => document.body.dataset.stars));
-      rows.push({ id: level.id, stars });
-      console.log(`level ${String(level.id).padStart(2)} ${level.world.padEnd(6)} won with ${String(taps).padStart(2)} taps ${'★'.repeat(stars)} ${Date.now() - started} ms`);
+      rows.push({ id, stars });
+      console.log(`${screen.name} level ${String(id).padStart(2)} ${level.world.padEnd(6)} won with ${String(taps).padStart(2)} taps ${'★'.repeat(stars)} ${Date.now() - started} ms`);
       await page.waitForSelector('.card-btn.armed');
-      const next = page.locator('[data-action="next"]');
-      if (await next.count()) await touch(page, '[data-action="next"]');
-      else {
+      const last = id === LEVELS.at(-1).id;
+      const finale = (await page.evaluate(() => document.body.dataset.finale)) === 'true';
+      if (finale !== last) throw new Error(`Level ${id}: the finale ${finale ? 'showed' : 'did not show'}`);
+      if (last) {
+        const big = await page.locator('.card-finale .card-main[data-action="map"]').boundingBox();
+        if (!big || big.height < 72) throw new Error('The finale has no big button');
+        await page.screenshot({ path: `${SHOTS}/skilled-${screen.name}-finale.png` });
         await touch(page, '[data-action="map"]');
         await screenIs(page, 'map');
+        break;
       }
+      // Every other win card has one big next button.
+      const next = await page.locator('.card-main[data-action="next"]').boundingBox();
+      if (!next || next.height < 72) throw new Error(`Level ${id}: no big next button`);
+      await touch(page, '[data-action="next"]');
       await ready(page);
     }
   } catch (error) {
     await page.screenshot({ path: `${SHOTS}/skilled-failed.png` });
     console.log('screen at failure:', await page.evaluate(() => JSON.stringify(document.body.dataset)), problems);
     throw error;
+  }
+  await page.context().close();
+  return { rows, problems };
+}
+
+async function main() {
+  const server = await serve();
+  const browser = await launch();
+  let ok = true;
+  try {
+    for (const screen of SCREENS) {
+      const { rows, problems } = await playAll(browser, screen);
+      const perfect = rows.filter((row) => row.stars === 3).length;
+      console.log(`\n${screen.name} (${screen.answers}): won ${rows.length} of ${LEVELS.length} levels, ${perfect} with 3 stars`);
+      console.log(`problems: ${problems.length ? problems.join('\n') : 'none'}\n`);
+      ok &&= rows.length === LEVELS.length && perfect === LEVELS.length && !problems.length;
+    }
   } finally {
     await browser.close();
     server.kill();
   }
-  const perfect = rows.filter((row) => row.stars === 3).length;
-  console.log(`\nskilled bot: won ${rows.length} of ${LEVELS.length} levels, ${perfect} with 3 stars`);
-  console.log(`problems: ${problems.length ? problems.join('\n') : 'none'}`);
-  process.exit(rows.length === LEVELS.length && perfect === LEVELS.length && !problems.length ? 0 : 1);
+  process.exit(ok ? 0 : 1);
 }
 
 await main();

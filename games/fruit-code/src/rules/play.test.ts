@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { levelById, questionValue, type Level } from './levels.ts';
-import { answer, checksFor, choicesOf, missLimit, select, startPlay, starsFor, unknownFruits } from './play.ts';
+import { addMiss, cleanMisses, missesSoFar, settle, starsFor } from './misses.ts';
+import { answer, checksFor, choicesOf, missLimit, select, startPlay, unknownFruits } from './play.ts';
 import { addSkip, addWin, cleanProgress, emptyProgress, isOpen, nextLevel, totalStars } from './progress.ts';
 import { plan } from './solve.ts';
 
@@ -82,8 +83,30 @@ describe('answering', () => {
     expect(answer(later, 18)!.play.failed).toBe(true);
   });
 
-  it('gives three stars for no misses, two for one, and one for two', () => {
-    expect([0, 1, 2].map(starsFor)).toEqual([3, 2, 1]);
+});
+
+describe('stars over every try', () => {
+  it('gives three stars only for no miss on any try, two for one or two, one for more', () => {
+    expect([0, 1, 2, 3, 37].map(starsFor)).toEqual([3, 2, 2, 1, 1]);
+  });
+
+  it('adds misses up across tries until the level is won, and a replay starts fresh', () => {
+    let log = cleanMisses(null);
+    // Two failed tries of 2 misses each on a three-choice level, then a lucky first guess on the third.
+    for (let miss = 0; miss < 4; miss += 1) log = addMiss(log, 6);
+    expect(missesSoFar(log, 6)).toBe(4);
+    expect(starsFor(missesSoFar(log, 6))).toBe(1);
+    // Leaving and coming back, or a reload, reads the same log back.
+    log = cleanMisses(JSON.parse(JSON.stringify(log)));
+    expect(missesSoFar(log, 6)).toBe(4);
+    log = settle(log, 6);
+    expect(missesSoFar(log, 6)).toBe(0);
+    expect(starsFor(missesSoFar(log, 6))).toBe(3);
+  });
+
+  it('survives anything left in storage', () => {
+    expect(cleanMisses('x')).toEqual({});
+    expect(cleanMisses({ 1: 2.7, 2: -1, 3: 'y', 99: 4 })).toEqual({ 1: 2 });
   });
 });
 

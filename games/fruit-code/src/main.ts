@@ -4,8 +4,9 @@ import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, sa
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
 import { levelFor, LEVELS } from './rules/levels.ts';
+import { addMiss, cleanMisses, missesSoFar, settle, type MissLog } from './rules/misses.ts';
 import { addSkip, addWin, cleanProgress, isOpen, nextLevel, totalStars, type Progress } from './rules/progress.ts';
-import { showMap, showWon } from './screens/panels.ts';
+import { showFinale, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
 import { pickSound, stopSounds, winSound } from './sounds.ts';
 import { button, element, onPress } from './ui.ts';
@@ -15,6 +16,8 @@ import { createGuide } from './view/guide.ts';
 const PROGRESS_KEY = 'fruit-code:progress';
 /** How many goes each level has had, so every retry and replay gets a fresh puzzle, even after a reload. */
 const GOES_KEY = 'fruit-code:goes';
+/** Misses per level over every try until it is won, so a fresh puzzle after a tumble can't wash them away. */
+const MISSES_KEY = 'fruit-code:misses';
 const FAILS_BEFORE_SKIP = 5;
 /** All 21 numbers fit under the board on a tablet. A phone gets a −/+ stepper, so the board is never covered. */
 const ROOM_FOR_GRID = '(min-width: 640px) and (min-height: 600px)';
@@ -53,7 +56,12 @@ let closeOverlay: () => void = () => {};
 let redraw: () => void = () => {};
 let spokenLast = (): string => text().pickLevel;
 let headingFor: (() => string) | null = null;
-const misses = new Map<number, number>();
+let missLog: MissLog = cleanMisses(store.get<unknown>(MISSES_KEY, null));
+
+function saveMisses(next: MissLog): void {
+  missLog = next;
+  store.set(MISSES_KEY, missLog);
+}
 const fails = new Map<number, number>();
 
 function goesSoFar(): Record<string, number> {
@@ -130,25 +138,30 @@ function nextAfter(id: number): number | null {
 function onWin(report: WinReport): void {
   const { level, stars } = report;
   saveProgress(addWin(progress, level.id, stars));
-  misses.delete(level.id);
+  saveMisses(settle(missLog, level.id));
   fails.delete(level.id);
   setScreen('won');
   document.body.dataset.stars = String(stars);
   winSound();
-  const next = nextAfter(level.id);
+  // The next open level, or any level still waiting, such as one skipped earlier. None left means the finale.
+  const next = nextAfter(level.id) ?? nextLevel(progress);
   const line = text()[`stars${stars}` as 'stars1' | 'stars2' | 'stars3'];
   const draw = (): void => {
     closeOverlay();
-    closeOverlay = showWon(overlay, {
-      report,
-      onNext: next ? () => openLevel(next) : null,
-      onAgain: () => openLevel(level.id),
-      onMap: pickLevel,
-    });
+    closeOverlay =
+      next === null
+        ? showFinale(overlay, { totalStars: totalStars(progress), onMap: pickLevel })
+        : showWon(overlay, {
+            report,
+            onNext: () => openLevel(next),
+            onAgain: () => openLevel(level.id),
+            onMap: pickLevel,
+          });
   };
   draw();
   redraw = draw;
-  spokenLast = () => line;
+  spokenLast = () => (next === null ? text().allDone : line);
+  document.body.dataset.finale = String(next === null);
   void say(next === null ? text().allDone : line, { queue: true });
 }
 
@@ -168,11 +181,11 @@ function openLevel(id: number): void {
     board,
     dock,
     guide,
-    missesBefore: misses.get(id) ?? 0,
+    missesBefore: missesSoFar(missLog, id),
     failsBefore: fails.get(id) ?? 0,
     canSkipAfter: FAILS_BEFORE_SKIP,
     stepper: () => document.body.dataset.picker === 'stepper',
-    onMiss: (total) => misses.set(id, total),
+    onMiss: () => saveMisses(addMiss(missLog, id)),
     onFail: (total) => fails.set(id, total),
     onRetry: () => openLevel(id),
     onSkip() {

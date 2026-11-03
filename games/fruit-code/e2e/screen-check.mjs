@@ -13,6 +13,8 @@ const SCREENS = [
 ];
 const SMALLEST_TARGET = 64;
 const MASH_TAPS = 50;
+/** The smallest tablet grid number, measured, for the report. */
+const gridSizes = [];
 
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
@@ -54,6 +56,18 @@ async function everyLevelFits(page, screen, problems) {
     const small = await smallTargets(page);
     if (small.length) problems.push(`${screen.name} level ${level.id}: small targets ${small.join(', ')}`);
     for (const problem of await boardFits(page)) problems.push(`${screen.name} level ${level.id}: ${problem}`);
+    if (level.answer === 'picker') {
+      // Tablets get all 21 numbers as a grid, each measured; phones get the stepper.
+      const picks = await page.locator('#dock .picker-grid .pick').evaluateAll((items) =>
+        items.map((item) => item.getBoundingClientRect()).map((box) => Math.min(box.width, box.height)),
+      );
+      const stepper = await page.locator('#dock .stepper').count();
+      if (screen.name === 'tablet' && (picks.length !== 21 || Math.min(...picks) < SMALLEST_TARGET)) {
+        problems.push(`tablet level ${level.id}: grid has ${picks.length} numbers, smallest ${Math.round(Math.min(...picks))}px`);
+      }
+      if (screen.name === 'tablet' && level.id === 24) gridSizes.push(Math.round(Math.min(...picks)));
+      if (screen.name !== 'tablet' && !stepper) problems.push(`${screen.name} level ${level.id}: no stepper`);
+    }
     if ((await sideways(page)) > 0) problems.push(`${screen.name} level ${level.id}: scrolls sideways`);
     if (level.id === 24 || level.id === 14) await shot(page, `${screen.name}-fit-l${level.id}`);
     await touch(page, '[data-action="levels"]');
@@ -206,6 +220,7 @@ async function main() {
     await browser.close();
     server.kill();
   }
+  console.log(`smallest tablet grid number: ${gridSizes.join(', ')}px`);
   console.log(`problems: ${problems.length ? `\n${problems.join('\n')}` : 'none'}`);
   process.exit(problems.length ? 1 : 0);
 }

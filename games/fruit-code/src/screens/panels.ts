@@ -8,7 +8,9 @@ import type { WinReport } from './play.ts';
 
 const WORLD_ART: Record<WorldId, string> = { one: '🍎', two: '🍌', chain: '🔗', count: '🧮', system: '🔐' };
 /** Long enough for a mashing hand to stop before the next level can start. */
-const NEXT_AFTER_MS = 800;
+const NEXT_AFTER_MS = 600;
+const CONFETTI_BURSTS = 6;
+const CONFETTI_GAP_MS = 260;
 
 /** A big button that ignores taps until a mashing hand has had time to lift. */
 function armedButton(className: string, label: string, onPress: () => void): HTMLButtonElement {
@@ -120,4 +122,38 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
     burst(box.left + box.width / 2, box.top + box.height / 2, 26);
   }
   return () => panel.remove();
+}
+
+export interface FinaleOptions {
+  totalStars: number;
+  onMap: () => void;
+}
+
+/** Every level finished: a trophy, confetti all over the stall and one big button. */
+export function showFinale(host: HTMLElement, { totalStars, onMap }: FinaleOptions): () => void {
+  const panel = element('div', 'card card-finale');
+  const trophy = element('div', 'finale-trophy');
+  trophy.textContent = '🏆';
+  const line = element('p', 'card-line');
+  line.textContent = text().allDone;
+  const stars = element('p', 'finale-stars');
+  stars.textContent = `★ ${totalStars}`;
+  const map = armedButton('card-btn card-main', `🗺️ ${text().levels}`, onMap);
+  map.dataset.action = 'map';
+  panel.append(trophy, line, stars, map);
+  host.append(panel);
+  const timers: number[] = [];
+  if (!calm()) {
+    for (let at = 0; at < CONFETTI_BURSTS; at += 1) {
+      timers.push(
+        window.setTimeout(() => {
+          burst(window.innerWidth * (0.15 + 0.7 * ((at * 0.37) % 1)), window.innerHeight * (0.2 + 0.15 * (at % 3)), 30);
+        }, at * CONFETTI_GAP_MS),
+      );
+    }
+  }
+  return () => {
+    for (const timer of timers) window.clearTimeout(timer);
+    panel.remove();
+  };
 }

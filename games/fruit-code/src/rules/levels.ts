@@ -120,12 +120,13 @@ const SPECS: Spec[] = [
   { world: 'count', answer: 'picker', clues: ['A-B', 'b3B'], question: 'A', ranges: { A: [5, 12], B: [2, 5] } },
   { world: 'count', answer: 'picker', clues: ['b3A-B', 'A+A', 'B+C'], question: 'A+C', ranges: { A: [3, 6], B: [1, 8], C: [1, 8] } },
 
-  // 5. Code breakers: no row has only one fruit to find, so two rows have to work together.
+  // 5. Code breakers: no row has only one fruit to find, so two rows have to work together. The last three need
+  // a row taken more than once before anything cancels, which makes a grown-up think.
   { world: 'system', answer: 'picker', clues: ['A+B', 'A-B'], question: 'A', ranges: { A: [4, 11], B: [1, 7] } },
   { world: 'system', answer: 'picker', clues: ['A+B', 'A+A+B'], question: 'B', ranges: { A: [2, 7], B: [2, 8] } },
-  { world: 'system', answer: 'picker', clues: ['x3A+B', 'A+B'], question: 'B', ranges: { A: [2, 5], B: [1, 8] } },
-  { world: 'system', answer: 'picker', clues: ['A+B', 'B+C', 'A+C'], question: 'A+B+C', ranges: { A: [2, 8], B: [2, 8], C: [2, 8] } },
-  { world: 'system', answer: 'picker', clues: ['x2A+B', 'B+C', 'A-C'], question: 'A+B+C', ranges: { A: [3, 8], B: [1, 8], C: [1, 6] } },
+  { world: 'system', answer: 'picker', clues: ['x3A-B', 'A+B'], question: 'B', ranges: { A: [2, 5], B: [1, 8] } },
+  { world: 'system', answer: 'picker', clues: ['x3A-B', 'B+x2C', 'A+C'], question: 'A+B+C', ranges: { A: [2, 6], B: [1, 8], C: [1, 7] } },
+  { world: 'system', answer: 'picker', clues: ['x2A+B', 'x3B-C', 'A+x2C'], question: 'A+B+C', ranges: { A: [1, 6], B: [1, 6], C: [1, 7] } },
 ];
 
 const SEED = 20261103;
@@ -137,11 +138,14 @@ function pickFruits(random: Random, count: number): Fruit[] {
   return picked;
 }
 
-/** Two close wrong numbers and the right one, smallest first. The tempting number is a child's first guess. */
+/**
+ * The right number, the tempting one a hurried child copies from the board, and one close wrong number,
+ * smallest first. With the trap always there, a lucky first tap is never a sure thing.
+ */
 function threeChoices(random: Random, answer: number, tempting: number): number[] {
-  const near = [answer - 1, answer + 1, answer + 2, answer - 2, tempting];
-  const pool = [...new Set(near)].filter((n) => n >= 1 && n <= MOST && n !== answer);
-  const picked: number[] = [];
+  const fair = (n: number): boolean => n >= 1 && n <= MOST && n !== answer;
+  const picked = fair(tempting) ? [tempting] : [];
+  const pool = [...new Set([answer - 1, answer + 1, answer + 2, answer - 2])].filter((n) => fair(n) && !picked.includes(n));
   while (picked.length < 2) picked.push(...pool.splice(Math.floor(random() * pool.length), 1));
   return [answer, ...picked].sort((a, b) => a - b);
 }

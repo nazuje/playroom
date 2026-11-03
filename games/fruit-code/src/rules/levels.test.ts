@@ -152,6 +152,24 @@ describe('the staircase', () => {
     }
   });
 
+  it('ends with three-fruit systems where no two rows simply add or take away to leave one fruit', () => {
+    for (const level of EVERY_PUZZLE.filter((one) => one.id >= 23)) {
+      const rows = level.puzzle.clues;
+      const fruits = [...new Set(rows.flatMap((row) => fruitsIn(row.terms)))];
+      expect(fruits).toHaveLength(3);
+      const weights = rows.map((row) => fruits.map((fruit) => row.terms.reduce((sum, term) => sum + (term.fruit === fruit ? term.sign * term.count : 0), 0)));
+      for (let a = 0; a < weights.length; a += 1) {
+        for (let b = a + 1; b < weights.length; b += 1) {
+          for (const sign of [1, -1]) {
+            const left = weights[a].map((weight, at) => weight + sign * weights[b][at]).filter((weight) => weight !== 0);
+            expect(left.length, `level ${level.id} rows ${a} and ${b}`).toBeGreaterThan(1);
+          }
+        }
+      }
+      expect(rows.some((row) => row.terms.some((term) => term.shape === 'times' && term.count === 3))).toBe(true);
+    }
+  });
+
   it('makes the code breakers compare rows: no row there has only one fruit to find', () => {
     for (const level of EVERY_PUZZLE.filter((one) => one.world === 'system')) {
       for (const row of level.puzzle.clues) expect(fruitsIn(row.terms).length, `level ${level.id}`).toBeGreaterThanOrEqual(2);
@@ -177,6 +195,9 @@ describe('the number buttons', () => {
         expect([...choices!].sort((a, b) => a - b)).toEqual(choices);
       }
       if (lone) expect(level.choices.question).toEqual(level.choices[lone]);
+      // The number a hurried child copies from the board is always there, and always wrong.
+      const tempting = temptingFor(level.puzzle, fruitsIn(level.puzzle.question));
+      if (tempting !== questionValue(level) && tempting <= MOST) expect(level.choices.question).toContain(tempting);
     }
   });
 

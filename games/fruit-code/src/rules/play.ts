@@ -109,6 +109,3 @@ export function answer(play: Play, value: number): Answered | null {
 /** Fruits still hiding their number. */
 export const unknownFruits = (play: Play): Fruit[] =>
   [...new Set(play.level.puzzle.clues.flatMap((row) => fruitsIn(row.terms)))].filter((fruit) => play.known[fruit] === undefined);
-
-/** Three stars for no misses, two for one, one for two. A third miss ends the try, so a win has at most two. */
-export const starsFor = (misses: number): number => Math.max(1, 3 - misses);
