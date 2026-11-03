@@ -733,5 +733,32 @@
     },
     "color": "#3d5afe",
     "status": "ready"
+  },
+  {
+    "slug": "missing-piece",
+    "title": "Missing Piece",
+    "emoji": "🧩",
+    "tagline": "Which piece fits the pattern?",
+    "skills": [
+      "logic",
+      "challenge"
+    ],
+    "ages": "4-12",
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "translations": {
+      "sl": {
+        "title": "Manjkajoči košček",
+        "tagline": "Kateri košček spada v vzorec?"
+      }
+    },
+    "color": "#b5179e",
+    "status": "ready"
   }
 ]

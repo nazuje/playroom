@@ -36,6 +36,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [⚖️ Secret Seesaw / Skrivnostna gugalnica](games/secret-seesaw/README.md) | What is hiding in the box? Make it balance! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🍓 Fruit Code / Sadna šifra](games/fruit-code/README.md) | Every fruit hides a number. Crack the code! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [⚙️ Magic Machine / Čarobni stroj](games/magic-machine/README.md) | A number goes in. What comes out? | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [🧩 Missing Piece / Manjkajoči košček](games/missing-piece/README.md) | Which piece fits the pattern? | 4-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 

@@ -1,0 +1,991 @@
+/* Missing Piece: a patchwork quilt hung on a clothesline under a starry plum night. The quilt has a magenta
+   binding with gold running stitches, linen patches with stitched edges, and one dark hole where the last patch
+   belongs. The pieces wait below in a wicker sewing basket. The signature effect is the music box: when the
+   right piece flies in, every patch lights up in turn with its own note, so the pattern plays as a tune, and the
+   quilt billows on the line. A wrong piece boings back out and the line it breaks shakes. */
+
+:root {
+  --night: #2a0b3a;
+  --night-2: #43125a;
+  --night-deep: #170622;
+  --binding: #b5179e;
+  --binding-dark: #7a0e69;
+  --binding-light: #e04fc6;
+  --thread: #ffc145;
+  --thread-dark: #c78a12;
+  --linen: #fff6e6;
+  --linen-2: #f3e2c4;
+  --wicker: #d4954a;
+  --wicker-dark: #8c5520;
+  --wicker-light: #f2c47f;
+  --wrong: #ff4f7b;
+  --ink: #2a1030;
+  --cell: 120px;
+  --piece: 96px;
+  --per-row: 3;
+  --n: 3;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 22%, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 2.5px) 0 0 / 190px 170px,
+    radial-gradient(circle at 70% 60%, rgba(255, 236, 190, 0.8) 0 1px, transparent 2px) 0 0 / 130px 150px,
+    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.6) 0 1px, transparent 2px) 0 0 / 90px 110px,
+    radial-gradient(ellipse at 50% 30%, var(--night-2), var(--night) 60%, var(--night-deep));
+  background-color: var(--night);
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The moon, low behind the quilt. */
+body::before {
+  position: fixed;
+  top: 110px;
+  right: -40px;
+  z-index: 0;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff9e3, #ffe9a8 60%, #f7d37a);
+  box-shadow: 0 0 60px 18px rgba(255, 226, 150, 0.25);
+  opacity: 0.85;
+  content: '';
+  pointer-events: none;
+}
+
+/* ---------- Top bar: a strip of magenta binding with a gold running stitch ---------- */
+
+.topbar {
+  position: relative;
+  z-index: 8;
+  flex: none;
+  gap: 8px;
+  padding-bottom: 14px;
+  background: linear-gradient(180deg, var(--binding-light), var(--binding) 45%, var(--binding-dark));
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.35);
+}
+
+.topbar::after {
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  left: 10px;
+  border-top: 2px dashed var(--thread);
+  content: '';
+  pointer-events: none;
+}
+
+.bar-btn,
+.topbar .home-btn,
+.topbar .language-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 3px solid var(--thread);
+  border-radius: 50%;
+  font-size: 1.45rem;
+  color: inherit;
+  background: var(--linen);
+  box-shadow: 0 5px 0 var(--binding-dark);
+  touch-action: manipulation;
+}
+
+.bar-btn:active,
+.topbar .home-btn:active,
+.topbar .language-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--binding-dark);
+}
+
+.bar-btn[hidden] {
+  display: none;
+}
+
+.title {
+  min-width: 0;
+  margin: 0 auto 0 0;
+  padding: 2px 6px 4px;
+  overflow: hidden;
+  font-size: clamp(1rem, 4.2vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--linen);
+  text-shadow: 0 2px 0 var(--binding-dark);
+  pointer-events: none;
+}
+
+@media (max-width: 440px) {
+  .topbar {
+    gap: 6px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .bar-btn,
+  .topbar .home-btn,
+  .topbar .language-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+}
+
+.title-short {
+  display: none;
+}
+
+@media (max-width: 400px) {
+  .title-long {
+    display: none;
+  }
+
+  .title-short {
+    display: inline;
+  }
+}
+
+/* ---------- Play area. fit.ts counts the same room: a 26px line, a 10px binding, 6px seams, a 10px foot ---------- */
+
+#play {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#board {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 12px 10px;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+body[data-screen='map'] #play {
+  visibility: hidden;
+}
+
+.stage {
+  position: relative;
+  padding-top: 26px;
+  transform-origin: 50% 0;
+}
+
+.stage.billow {
+  animation: billow 1.4s ease-in-out;
+}
+
+@keyframes billow {
+  20% {
+    transform: rotate(-1.6deg) skewX(-1.5deg);
+  }
+
+  50% {
+    transform: rotate(1.4deg) skewX(1.5deg) scaleY(0.985);
+  }
+
+  80% {
+    transform: rotate(-0.6deg);
+  }
+}
+
+/* The clothesline, a twisted rope across the whole night. */
+.rope {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 100vw;
+  height: 5px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(60deg, #f1dfc0 0 4px, #b6976a 4px 7px);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+  transform: translateX(-50%);
+}
+
+.peg {
+  position: absolute;
+  top: 2px;
+  z-index: 3;
+  width: 14px;
+  height: 36px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #c88a4e, #f1c38a 45%, #c88a4e);
+  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.4);
+}
+
+.peg::after {
+  position: absolute;
+  top: 14px;
+  right: -2px;
+  left: -2px;
+  height: 5px;
+  border-radius: 2px;
+  background: #9aa3ad;
+  content: '';
+}
+
+.peg-left {
+  left: 16%;
+}
+
+.peg-right {
+  right: 16%;
+}
+
+.quilt {
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--cell));
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 6px, transparent 6px 12px),
+    var(--binding);
+  outline: 2px dashed var(--thread);
+  outline-offset: -5px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.quilt[data-state='done'] {
+  outline-style: solid;
+  box-shadow: 0 0 0 4px var(--thread), 0 0 40px 10px rgba(255, 193, 69, 0.45);
+}
+
+.patch {
+  position: relative;
+  display: block;
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(122, 14, 105, 0.035) 1px, transparent 1px) 0 0 / 7px 7px,
+    linear-gradient(90deg, rgba(122, 14, 105, 0.035) 1px, transparent 1px) 0 0 / 7px 7px,
+    var(--linen);
+  box-shadow: inset 0 -3px 0 rgba(122, 14, 105, 0.14);
+  touch-action: manipulation;
+  transition: transform 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.patch::after {
+  position: absolute;
+  inset: 5px;
+  border: 2px dashed rgba(181, 23, 158, 0.3);
+  border-radius: 4px;
+  content: '';
+  pointer-events: none;
+}
+
+.art {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The hole where the last patch belongs. */
+.gap {
+  background: radial-gradient(circle at 50% 40%, var(--night-2), var(--night-deep));
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.gap::after {
+  border: 3px dashed var(--thread);
+}
+
+.gap.filled {
+  background: var(--linen);
+  box-shadow: inset 0 -3px 0 rgba(122, 14, 105, 0.14);
+}
+
+.gap.filled::after {
+  border: 2px dashed rgba(181, 23, 158, 0.3);
+}
+
+.gap-mark {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: calc(var(--cell) * 0.52);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--thread);
+  text-shadow: 0 3px 0 var(--thread-dark);
+  animation: gap-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gap-pulse {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.8;
+  }
+}
+
+.patch.hop {
+  z-index: 2;
+  animation: hop 0.52s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes hop {
+  40% {
+    transform: translateY(-16%) scale(1.07);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, 0.25);
+  }
+}
+
+.patch.glow {
+  z-index: 2;
+  animation: glow 0.52s ease-out;
+}
+
+@keyframes glow {
+  30% {
+    transform: scale(1.07);
+    filter: brightness(1.18);
+    box-shadow: 0 0 0 4px var(--thread), 0 0 26px 8px rgba(255, 193, 69, 0.85);
+  }
+}
+
+.patch.shake {
+  z-index: 2;
+  animation: shake 0.7s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: none;
+  }
+
+  15%,
+  55% {
+    transform: translateX(-7%) rotate(-3deg);
+    box-shadow: 0 0 0 4px var(--wrong);
+  }
+
+  35%,
+  75% {
+    transform: translateX(7%) rotate(3deg);
+    box-shadow: 0 0 0 4px var(--wrong);
+  }
+}
+
+.patch.flash {
+  box-shadow: 0 0 0 5px var(--wrong);
+}
+
+.gap.land {
+  animation: land 0.3s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+@keyframes land {
+  from {
+    transform: scale(0.82);
+  }
+}
+
+.gap.wobble {
+  animation: wobble 0.62s ease-in-out;
+}
+
+@keyframes wobble {
+  20% {
+    transform: rotate(-12deg) scale(1.05);
+  }
+
+  45% {
+    transform: rotate(10deg) scale(0.96, 1.06);
+  }
+
+  70% {
+    transform: rotate(-6deg) translateY(-8%);
+  }
+
+  100% {
+    transform: translateY(-20%) scale(0.9);
+  }
+}
+
+/* A try ran out: every patch spins out of place, as if the wind tied the quilt in a knot. */
+.quilt[data-state='tangled'] .patch {
+  transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--spin, 0deg)) scale(0.92);
+}
+
+/* ---------- The wicker basket of pieces. fit.ts counts 28px of edge and 10px between pieces ---------- */
+
+#dock {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 28px;
+  padding: 10px 12px calc(var(--safe-bottom) + 14px);
+  border-top: 4px solid var(--wicker-light);
+  border-radius: 26px 26px 0 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 9px, rgba(90, 50, 10, 0.25) 9px 11px),
+    repeating-linear-gradient(90deg, var(--wicker) 0 13px, var(--wicker-dark) 13px 15px, var(--wicker-light) 15px 16px);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.35), inset 0 6px 8px rgba(255, 230, 180, 0.25);
+}
+
+/* Behind the win card the basket is empty, so nothing below it looks like a piece still to pick. */
+body[data-screen='won'] #dock .basket {
+  visibility: hidden;
+}
+
+.basket {
+  display: grid;
+  grid-template-columns: repeat(var(--per-row), var(--piece));
+  gap: 10px;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.piece {
+  position: relative;
+  width: var(--piece);
+  height: var(--piece);
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(122, 14, 105, 0.035) 1px, transparent 1px) 0 0 / 7px 7px,
+    linear-gradient(90deg, rgba(122, 14, 105, 0.035) 1px, transparent 1px) 0 0 / 7px 7px,
+    var(--linen);
+  box-shadow: 0 5px 0 var(--linen-2), 0 8px 10px rgba(40, 10, 0, 0.35);
+  touch-action: manipulation;
+  transition: opacity 0.25s, filter 0.25s;
+}
+
+.piece::after {
+  position: absolute;
+  inset: 5px;
+  border: 2px dashed rgba(181, 23, 158, 0.3);
+  border-radius: 5px;
+  content: '';
+  pointer-events: none;
+}
+
+.piece:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--linen-2), 0 4px 6px rgba(40, 10, 0, 0.35);
+}
+
+.piece.away {
+  opacity: 0;
+}
+
+.piece.tried {
+  opacity: 0.35;
+  filter: grayscale(0.75);
+}
+
+.piece.nope {
+  animation: nope 0.4s ease-in-out;
+}
+
+@keyframes nope {
+  25% {
+    transform: translateX(-6px);
+  }
+
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+.flyer,
+.ghost {
+  position: fixed;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.flyer {
+  border-radius: 8px;
+  background: var(--linen);
+  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.4);
+}
+
+.flyer .art,
+.ghost .art {
+  width: 100%;
+  height: 100%;
+}
+
+.retry {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 88px;
+  padding: 0;
+  border: 4px solid var(--thread);
+  border-radius: 26px;
+  font-size: 2.6rem;
+  color: #fff;
+  background: var(--binding);
+  box-shadow: 0 6px 0 var(--binding-dark);
+  opacity: 0.55;
+  transition: opacity 0.2s;
+  touch-action: manipulation;
+  animation: pop 0.3s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+.retry.armed {
+  opacity: 1;
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+  }
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.skip {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 2px dashed var(--binding-dark);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--linen);
+}
+
+/* ---------- The pointing hand, for demos and nudges ---------- */
+
+.hand {
+  position: fixed;
+  z-index: 20;
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45));
+  transform: translate(-30%, 0);
+  pointer-events: none;
+}
+
+.hand[hidden] {
+  display: none;
+}
+
+.hand-tap {
+  animation: hand-tap 0.9s ease-in-out infinite;
+}
+
+@keyframes hand-tap {
+  0%,
+  100% {
+    transform: translate(-30%, 14px);
+  }
+
+  45% {
+    transform: translate(-30%, -4px) scale(0.92);
+  }
+}
+
+/* ---------- Overlay: the map of sewing buttons, and the win card ---------- */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 12px) 12px calc(var(--safe-bottom) + 12px);
+  pointer-events: none;
+}
+
+#overlay > * {
+  pointer-events: auto;
+}
+
+.map {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: calc(var(--safe-top) + 100px) 14px calc(var(--safe-bottom) + 24px);
+  overscroll-behavior: contain;
+}
+
+.map-sheet {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.world {
+  margin: 0 0 18px;
+  padding: 12px 14px 16px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0 8px, transparent 8px 16px),
+    rgba(181, 23, 158, 0.28);
+  outline: 2px dashed rgba(255, 193, 69, 0.7);
+  outline-offset: -6px;
+}
+
+.world-name {
+  margin: 4px 6px 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--linen);
+}
+
+.world-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* A sewing button: a round face, a raised rim and two holes beside the number. */
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 44%, var(--ink) 0 3.5px, transparent 4px),
+    radial-gradient(circle at 80% 44%, var(--ink) 0 3.5px, transparent 4px),
+    radial-gradient(circle at 40% 35%, #fff, var(--button, var(--thread)) 70%);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.12), inset 0 -4px 0 7px rgba(255, 255, 255, 0.25), 0 5px 0 rgba(0, 0, 0, 0.35);
+  touch-action: manipulation;
+}
+
+.world:nth-child(1) .tile {
+  --button: #ff8aa8;
+}
+
+.world:nth-child(2) .tile {
+  --button: #ffb85c;
+}
+
+.world:nth-child(3) .tile {
+  --button: #7fdc8a;
+}
+
+.world:nth-child(4) .tile {
+  --button: #7fb6ff;
+}
+
+.world:nth-child(5) .tile {
+  --button: #c99bff;
+}
+
+.tile:active {
+  transform: translateY(4px);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.12), 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.tile-next {
+  outline: 4px solid var(--thread);
+  outline-offset: 3px;
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+.tile-shut {
+  filter: grayscale(0.9);
+  opacity: 0.55;
+}
+
+.tile-number {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.tile-stars {
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  color: var(--binding-dark);
+}
+
+/* The win card: a sewn-in label. */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(360px, 100%);
+  padding: 30px 22px 22px;
+  border: 6px solid var(--binding);
+  border-radius: 18px;
+  text-align: center;
+  background: var(--linen);
+  outline: 2px dashed var(--binding-light);
+  outline-offset: -14px;
+  box-shadow: 0 8px 0 var(--binding-dark), 0 18px 40px rgba(0, 0, 0, 0.5);
+  animation: card-in 0.35s cubic-bezier(0.3, 1.5, 0.6, 1);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+.card-stars {
+  display: flex;
+  gap: 8px;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.star {
+  color: rgba(42, 16, 48, 0.18);
+}
+
+.star-on {
+  color: var(--thread);
+  text-shadow: 0 3px 0 var(--thread-dark);
+  animation: star-pop 0.4s var(--delay) cubic-bezier(0.3, 1.8, 0.6, 1) backwards;
+}
+
+@keyframes star-pop {
+  from {
+    transform: scale(0) rotate(-180deg);
+  }
+}
+
+.card-line {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.card-small {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.card-btn {
+  min-height: 56px;
+  padding: 0 22px;
+  border: 3px solid var(--binding);
+  border-radius: 14px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 5px 0 var(--binding-dark);
+  opacity: 0.55;
+  transition: opacity 0.2s;
+  touch-action: manipulation;
+}
+
+.card-btn.armed {
+  opacity: 1;
+}
+
+.card-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--binding-dark);
+}
+
+.card-main {
+  min-width: 220px;
+  min-height: 76px;
+  border-color: var(--thread);
+  font-size: 1.4rem;
+  color: #fff;
+  background: var(--binding);
+}
+
+.card-row {
+  display: flex;
+  gap: 14px;
+}
+
+.card-small-btn {
+  width: 64px;
+  padding: 0;
+  font-size: 1.5rem;
+}
+
+/* ---------- The end of the game: a little quilt that plays itself ---------- */
+
+.card-finale {
+  gap: 14px;
+}
+
+.finale-quilt {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  gap: 4px;
+  padding: 7px;
+  border-radius: 8px;
+  background: var(--binding);
+  outline: 2px dashed var(--thread);
+  outline-offset: -3px;
+}
+
+.finale-patch {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: var(--paint);
+  animation: finale-light 1.08s var(--delay) ease-in-out infinite;
+}
+
+@keyframes finale-light {
+  20% {
+    transform: scale(1.15);
+    filter: brightness(1.3);
+    box-shadow: 0 0 12px 4px rgba(255, 193, 69, 0.9);
+  }
+}
+
+.finale-cup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 3rem;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.4));
+  transform: translate(-50%, -50%);
+}
+
+.finale-total {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--thread-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gap-mark,
+  .patch.hop,
+  .patch.glow,
+  .patch.shake,
+  .gap.land,
+  .gap.wobble,
+  .stage.billow,
+  .tile-next,
+  .retry,
+  .retry.armed,
+  .finale-patch,
+  .piece.nope,
+  .card,
+  .star-on {
+    animation: none;
+  }
+
+  .patch {
+    transition: none;
+  }
+
+  .patch.glow {
+    box-shadow: 0 0 0 4px var(--thread);
+  }
+}
+
+/* ---------- The set's lights: three little lanterns on the line, one per puzzle ---------- */
+
+.lights {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.light {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--thread-dark);
+  border-radius: 50%;
+  background: var(--night-deep);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+.light-now {
+  border-color: var(--thread);
+  background: var(--night-2);
+}
+
+.light-on {
+  border-color: var(--thread);
+  background: radial-gradient(circle at 40% 35%, #fff4c9, var(--thread) 70%);
+  box-shadow: 0 0 10px 3px rgba(255, 193, 69, 0.8);
+}
+
+.light-pop {
+  animation: light-pop 0.5s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+@keyframes light-pop {
+  from {
+    transform: scale(0.3);
+  }
+}
+
+.piece.bounce {
+  animation: piece-bounce 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+}
+
+@keyframes piece-bounce {
+  40% {
+    transform: translateY(-18px);
+    box-shadow: 0 0 0 4px var(--thread), 0 14px 10px rgba(40, 10, 0, 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light-pop,
+  .piece.bounce {
+    animation: none;
+  }
+
+  .piece.bounce {
+    box-shadow: 0 0 0 4px var(--thread);
+  }
+}
