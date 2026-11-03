@@ -29,6 +29,19 @@ The parent asked for games that are truly hard. Maze Escape and every game tagge
 - Every loss is fair: the danger or mistake was visible, and the player can see what to do differently.
 - Prove the staircase by playing the built game with real touch events, not only by simulation. A skilled bot beats every level, a careless bot beats the early levels and loses the late ones. Simulated results have disagreed with the real game here before, so the real run decides.
 
+## Puzzle games
+
+Secret Seesaw, Fruit Code, Magic Machine and Missing Piece are challenge puzzles with one right answer. Their testers kept finding the same holes, so every puzzle game follows these rules. Copy the structure of those four games: pure `rules/` with a seeded generator and solver, `rules/misses.ts`, and the bots and screen check in `e2e/`.
+
+- Guessing never wins. A try ends after 2 misses when there are 3 choices, or a few more when there are more choices, and the retry deals a fresh puzzle of the same shape. Replays get fresh puzzles too. Wrong choices are tempting: each is the classic mistake or breaks exactly one rule.
+- Stars count misses across every try until the level is won, saved with `store` so leaving or reloading doesn't reset them: 0 gives 3 stars, 1 or 2 give 2, more give 1. Only 0 is "perfect".
+- A level is a short set of about 3 puzzles, so a round lasts 1 to 3 minutes.
+- The first world is for the 4-year-old and never fails. Misses there only cost stars.
+- Answer pickers never cover the board on a phone. Use a −/+ stepper with hold-to-repeat under the board on phones, and a grid on tablets.
+- The idle hand points at something tappable and never rests on one answer, which would read as a hint. The first time an idea appears, the hand shows it once without words.
+- Cards and win screens ignore taps for about 0.6s. The win card's one big button goes to the next level, and the dock and skip are hidden under it. Finishing the last level gets a real finale.
+- The careless bot never quits on its own and never earns 3 stars after the first world.
+
 ## 3D games
 
 - Build on `@playroom/stage3d`, which owns sizing, pixel ratio, sleep and lost contexts, whatever a three.js example shows. When `createStage` returns null, show a kind translated message and the home button.
