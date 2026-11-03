@@ -8,7 +8,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 
 | Game | What it is | Ages | Alone | Together | Languages |
 | --- | --- | --- | --- | --- | --- |
-| [🌍 Globe Safari](games/globe-safari/README.md) | Spin the Earth and guess who lives there! | 3-9 |  | ✓ | 🇬🇧 |
+| [🌍 Globe Safari / Safari po svetu](games/globe-safari/README.md) | Spin the Earth and guess who lives there! | 3-9 |  | ✓ | 🇬🇧 🇸🇮 |
 | [🦁 Memory Zoo / Živalski spomin](games/memory-zoo/README.md) | Find the animal pairs. Take turns! | 4-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🚂 Pattern Train / Vlakec vzorcev](games/pattern-train/README.md) | What comes next on the train? | 5-9 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🎨 Color Lab / Barvni laboratorij](games/color-lab/README.md) | Mix paints and guess the color! | 4-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |

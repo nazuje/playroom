@@ -1,6 +1,6 @@
-# 🌍 Globe Safari
+# 🌍 Globe Safari / Safari po svetu
 
-A gentle geography game for parents and young kids (about 3 to 9). Spin a realistic 3D Earth, tap anywhere, land or sea, and meet the wild animals that live there.
+A gentle geography game for parents and young kids (about 3 to 9). Spin a realistic 3D Earth, tap anywhere, land or sea, and meet the wild animals that live there. It plays in English and Slovenian.
 
 ## How to play
 
@@ -10,6 +10,7 @@ A gentle geography game for parents and young kids (about 3 to 9). Spin a realis
 4. **Meet them all.** See every animal in the region as flip cards. Tap a card to see its name and a fun fact.
 5. Tap 🔊 next to any clue or fact to hear it read aloud, perfect for kids who can't read yet.
 6. **Surprise me! 🎲** jumps to a random wild place. **Back to space 🚀** zooms back out.
+7. The flag in the top corner switches between English and Slovenian at any time. The open place, the mystery animal, its clues and any turned cards stay as they were.
 
 There are 32 wild regions covering every continent and every ocean, each with 6 to 8 animals.
 
@@ -31,7 +32,8 @@ The root `npm run build` puts the game in `dist/globe-safari/` with relative pat
 - `src/geo/lookup.ts` is the pure lookup: it checks whether a point is on land using the country shapes, picks the best matching region, falls back to the nearest region for land in between, and to the right ocean for open water. Every point on Earth gets a region; the tests check a 5° grid over the whole globe.
 - `src/globe/` sets up the 3D Earth with globe.gl, the camera moves, borders and the pin.
 - `src/ui/` holds the panel, the guessing game, the flip-card grid and the read-aloud button. Speech, the star burst and the home button come from `@playroom/kit`.
-- `src/photos.ts` fetches animal photos from Wikipedia at runtime and remembers them. If a photo can't load, the animal's emoji is shown instead.
+- `src/photos.ts` fetches animal photos from Wikipedia at runtime and remembers them. If a photo can't load, the animal's emoji is shown instead. Wikipedia is used for photos only: no Wikipedia text is shown or spoken, so both languages use the same English article titles.
+- `src/lang/` holds the words. `en.ts` reads the English straight from `src/data/`, and `sl.ts` takes the Slovenian from `src/lang/places/`, one file per continent like `src/data/regions/`, keyed by region and animal id. Slovenian country names live in `src/lang/countries.ts`. Every Slovenian line that can be spoken (each place's description and each animal's clues and fun fact, about 990 lines) is a recorded clip in `public/voice/sl/`, made with `npm run voice -- globe-safari`, and `src/lang/sl.test.ts` fails if any is missing or any place or animal has no Slovenian words.
 
 ## Credits
 

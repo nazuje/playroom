@@ -95,7 +95,8 @@ button {
   min-width: 0;
 }
 
-.home-btn {
+.home-btn,
+.language-btn {
   pointer-events: auto;
   display: grid;
   flex: none;
@@ -111,11 +112,25 @@ button {
   touch-action: manipulation;
 }
 
-.home-btn:active {
+.language-btn {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.language-btn[hidden] {
+  display: none;
+}
+
+.home-btn:active,
+.language-btn:active {
   transform: translateY(2px);
 }
 
 .logo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin: 0;
   padding: 6px 18px;
   font-size: clamp(1.35rem, 4.5vw, 2.1rem);
@@ -149,8 +164,12 @@ button {
 
 @media (max-width: 400px) {
   .logo {
-    padding: 6px 12px;
-    font-size: 1.15rem;
+    padding: 6px 10px;
+    font-size: 1rem;
+  }
+
+  .logo-emoji {
+    display: none;
   }
 
   .stars {
@@ -196,7 +215,8 @@ button {
 .close-btn:focus-visible,
 .speaker-btn:focus-visible,
 .explore-card:focus-visible,
-.home-btn:focus-visible {
+.home-btn:focus-visible,
+.language-btn:focus-visible {
   outline: 4px solid var(--sun);
   outline-offset: 3px;
 }

@@ -1,5 +1,7 @@
 import { stopSpeaking } from '@playroom/kit';
 import type { LookupResult } from '../geo/lookup.ts';
+import type { Text } from '../lang/en.ts';
+import { text } from '../lang/index.ts';
 import { el } from './dom.ts';
 import { renderExploreGrid } from './explore.ts';
 import { renderGuessGame } from './guess.ts';
@@ -17,10 +19,14 @@ export interface PanelOptions {
 
 const SIDE_LAYOUT = '(min-width: 760px) and (min-aspect-ratio: 1/1)';
 
-function modeButton(label: string, mode: Mode, onPick: (mode: Mode) => void): HTMLButtonElement {
+const MODE_LABELS: Record<Mode, (words: Text) => string> = {
+  guess: (words) => words.whoLivesHere,
+  explore: (words) => words.meetThemAll,
+};
+
+function modeButton(mode: Mode, onPick: (mode: Mode) => void): HTMLButtonElement {
   return el('button', {
     className: 'mode-btn',
-    text: label,
     attrs: { type: 'button', role: 'tab', 'data-mode': mode, 'aria-selected': 'false' },
     onClick: () => onPick(mode),
   });
@@ -35,28 +41,51 @@ export function createPanel(root: HTMLElement, { onStar, onClose, onLayout }: Pa
   const body = el('div', { className: 'panel-body' });
   let result: LookupResult | null = null;
   let mode: Mode = 'guess';
+  let game: { redraw: () => void } | null = null;
 
-  const modeButtons = [
-    modeButton('❓ Who lives here?', 'guess', (m) => showMode(m)),
-    modeButton('🃏 Meet them all', 'explore', (m) => showMode(m)),
-  ];
+  const modes = ['guess', 'explore'] as const;
+  const modeButtons = modes.map((m) => modeButton(m, (picked) => showMode(picked)));
 
   const closeButton = el('button', {
     className: 'close-btn',
     text: '✕',
-    attrs: { type: 'button', 'aria-label': 'Close' },
+    attrs: { type: 'button' },
     onClick: () => onClose(),
   });
+  const modeToggle = el('div', { className: 'mode-toggle', attrs: { role: 'tablist' } }, modeButtons);
+  const credit = el('p', { className: 'credit' });
 
   root.replaceChildren(
     el('div', { className: 'panel-scroll' }, [
       el('header', { className: 'panel-head' }, [emoji, el('div', { className: 'panel-titles' }, [title, country]), closeButton]),
       description,
-      el('div', { className: 'mode-toggle', attrs: { role: 'tablist', 'aria-label': 'How to play' } }, modeButtons),
+      modeToggle,
       body,
-      el('p', { className: 'credit', text: 'Photos: Wikipedia' }),
+      credit,
     ]),
   );
+
+  /** The panel's own labels, which don't depend on the place. */
+  function drawLabels(words: Text) {
+    modeButtons.forEach((button, index) => {
+      button.textContent = MODE_LABELS[modes[index]](words);
+    });
+    closeButton.setAttribute('aria-label', words.close);
+    modeToggle.setAttribute('aria-label', words.howToPlay);
+    credit.textContent = words.photoCredit;
+  }
+
+  function drawPlace(next: LookupResult, words: Text) {
+    const { region } = next;
+    const place = words.place(region);
+    emoji.textContent = region.emoji;
+    title.textContent = place.name;
+    country.textContent = next.country ? words.inCountry(words.country(next.country)) : words.atSea;
+    const speaker = speakerButton(words.placeSpoken(place), words.readPlace);
+    description.replaceChildren(el('span', { text: place.description }), ...(speaker ? [speaker] : []));
+  }
+
+  drawLabels(text());
 
   function showMode(next: Mode) {
     if (!result) return;
@@ -65,8 +94,7 @@ export function createPanel(root: HTMLElement, { onStar, onClose, onLayout }: Pa
     for (const button of modeButtons) {
       button.setAttribute('aria-selected', String(button.dataset.mode === mode));
     }
-    if (mode === 'guess') renderGuessGame(body, result.region, { onStar });
-    else renderExploreGrid(body, result.region);
+    game = mode === 'guess' ? renderGuessGame(body, result.region, { onStar }) : renderExploreGrid(body, result.region);
   }
 
   function reportLayout() {
@@ -84,13 +112,8 @@ export function createPanel(root: HTMLElement, { onStar, onClose, onLayout }: Pa
   return {
     open(next: LookupResult) {
       result = next;
-      const { region } = next;
-      emoji.textContent = region.emoji;
-      title.textContent = region.name;
-      country.textContent = next.country ? `📍 ${next.country}` : '🌊 Out at sea';
-      const speaker = speakerButton(`${region.name}. ${region.description}`, 'Read about this place');
-      description.replaceChildren(el('span', { text: region.description }), ...(speaker ? [speaker] : []));
-      preloadPhotos(region.animals);
+      drawPlace(next, text());
+      preloadPhotos(next.region.animals);
       root.hidden = false;
       root.scrollTop = 0;
       root.querySelector('.panel-scroll')?.scrollTo({ top: 0 });
@@ -100,9 +123,18 @@ export function createPanel(root: HTMLElement, { onStar, onClose, onLayout }: Pa
     close() {
       stopSpeaking();
       result = null;
+      game = null;
       root.hidden = true;
       body.replaceChildren();
       reportLayout();
+    },
+    /** Redraws every word in the current language, keeping the place, the mode and the round as they are. */
+    redraw() {
+      const words = text();
+      drawLabels(words);
+      if (!result) return;
+      drawPlace(result, words);
+      game?.redraw();
     },
     get isOpen() {
       return !root.hidden;

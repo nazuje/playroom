@@ -12,10 +12,17 @@
       "together"
     ],
     "languages": [
-      "en"
+      "en",
+      "sl"
     ],
     "color": "#2f9fe8",
-    "status": "ready"
+    "status": "ready",
+    "translations": {
+      "sl": {
+        "title": "Safari po svetu",
+        "tagline": "Zavrti Zemljo in ugani, kdo živi tam!"
+      }
+    }
   },
   {
     "slug": "memory-zoo",
