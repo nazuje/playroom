@@ -6,8 +6,10 @@ export function createStarCounter(badge: HTMLElement, countEl: HTMLElement) {
   const label = () => badge.setAttribute('aria-label', text().stars(stars));
   label();
   return {
-    add() {
-      stars += 1;
+    /** Adds a mystery animal's stars, with a pop when there are any. */
+    add(count: number) {
+      if (count <= 0) return;
+      stars += count;
       countEl.textContent = String(stars);
       label();
       badge.classList.remove('pop');

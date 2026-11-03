@@ -221,37 +221,46 @@ button {
   outline-offset: 3px;
 }
 
+/* The travel buttons belong to space: a glowing nebula and a dark glass porthole. */
 .btn-surprise {
-  background: var(--grape);
-  box-shadow: 0 5px 0 var(--grape-dark);
+  background: linear-gradient(160deg, #7c5cff, #3b2a9e);
+  box-shadow: 0 5px 0 #23186b, 0 0 18px rgba(124, 92, 255, 0.45);
 }
 
 .btn-surprise:active {
-  box-shadow: 0 1px 0 var(--grape-dark);
+  box-shadow: 0 1px 0 #23186b, 0 0 18px rgba(124, 92, 255, 0.45);
 }
 
 .btn-home {
-  background: var(--coral);
-  box-shadow: 0 5px 0 var(--coral-dark);
+  background: linear-gradient(160deg, rgba(22, 34, 82, 0.92), rgba(7, 11, 32, 0.94));
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(143, 211, 255, 0.5);
+  backdrop-filter: blur(6px);
 }
 
 .btn-home:active {
-  box-shadow: 0 1px 0 var(--coral-dark);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(143, 211, 255, 0.5);
 }
 
-.btn-reveal,
-.btn-next {
+.btn-reveal {
   background: var(--grape);
   box-shadow: 0 5px 0 var(--grape-dark);
 }
 
-.btn-reveal:active,
-.btn-next:active {
+.btn-reveal:active {
   box-shadow: 0 1px 0 var(--grape-dark);
 }
 
+.btn-next {
+  background: var(--sky);
+  box-shadow: 0 5px 0 var(--sky-dark);
+}
+
+.btn-next:active {
+  box-shadow: 0 1px 0 var(--sky-dark);
+}
+
 .btn-star {
-  color: var(--ink);
+  color: #2b2140;
   background: var(--sun);
   box-shadow: 0 5px 0 var(--sun-dark);
 }
@@ -261,12 +270,12 @@ button {
 }
 
 .btn-clue {
-  background: var(--leaf);
-  box-shadow: 0 5px 0 var(--leaf-dark);
+  background: var(--ocean, #22b8cf);
+  box-shadow: 0 5px 0 var(--ocean-dark, #137b8c);
 }
 
 .btn-clue:active {
-  box-shadow: 0 1px 0 var(--leaf-dark);
+  box-shadow: 0 1px 0 var(--ocean-dark, #137b8c);
 }
 
 /* ---------- Travel buttons and hint ---------- */
@@ -350,14 +359,30 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
+  /* Space colors inside the panel: the words and the cards turn light on a dark, starry glass. */
+  --ink: #f3f6ff;
+  --ink-soft: #b9c6ea;
+  --paper: #0f1838;
+  --paper-2: rgba(143, 211, 255, 0.12);
+  --ocean: #22b8cf;
+  --ocean-dark: #137b8c;
   max-height: 64vh;
   max-height: 64dvh;
   display: flex;
   flex-direction: column;
   color: var(--ink);
-  background: var(--paper);
+  background:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 68% 9%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 86% 42%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 34% 64%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 52% 88%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(170deg, rgba(22, 34, 82, 0.94), rgba(7, 11, 32, 0.97));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(143, 211, 255, 0.28);
+  border-bottom: 0;
   border-radius: 28px 28px 0 0;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(143, 211, 255, 0.2);
   z-index: 20;
   animation: sheet-in 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
 }
@@ -472,13 +497,14 @@ button {
   border: 0;
   border-radius: 50%;
   font-size: 1.3rem;
-  background: #e6f4ff;
-  box-shadow: 0 3px 0 #b8dcf7;
+  background: rgba(143, 211, 255, 0.2);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(143, 211, 255, 0.35);
+  touch-action: manipulation;
 }
 
 .speaker-btn:active {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 #b8dcf7;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(143, 211, 255, 0.35);
 }
 
 /* ---------- Flip cards ---------- */
@@ -511,15 +537,15 @@ button {
 
 .flip-back {
   transform: rotateY(180deg);
-  background: #fff;
-  box-shadow: inset 0 0 0 4px var(--paper-2);
+  background: linear-gradient(170deg, #17295e, #0c1638);
+  box-shadow: inset 0 0 0 2px rgba(143, 211, 255, 0.3);
 }
 
 .animal-picture {
   position: relative;
   display: grid;
   place-items: center;
-  background: linear-gradient(160deg, #d9f3ff, #fff1d6);
+  background: linear-gradient(160deg, #1d5a8f, #0b2347);
   overflow: hidden;
 }
 
@@ -573,7 +599,17 @@ button {
 }
 
 .guess-card {
-  height: 340px;
+  /* Small enough that the newest clue and its buttons fit on the screen with no scrolling. */
+  height: clamp(150px, calc(100dvh - 590px), 340px);
+}
+
+.guess.is-revealed .guess-card {
+  height: clamp(260px, calc(100dvh - 380px), 440px);
+}
+
+/* Once the answer shows, the card and its fun fact take the clues' place. */
+.guess.is-revealed .clues {
+  display: none;
 }
 
 .mystery {
@@ -582,7 +618,13 @@ button {
   align-content: center;
   gap: 4px;
   color: #fff;
-  background: radial-gradient(circle at 30% 20%, #a78bfa, var(--grape) 45%, #4c1d95);
+  background:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 75% 20%, rgba(255, 255, 255, 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 60% 78%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 30% 85%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(circle at 30% 20%, #7c5cff, #3b2a9e 50%, #160f45);
+  box-shadow: inset 0 0 0 2px rgba(167, 139, 250, 0.45);
 }
 
 .mystery-mark {
@@ -631,11 +673,22 @@ button {
 }
 
 .clues {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Earlier clues shrink to their number and 🔊, so the newest one always shows in full. */
+.clues .clue:not(:last-child) {
+  flex: 0 0 auto;
+  padding: 4px;
+}
+
+.clues .clue:not(:last-child) .clue-text {
+  display: none;
 }
 
 .clue {
@@ -648,6 +701,7 @@ button {
   border-radius: 18px;
   background: var(--paper-2);
   animation: slide-in 0.35s ease;
+  flex: 1 1 100%;
 }
 
 .clue-number {
@@ -659,7 +713,7 @@ button {
   font-weight: 700;
   color: #fff;
   border-radius: 50%;
-  background: var(--leaf);
+  background: var(--ocean);
 }
 
 .clue-text {
@@ -668,13 +722,188 @@ button {
 
 .guess-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   padding-bottom: 6px;
 }
 
+/* One row, so the answer buttons never drop below the fold. */
 .guess-actions .big-btn {
-  flex: 1 1 150px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 10px;
+  line-height: 1.15;
+}
+
+/* ---------- Stars earned and the finish ---------- */
+
+.outcome-stars,
+.finish-animal-stars {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.outcome-stars {
+  min-height: 56px;
+  padding: 0 14px;
+  font-size: 1.6rem;
+  border-radius: 999px;
+  background: rgba(255, 201, 60, 0.16);
+  box-shadow: inset 0 0 0 2px rgba(255, 201, 60, 0.45);
+}
+
+.star {
+  opacity: 0.25;
+  filter: grayscale(1);
+}
+
+.star.lit {
+  opacity: 1;
+  filter: none;
+  animation: pop 0.5s ease backwards;
+}
+
+.star.lit:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.star.lit:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.star-bulb {
+  animation: pop 0.5s ease;
+}
+
+.finish {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 4px 0 8px;
+  text-align: center;
+  animation: slide-in 0.35s ease;
+}
+
+.finish-title {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.finish-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--sun);
+  text-shadow: 0 0 18px rgba(255, 201, 60, 0.45);
+}
+
+.finish-star {
+  animation: wobble 2.4s ease-in-out infinite;
+}
+
+.finish-most {
+  font-size: 1.3rem;
+  color: var(--ink-soft);
+}
+
+/* One row of five, each animal the same width, on every screen. */
+.finish-animals {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  width: 100%;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finish-animal {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: 16px;
+  background: var(--paper-2);
+}
+
+.finish-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.finish-animal-stars {
+  font-size: clamp(0.7rem, 3.3vw, 1rem);
+}
+
+.finish-again {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.3rem;
+}
+
+/* After a quiet moment, the next step gently pulses. */
+.nudge {
+  animation: nudge 1.1s ease-in-out infinite;
+}
+
+/* ---------- Start: a finger tapping the Earth ---------- */
+
+.tap-cue {
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.tap-cue[hidden] {
+  display: none;
+}
+
+.tap-cue::before {
+  content: '';
+  position: absolute;
+  left: calc(min(72vw, 62vh) / -2);
+  top: calc(min(72vw, 62vh) / -2);
+  width: min(72vw, 62vh);
+  height: min(72vw, 62vh);
+  border-radius: 50%;
+  border: 3px solid rgba(143, 211, 255, 0.55);
+  box-shadow: 0 0 36px 6px rgba(143, 211, 255, 0.45);
+  animation: glow 2.4s ease-in-out infinite;
+}
+
+.tap-ring {
+  position: absolute;
+  left: -55px;
+  top: -55px;
+  width: 110px;
+  height: 110px;
+  border: 4px solid rgba(255, 201, 60, 0.9);
+  border-radius: 50%;
+  animation: ring 2s ease-out infinite;
+}
+
+.tap-ring-late {
+  animation-delay: 1s;
+}
+
+.tap-finger {
+  position: absolute;
+  left: -18px;
+  top: -6px;
+  font-size: 3.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
+  animation: tap-bob 1s ease-in-out infinite;
 }
 
 /* ---------- Meet them all ---------- */
@@ -739,13 +968,38 @@ button {
     left: auto;
     width: min(460px, 44vw);
     max-height: none;
+    border: 1px solid rgba(143, 211, 255, 0.28);
+    border-right: 0;
     border-radius: 28px 0 0 28px;
-    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.45);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.55), inset 1px 0 0 rgba(143, 211, 255, 0.2);
     animation-name: side-in;
   }
 
+  /* The game fills the height the place's words leave, so its buttons stay on screen however long they are. */
   .panel-scroll {
+    display: flex;
+    flex-direction: column;
     padding: calc(var(--safe-top) + 22px) 22px 22px;
+  }
+
+  .panel-body {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+  }
+
+  .guess {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+  }
+
+  .guess-card,
+  .guess.is-revealed .guess-card {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 150px;
+    max-height: 440px;
   }
 
   .actions {
@@ -766,7 +1020,179 @@ button {
   }
 }
 
+/* ---------- Phones and tall screens: a compact bottom sheet ---------- */
+
+/* The opposite of the side panel above. The current clue and its buttons must fit without scrolling. */
+@media not all and (min-width: 760px) and (min-aspect-ratio: 1/1) {
+  .panel {
+    max-height: 86vh;
+    max-height: 86dvh;
+  }
+
+  .panel-scroll {
+    padding: 12px var(--gutter) calc(var(--safe-bottom) + 12px);
+  }
+
+  .panel-head {
+    gap: 10px;
+  }
+
+  .region-emoji {
+    width: 48px;
+    height: 48px;
+    font-size: 1.7rem;
+    border-radius: 14px;
+  }
+
+  .panel-titles h2 {
+    font-size: 1.25rem;
+  }
+
+  .region-country {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .close-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .region-description {
+    margin: 8px 0;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .region-description span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .mode-toggle {
+    padding: 4px;
+  }
+
+  .mode-btn {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .panel-body {
+    padding-top: 8px;
+  }
+
+  .guess {
+    gap: 8px;
+  }
+
+  .guess-card {
+    height: clamp(84px, calc(86dvh - 476px), 300px);
+  }
+
+  .guess.is-revealed .guess-card {
+    height: clamp(200px, calc(86dvh - 300px), 360px);
+  }
+
+  .mystery {
+    grid-auto-flow: column;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .mystery-mark {
+    font-size: 3.4rem;
+  }
+
+  .mystery-shadow {
+    font-size: 3.2rem;
+  }
+
+  .mystery-caption {
+    font-size: 1.1rem;
+  }
+
+  .clue {
+    padding: 6px 6px 6px 10px;
+    font-size: 1.05rem;
+  }
+
+  .guess-actions {
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .guess-actions .big-btn {
+    padding: 6px 8px;
+    font-size: 1rem;
+  }
+
+  .outcome-stars {
+    padding: 0 10px;
+    font-size: 1.3rem;
+  }
+
+  .finish {
+    gap: 10px;
+  }
+
+  .finish-title {
+    font-size: 1.5rem;
+  }
+
+  .finish-total {
+    font-size: 2.2rem;
+  }
+}
+
 /* ---------- Animations ---------- */
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes ring {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes tap-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 14px;
+  }
+}
 
 @keyframes wobble {
   0%,

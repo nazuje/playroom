@@ -1,9 +1,43 @@
 import { slCount, type SlForms } from '@playroom/kit';
+import { mostStarsFor, ROUND_SIZE } from '../game/score.ts';
 import { SL_COUNTRIES } from './countries.ts';
 import type { AnimalWords, PlaceWords, Text } from './en.ts';
 import { SL_PLACES } from './places/index.ts';
 
 const STAR: SlForms = { one: 'zvezdica', two: 'zvezdici', few: 'zvezdice', many: 'zvezdic' };
+/** "Imate ..." takes the accusative: eno zvezdico. */
+const STAR_ACC: SlForms = { ...STAR, one: 'zvezdico' };
+/** A round's stars as words, so the voice says them the way the line needs. Index 0 is one star. */
+const STARS_SAID = [
+  'eno',
+  'dve',
+  'tri',
+  'štiri',
+  'pet',
+  'šest',
+  'sedem',
+  'osem',
+  'devet',
+  'deset',
+  'enajst',
+  'dvanajst',
+  'trinajst',
+  'štirinajst',
+  'petnajst',
+];
+
+/** Spoken after a reveal, by the stars it earned. No past tense, which would give the players a gender. */
+const OUTCOMES = [
+  'Zdaj pa veste!',
+  'Bravo! Ena zvezdica!',
+  'Bravo! Po drugem namigu! Dve zvezdici!',
+  'Vau! Že po prvem namigu! Tri zvezdice!',
+] as const;
+
+const cheer = (total: number) =>
+  total === 0
+    ? 'Juhu! Zdaj poznate pet novih živali!'
+    : `Juhu! Imate ${STARS_SAID[total - 1] ?? total} ${slCount(total, STAR_ACC)}! Zdaj poznate pet novih živali.`;
 
 const placeSpoken = (place: PlaceWords) => `${place.name}. ${place.description}`;
 const factSpoken = (animal: AnimalWords) => `${animal.name}! ${animal.funFact}`;
@@ -37,10 +71,16 @@ export const sl: Text = {
   readFact: 'Preberi zanimivost',
   nextClue: 'Še en namig 🔍',
   noMoreClues: 'Ni več namigov!',
-  reveal: 'Pokaži! ✨',
+  reveal: 'Pokaži ✨',
   // "Vemo" rather than "Uganili smo", whose past tense would give the players a gender.
-  gotIt: 'Vemo! ⭐',
+  gotIt: 'Vemo!',
+  gotItLabel: (stars) => `Vemo! ${stars} ${slCount(stars, STAR)}`,
+  outcome: (stars) => OUTCOMES[stars] ?? OUTCOMES[0],
   nextAnimal: 'Naslednja žival ➡️',
+  toFinish: 'Naše zvezdice! 🏆',
+  finishTitle: 'Juhu! 🎉',
+  finishStars: (total, most) => `${total} od ${most} zvezdic`,
+  cheer,
   playAgain: 'Še enkrat 🔁',
 
   tapMe: 'Dotakni se me!',
@@ -55,12 +95,21 @@ export const sl: Text = {
   factSpoken,
 };
 
-/** Every line the game can say in Slovenian: each place, and each animal's clues and fun fact. */
+/**
+ * Every line the game can say in Slovenian: the start instruction, "Kdo sem?",
+ * each way a reveal and a round can end, each place, and each animal's clues and fun fact.
+ */
 export function spokenLines(): string[] {
+  const game = [
+    sl.hint,
+    sl.whoAmI,
+    ...OUTCOMES,
+    ...Array.from({ length: mostStarsFor(ROUND_SIZE) + 1 }, (_, total) => cheer(total)),
+  ];
   const lines = Object.values(SL_PLACES).flatMap((place) => [
     placeSpoken(place),
     ...Object.values(place.animals).flatMap((animal) => [...animal.clues, factSpoken(animal)]),
   ]);
   // Some animals live in two places with the same clues, so a line can appear twice.
-  return [...new Set(lines)];
+  return [...new Set([...game, ...lines])];
 }

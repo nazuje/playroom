@@ -3,6 +3,7 @@ import type { Topology } from 'topojson-specification';
 import countriesRaw from 'world-atlas/countries-50m.json?raw';
 import { describe, expect, it } from 'vitest';
 import { REGIONS } from '../data/regions.ts';
+import { CLUE_COUNT, mostStarsFor, ROUND_SIZE, starsFor } from '../game/score.ts';
 import { countryFeatures, prettyCountryName } from '../geo/countries.ts';
 import { SL_COUNTRIES } from './countries.ts';
 import { en } from './en.ts';
@@ -37,6 +38,18 @@ describe('Slovenian lines', () => {
         expect(lines.has(sl.factSpoken(said)), `${region.id}/${animal.id}`).toBe(true);
       }
     }
+  });
+
+  it('declares every line the round itself says, however it goes', () => {
+    const lines = new Set(spokenLines());
+    expect(lines.has(sl.hint)).toBe(true);
+    expect(lines.has(sl.whoAmI)).toBe(true);
+    for (let clues = 1; clues <= CLUE_COUNT; clues++) {
+      for (const guessed of [true, false]) expect(lines.has(sl.outcome(starsFor(clues, guessed)))).toBe(true);
+    }
+    for (let total = 0; total <= mostStarsFor(ROUND_SIZE); total++) expect(lines.has(sl.cheer(total)), String(total)).toBe(true);
+    expect(sl.cheer(1)).toBe('Juhu! Imate eno zvezdico! Zdaj poznate pet novih živali.');
+    expect(sl.cheer(11)).toBe('Juhu! Imate enajst zvezdic! Zdaj poznate pet novih živali.');
   });
 
   it('keeps every spoken line free of digits and English units, so the voice reads it as written', () => {

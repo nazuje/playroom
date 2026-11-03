@@ -1,5 +1,15 @@
 import type { Animal, Region } from '../data/types.ts';
 
+/** Spoken after a reveal, by the stars it earned: none, then one, two or three. */
+const OUTCOMES = [
+  'Now you know!',
+  'You got it! One star!',
+  'Great! Two clues! Two stars!',
+  'Wow! Just one clue! Three stars!',
+] as const;
+
+const starWord = (count: number) => (count === 1 ? 'star' : 'stars');
+
 /** The words about one animal, in one language. */
 export interface AnimalWords {
   name: string;
@@ -26,7 +36,7 @@ export const en = {
   travelLabel: 'Travel',
   surprise: 'Surprise me! 🎲',
   backToSpace: 'Back to space 🚀',
-  stars: (count: number) => `${count} ${count === 1 ? 'star' : 'stars'}`,
+  stars: (count: number) => `${count} ${starWord(count)}`,
 
   whoLivesHere: '❓ Who lives here?',
   meetThemAll: '🃏 Meet them all',
@@ -41,11 +51,20 @@ export const en = {
   progress: (number: number, total: number) => `Mystery animal ${number} of ${total}`,
   readClue: (number: number) => `Read clue ${number}`,
   readFact: 'Read the fun fact',
-  nextClue: 'Next clue 🔍',
+  nextClue: 'Another clue 🔍',
   noMoreClues: 'No more clues!',
-  reveal: 'Reveal! ✨',
-  gotIt: 'We got it! ⭐',
+  reveal: 'Show me ✨',
+  gotIt: 'We got it!',
+  gotItLabel: (stars: number) => `We got it! ${stars} ${starWord(stars)}`,
+  outcome: (stars: number): string => OUTCOMES[stars] ?? OUTCOMES[0],
   nextAnimal: 'Next animal ➡️',
+  toFinish: 'Our stars! 🏆',
+  finishTitle: 'Hooray! 🎉',
+  finishStars: (total: number, most: number) => `${total} of ${most} stars`,
+  cheer: (total: number) =>
+    total === 0
+      ? 'Hooray! Now you know five new animals!'
+      : `Hooray! You got ${total} ${starWord(total)}! Now you know five new animals.`,
   playAgain: 'Play again 🔁',
 
   tapMe: 'Tap me!',

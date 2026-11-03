@@ -1,6 +1,7 @@
+import { say, stopSpeaking } from '@playroom/kit';
 import type { Animal, Region } from '../data/types.ts';
 import { text } from '../lang/index.ts';
-import { el } from './dom.ts';
+import { el, tapSound } from './dom.ts';
 import { animalPicture } from './photo.ts';
 import { speakerButton } from './speech.ts';
 
@@ -33,7 +34,11 @@ function exploreCard(region: Region, animal: Animal, index: number, flipped: Set
     card.setAttribute('aria-pressed', String(nowFlipped));
     back.setAttribute('aria-hidden', String(!nowFlipped));
     front.setAttribute('aria-hidden', String(nowFlipped));
+    tapSound();
+    if (nowFlipped) void say(words.factSpoken(said));
+    else stopSpeaking();
   };
+  // A click, not a press: this grid scrolls, and a finger starting a scroll mustn't turn a card.
   card.addEventListener('click', flip);
   card.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {

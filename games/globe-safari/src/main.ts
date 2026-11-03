@@ -1,5 +1,5 @@
 import './style.css';
-import { getLanguage, homeButton, languageButton, onLanguageChange, useClips } from '@playroom/kit';
+import { getLanguage, homeButton, languageButton, onLanguageChange, playSound, say, useClips } from '@playroom/kit';
 import { REGIONS } from './data/regions.ts';
 import type { Region } from './data/types.ts';
 import { loadBorderShapes, loadCountryLookup } from './geo/loadCountries.ts';
@@ -7,6 +7,7 @@ import { lookupRegion } from './geo/lookup.ts';
 import { createGlobeView } from './globe/view.ts';
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
+import { onPress } from './ui/dom.ts';
 import { createPanel } from './ui/panel.ts';
 import { createStarCounter } from './ui/stars.ts';
 
@@ -24,6 +25,10 @@ byId('brand').prepend(home, languageButton(['en', 'sl']));
 
 const hint = byId('hint');
 const loading = byId('loading');
+const tapCue = byId('tap-cue');
+/** "Surprise me!" waits this long between trips, so a mash flies to one place, not fifty. */
+const SURPRISE_GAP_MS = 1200;
+let lastSurpriseAt = -Infinity;
 const stars = createStarCounter(byId('stars'), byId('star-count'));
 const countryLookup = loadCountryLookup();
 let currentRegion: Region | null = null;
@@ -31,11 +36,14 @@ let mapFailed = false;
 
 const view = createGlobeView(byId('globe'), {
   onPick: (lat, lng) => void visit(lat, lng),
-  onReady: () => loading.classList.add('is-done'),
+  onReady: () => {
+    loading.classList.add('is-done');
+    showStart();
+  },
 });
 
 const panel = createPanel(byId('panel'), {
-  onStar: () => stars.add(),
+  onStars: (count) => stars.add(count),
   onClose: () => goHome(),
   onLayout: ({ right, bottom }) => view.setOffset(-right / 2, -bottom / 2),
 });
@@ -59,6 +67,13 @@ function drawPage() {
 
 function hideHint() {
   hint.classList.add('is-hidden');
+  tapCue.hidden = true;
+}
+
+/** The start: a pulsing finger on the Earth and the hint, which says itself after a first tap. */
+function showStart() {
+  hint.classList.remove('is-hidden');
+  tapCue.hidden = mapFailed;
 }
 
 function showLoadError() {
@@ -69,6 +84,7 @@ function showLoadError() {
 
 async function visit(lat: number, lng: number) {
   hideHint();
+  playSound('whoosh');
   view.visit(lat, lng);
   try {
     const result = lookupRegion(lat, lng, await countryLookup);
@@ -80,20 +96,41 @@ async function visit(lat: number, lng: number) {
 }
 
 function goHome() {
+  const wasOpen = panel.isOpen;
   currentRegion = null;
   panel.close();
   view.goHome();
+  if (!wasOpen) return;
+  playSound('whoosh');
+  showStart();
+  void say(text().hint);
 }
 
 function surprise() {
+  const now = performance.now();
+  if (now - lastSurpriseAt < SURPRISE_GAP_MS) return;
+  lastSurpriseAt = now;
   const choices = REGIONS.filter((region) => region !== currentRegion);
   const region = choices[Math.floor(Math.random() * choices.length)];
   void visit(region.anchor.lat, region.anchor.lng);
 }
 
 countryLookup.catch(showLoadError);
-byId('surprise').addEventListener('click', surprise);
-byId('home').addEventListener('click', goHome);
+onPress(byId('surprise'), surprise);
+onPress(byId('home'), goHome);
+
+// Browsers only let sound start from a tap, so the start instruction waits for the first one.
+// A tap that opens a place speaks the place instead, which cuts this short.
+function sayHintOnce() {
+  document.removeEventListener('click', sayHintOnce, true);
+  document.removeEventListener('touchend', sayHintOnce, true);
+  // After the tap has done its own work, so a tap that switches language or opens a place wins.
+  setTimeout(() => {
+    if (!panel.isOpen && !mapFailed) void say(text().hint);
+  }, 0);
+}
+document.addEventListener('click', sayHintOnce, true);
+document.addEventListener('touchend', sayHintOnce, true);
 
 onLanguageChange(() => {
   drawPage();
