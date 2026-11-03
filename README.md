@@ -35,6 +35,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🏝️ My Island / Moj otok](games/my-island/README.md) | Your own little island to explore, grow and share! | 4-10 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [⚖️ Secret Seesaw / Skrivnostna gugalnica](games/secret-seesaw/README.md) | What is hiding in the box? Make it balance! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🍓 Fruit Code / Sadna šifra](games/fruit-code/README.md) | Every fruit hides a number. Crack the code! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [⚙️ Magic Machine / Čarobni stroj](games/magic-machine/README.md) | A number goes in. What comes out? | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 

@@ -705,5 +705,33 @@
     },
     "color": "#8cc63f",
     "status": "ready"
+  },
+  {
+    "slug": "magic-machine",
+    "title": "Magic Machine",
+    "emoji": "⚙️",
+    "tagline": "A number goes in. What comes out?",
+    "skills": [
+      "numbers",
+      "logic",
+      "challenge"
+    ],
+    "ages": "5-12",
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "translations": {
+      "sl": {
+        "title": "Čarobni stroj",
+        "tagline": "Število gre noter. Kaj pride ven?"
+      }
+    },
+    "color": "#3d5afe",
+    "status": "ready"
   }
 ]
