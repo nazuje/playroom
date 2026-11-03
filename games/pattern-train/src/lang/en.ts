@@ -37,6 +37,7 @@ export const en = {
   lineDoneSpoken: 'Wow! You rode the whole line!',
   nextLevel: 'Next level ▶',
   rideAgain: 'Ride again ▶',
+  starsLabel: (stars: number) => `${stars} of 3 stars`,
 };
 
 export type Text = typeof en;

@@ -79,7 +79,13 @@
 }
 
 .station.done {
+  width: auto;
+  min-width: 34px;
+  padding: 0 3px;
   border-color: var(--sun-dark);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  letter-spacing: -1px;
   background: var(--sun);
 }
 
@@ -235,6 +241,73 @@
 @keyframes land {
   40% {
     transform: translateY(-14%) scale(1.15);
+  }
+}
+
+/* The idle nudge: a slow, soft glow, no words needed */
+.car.nudge .body,
+.opt.nudge {
+  animation: nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  50% {
+    box-shadow: 0 0 0 8px #8b5cf640;
+    transform: scale(1.06);
+  }
+}
+
+/* A wrong pick bonks the empty car, and the train hiccups and sees stars */
+.car.bonked .body {
+  animation: bonked 0.36s ease-out;
+}
+
+@keyframes bonked {
+  30% {
+    transform: scale(1.12, 0.86) rotate(-5deg);
+  }
+  65% {
+    transform: scale(0.95, 1.06) rotate(3deg);
+  }
+}
+
+.rows.hiccup {
+  animation: hiccup 0.5s ease-in-out;
+}
+
+@keyframes hiccup {
+  25% {
+    transform: translate(-50%, calc(-50% - 14px)) scaleY(1.04);
+  }
+  45% {
+    transform: translate(-50%, -50%) scaleY(0.94);
+  }
+  70% {
+    transform: translate(-50%, calc(-50% - 5px));
+  }
+}
+
+.dizzy {
+  position: absolute;
+  top: -18%;
+  left: 50%;
+  z-index: 2;
+  font-size: calc(var(--car) * 0.4);
+  pointer-events: none;
+  animation: dizzy 1.1s ease-out both;
+}
+
+@keyframes dizzy {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) rotate(0deg) scale(0.5);
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-24px) rotate(540deg) scale(1.2);
   }
 }
 
@@ -535,8 +608,18 @@
   --btn-color: var(--sun);
 }
 
-.level-name {
+.level-label {
+  display: flex;
   flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.level-best {
+  min-height: 0.9rem;
+  font-size: 0.8rem;
+  letter-spacing: -1px;
 }
 
 .level-sample {
@@ -545,6 +628,102 @@
   font-size: 1.1rem;
   letter-spacing: -1px;
   white-space: nowrap;
+}
+
+/* ---------- Level done: the train parades its cargo under the sky ---------- */
+
+#win {
+  background:
+    radial-gradient(130% 40% at 15% 104%, #bfe9a8 0 60%, transparent 61%),
+    radial-gradient(130% 34% at 90% 106%, #a9e0a0 0 60%, transparent 61%),
+    linear-gradient(180deg, #9fd8ff, #eaf8ff 75%);
+}
+
+.win-world {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+}
+
+.win-track {
+  position: absolute;
+  inset: auto 0 14px;
+  height: 64px;
+}
+
+.win-track::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 11px;
+  background:
+    linear-gradient(#7c6a5a, #7c6a5a) 0 0 / 100% 4px no-repeat,
+    repeating-linear-gradient(90deg, #a98a6a 0 8px, transparent 8px 22px);
+}
+
+.win-train {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  gap: 6px;
+  animation: parade 6s linear infinite;
+}
+
+.win-car {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 54px;
+  border-bottom: 4px solid var(--sky-dark);
+  border-radius: 12px 12px 8px 8px;
+  font-size: 2.1rem;
+  line-height: 1;
+  background: #fff;
+  animation: chug 0.26s ease-in-out infinite;
+}
+
+.win-engine {
+  border-color: var(--coral-dark);
+  background: #ffe3dd;
+}
+
+/* The engine faces left, so the parade rolls in from the right and off the left, then comes round again */
+@keyframes parade {
+  from {
+    transform: translateX(min(100vw, 720px));
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.win-stars {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.win-star {
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+
+.win-star.on {
+  filter: none;
+  opacity: 1;
+  animation: star-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+@keyframes star-pop {
+  from {
+    transform: scale(0) rotate(-90deg);
+  }
 }
 
 /* A short laptop or a sideways phone: put the helpers beside the prompt */
@@ -563,5 +742,25 @@
 @media (prefers-reduced-motion: reduce) {
   .car.beat .body {
     box-shadow: 0 0 0 7px var(--sun-dark);
+  }
+
+  /* Still, the nudge is a steady glow and the parade stands at the station */
+  .car.nudge .body,
+  .opt.nudge {
+    box-shadow: 0 0 0 8px #8b5cf640;
+    animation: none;
+  }
+
+  .rows.hiccup,
+  .car.bonked .body,
+  .win-car,
+  .win-star.on {
+    animation: none;
+  }
+
+  .win-train {
+    left: 50%;
+    transform: translateX(-50%);
+    animation: none;
   }
 }

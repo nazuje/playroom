@@ -7,8 +7,8 @@ It plays in English and Slovenian. The flag in the top bar switches language at 
 ## How to play
 
 1. Tap **All aboard!** to start at your furthest level, or pick any level.
-2. Look at the cars and tap the item that fills the empty one. A wrong pick wiggles and dims, and nothing is lost.
-3. When a train is full, it chugs away. Five trains finish a level.
+2. Look at the cars and tap the item that fills the empty one. Each item sings its own note. A wrong pick bonks off the car, the train hiccups, and nothing is lost. After 8 seconds without a tap, the answer and its car pulse gently.
+3. When a train is full, it sings its pattern as a tune and chugs away. Five trains finish a level. Each train earns up to 3 stars for answers right first time, and the level's stars, with your best kept on the level list, show as the train parades off.
 4. Tap **Say it!** (**Poslušaj!** in Slovenian) to hear the pattern chanted as a little tune, which helps a child hear the rhythm. The 💡 hint brackets the part that repeats.
 
 The levels are AB, AAB and ABB, ABC, AABB and ABAC, gaps in the pattern, and growing patterns.

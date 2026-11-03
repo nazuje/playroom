@@ -98,6 +98,7 @@ export const sl: Text = {
   lineDoneSpoken: 'Juhu! Konec proge! Bravo!',
   nextLevel: 'Naslednja stopnja ▶',
   rideAgain: 'Še enkrat ▶',
+  starsLabel: (stars) => `Zvezdice: ${stars} od 3`,
 };
 
 /** Every line the game can say in Slovenian. The last level ends with the end-of-the-line cheer instead. */

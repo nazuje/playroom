@@ -4,7 +4,17 @@ import type { Item, Range, Train } from './pattern.ts';
 const ARRIVE_MS = 1300;
 const DEPART_MS = 1200;
 const HOP_MS = 480;
+const BONK_MS = 900;
+/** How far into the bonk the item meets the car, which is when the bonk sound belongs. */
+export const BONK_HIT_MS = Math.round(BONK_MS * 0.42);
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** Takes a class off and puts it back, so its animation plays again even if it just played. */
+function replay(element: HTMLElement, className: string): void {
+  element.classList.remove(className);
+  void element.offsetWidth;
+  element.classList.add(className);
+}
 
 /** Waits for an animation, whether it finishes or gets cancelled by the next train. */
 async function settled(animation: Animation): Promise<void> {
@@ -153,19 +163,70 @@ export class Scene {
     return this.center(this.cars[index]);
   }
 
+  /** An emoji that flies above everything, sized to the cars, starting at the given point. */
+  private flyer(emoji: string, at: { x: number; y: number }): HTMLElement {
+    const flyer = document.createElement('span');
+    flyer.className = 'flyer';
+    flyer.textContent = emoji;
+    flyer.style.left = `${at.x}px`;
+    flyer.style.top = `${at.y}px`;
+    flyer.style.fontSize = `${Math.round((this.cars[0]?.offsetWidth ?? 80) * 0.58)}px`;
+    document.body.append(flyer);
+    return flyer;
+  }
+
+  /**
+   * A wrong pick jumps at the empty car, bonks off it and tumbles away, and the
+   * whole train hiccups with dizzy stars. Nothing waits for it.
+   */
+  bonk(index: number, item: Item, from: HTMLElement): void {
+    const cell = this.cars[index];
+    if (!cell) return;
+    this.hiccup();
+    if (REDUCED.matches) return;
+    const start = this.center(from);
+    const end = this.center(cell);
+    const flyer = this.flyer(item.emoji, end);
+    const dx = start.x - end.x;
+    const dy = start.y - end.y;
+    const side = dx < 0 ? -1 : 1;
+    const animation = flyer.animate(
+      [
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1.1)` },
+        { transform: `translate(calc(-50% + ${dx * 0.4}px), calc(-50% + ${Math.min(dy, 0) - 60}px)) scale(1.2)`, offset: 0.25 },
+        { transform: 'translate(-50%, -50%) scale(1.35, 0.7)', offset: 0.42 },
+        { transform: `translate(calc(-50% + ${side * 50}px), calc(-50% - 60px)) rotate(${side * 200}deg)`, offset: 0.65 },
+        { transform: `translate(calc(-50% + ${side * 90}px), calc(-50% + 140px)) rotate(${side * 420}deg)`, opacity: 0 },
+      ],
+      { duration: BONK_MS, easing: 'ease-in-out' },
+    );
+    setTimeout(() => replay(cell, 'bonked'), BONK_HIT_MS);
+    void settled(animation).then(() => flyer.remove());
+  }
+
+  /** The train jolts like a hiccup and the engine sees stars. */
+  private hiccup(): void {
+    replay(this.rows, 'hiccup');
+    const dizzy = document.createElement('span');
+    dizzy.className = 'dizzy';
+    dizzy.textContent = '💫';
+    dizzy.setAttribute('aria-hidden', 'true');
+    dizzy.addEventListener('animationend', () => dizzy.remove());
+    this.engine.append(dizzy);
+  }
+
+  /** The gentle pulse on the empty car, for a child who has been still a while. */
+  setNudge(index: number | null): void {
+    this.cars.forEach((cell, i) => cell.classList.toggle('nudge', i === index));
+  }
+
   /** The chosen item leaps from its button in a little arc and lands in the car. */
   async hop(index: number, item: Item, from: HTMLElement): Promise<void> {
     const cell = this.cars[index];
     if (!REDUCED.matches) {
       const start = this.center(from);
       const end = this.center(cell);
-      const flyer = document.createElement('span');
-      flyer.className = 'flyer';
-      flyer.textContent = item.emoji;
-      flyer.style.left = `${end.x}px`;
-      flyer.style.top = `${end.y}px`;
-      flyer.style.fontSize = `${Math.round(cell.offsetWidth * 0.58)}px`;
-      document.body.append(flyer);
+      const flyer = this.flyer(item.emoji, end);
       const dx = start.x - end.x;
       const dy = start.y - end.y;
       const peak = Math.min(dy, 0) - 70;
@@ -181,7 +242,7 @@ export class Scene {
       );
       flyer.remove();
     }
-    cell.classList.remove('empty', 'active');
+    cell.classList.remove('empty', 'active', 'nudge');
     this.loads[index] = item;
     setContents(cell, 'load', item.emoji, this.labels().itemName(item));
     cell.classList.add('landed');
