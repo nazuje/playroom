@@ -78,6 +78,7 @@ async function playAll(browser, screen) {
       const finale = (await page.evaluate(() => document.body.dataset.finale)) === 'true';
       if (finale !== last) throw new Error(`Level ${id}: the finale ${finale ? 'showed' : 'did not show'}`);
       if (last) {
+        await page.waitForSelector('.card-finale .card-main[data-action="map"]', { state: 'visible', timeout: 8000 });
         const big = await page.locator('.card-finale .card-main[data-action="map"]').boundingBox();
         if (!big || big.height < 72) throw new Error('The finale has no big button');
         await page.screenshot({ path: `${SHOTS}/skilled-${screen.name}-finale.png` });
@@ -86,6 +87,7 @@ async function playAll(browser, screen) {
         break;
       }
       // Every other win card has one big next button.
+      await page.waitForSelector('.card-main[data-action="next"]', { state: 'visible', timeout: 8000 });
       const next = await page.locator('.card-main[data-action="next"]').boundingBox();
       if (!next || next.height < 72) throw new Error(`Level ${id}: no big next button`);
       await touch(page, '[data-action="next"]');
@@ -102,9 +104,10 @@ async function playAll(browser, screen) {
 
 async function main() {
   const server = await serve();
-  const browser = await launch();
   let ok = true;
+  let browser;
   try {
+    browser = await launch();
     for (const screen of SCREENS) {
       const { rows, problems } = await playAll(browser, screen);
       const perfect = rows.filter((row) => row.stars === 3).length;
@@ -113,7 +116,7 @@ async function main() {
       ok &&= rows.length === LEVELS.length && perfect === LEVELS.length && !problems.length;
     }
   } finally {
-    await browser.close();
+    await browser?.close();
     server.kill();
   }
   process.exit(ok ? 0 : 1);

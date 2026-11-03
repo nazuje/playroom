@@ -30,6 +30,8 @@ export const MOST = 20;
 export const PICKER: readonly number[] = Array.from({ length: MOST + 1 }, (_, n) => n);
 /** On picker levels no answer sits within this of a number on the board, so copying a number never works. */
 const FAR_FROM_TOTALS = 3;
+/** How much more often the right number is put last when it can be, so lowest, middle and highest even out. */
+const HIGHEST_WEIGHT = 1.65;
 
 /** A small seeded random source (mulberry32), so a level never changes between runs. */
 export function seeded(seed: number): () => number {
@@ -139,21 +141,51 @@ function pickFruits(random: Random, count: number): Fruit[] {
 }
 
 /**
- * The right number, the tempting one a hurried child copies from the board, and one close wrong number,
- * smallest first. With the trap always there, a lucky first tap is never a sure thing.
+ * Three numbers, smallest first: the right one, a tempting wrong one, and one more. Each puzzle draws where the
+ * right number should sit, lowest, middle or highest, so no position wins more than its share. The tempting
+ * numbers are the two mistakes a hurried child makes: copying the row's number, which is bigger than the
+ * answer, or counting the pictures in that row, which is usually smaller. At least one is always there.
  */
-function threeChoices(random: Random, answer: number, tempting: number): number[] {
+export function threeChoices(random: Random, answer: number, tempting: readonly number[]): number[] {
   const fair = (n: number): boolean => n >= 1 && n <= MOST && n !== answer;
-  const picked = fair(tempting) ? [tempting] : [];
-  const pool = [...new Set([answer - 1, answer + 1, answer + 2, answer - 2])].filter((n) => fair(n) && !picked.includes(n));
-  while (picked.length < 2) picked.push(...pool.splice(Math.floor(random() * pool.length), 1));
-  return [answer, ...picked].sort((a, b) => a - b);
+  const traps = [...new Set(tempting.filter(fair))];
+  const pool = [...new Set([...traps, answer - 2, answer - 1, answer + 1, answer + 2].filter(fair))];
+  const pairs: [number, number][] = [];
+  for (let at = 0; at < pool.length; at += 1) {
+    for (let next = at + 1; next < pool.length; next += 1) {
+      if (traps.includes(pool[at]) || traps.includes(pool[next]) || !traps.length) pairs.push([pool[at], pool[next]]);
+    }
+  }
+  const rankOf = ([one, two]: [number, number]): number => (one < answer ? 1 : 0) + (two < answer ? 1 : 0);
+  const fitting = (place: number): [number, number][] => pairs.filter((pair) => rankOf(pair) === place);
+  const places = [0, 1, 2].filter((place) => fitting(place).length);
+  if (!places.length) throw new Error(`No three choices for ${answer}`);
+  // Highest can't be made for the smallest answers, which have no smaller trap, so it is drawn more often
+  // wherever it can be made. The tests check the spread comes out even.
+  const weights = places.map((place) => (place === 2 && places.length === 3 ? HIGHEST_WEIGHT : 1));
+  let roll = random() * weights.reduce((sum, weight) => sum + weight, 0);
+  const place = places.find((_, at) => (roll -= weights[at]) < 0) ?? places[places.length - 1];
+  const fits = fitting(place);
+  return [answer, ...fits[Math.floor(random() * fits.length)]].sort((a, b) => a - b);
 }
+
+const holdingRow = (puzzle: Puzzle, fruits: readonly Fruit[]): Row | undefined =>
+  puzzle.clues.filter((row) => row.terms.some((term) => fruits.includes(term.fruit))).at(-1);
 
 /** The quick guess for a fruit: the number at the end of the last row that holds it. */
 export function temptingFor(puzzle: Puzzle, fruits: readonly Fruit[]): number {
-  const holding = puzzle.clues.filter((row) => row.terms.some((term) => fruits.includes(term.fruit)));
-  return holding.at(-1)?.total ?? 0;
+  return holdingRow(puzzle, fruits)?.total ?? 0;
+}
+
+/**
+ * The quick mistakes for a fruit in the last row that holds it: copying the row's number, counting all the
+ * pictures in the row, or counting just that fruit's pictures.
+ */
+export function trapsFor(puzzle: Puzzle, fruits: readonly Fruit[]): number[] {
+  const row = holdingRow(puzzle, fruits);
+  if (!row) return [];
+  const count = (terms: readonly Term[]): number => terms.reduce((sum, term) => sum + term.count, 0);
+  return [row.total, count(row.terms), count(row.terms.filter((term) => fruits.includes(term.fruit)))];
 }
 
 interface Made {
@@ -209,18 +241,18 @@ function choicesFor(spec: Spec, random: Random, { puzzle, values }: Made): Level
     return Object.fromEntries([...fruits, 'question'].map((target) => [target, [...PICKER]]));
   }
   const choices: Level['choices'] = {};
-  for (const fruit of fruits) choices[fruit] = threeChoices(random, values[fruit] as number, temptingFor(puzzle, [fruit]));
+  for (const fruit of fruits) choices[fruit] = threeChoices(random, values[fruit] as number, trapsFor(puzzle, [fruit]));
   const lone = loneFruit(puzzle);
   choices.question = lone
     ? choices[lone]
-    : threeChoices(random, sumOf(puzzle.question, values) as number, temptingFor(puzzle, puzzle.question.map((term) => term.fruit)));
+    : threeChoices(random, sumOf(puzzle.question, values) as number, trapsFor(puzzle, puzzle.question.map((term) => term.fruit)));
   return choices;
 }
 
-function build(spec: Spec, index: number): Level[] {
+function build(spec: Spec, index: number, seed: number): Level[] {
   const taken = new Set<string>();
   return Array.from({ length: VARIANTS }, (_, variant) => {
-    const random = seeded(SEED + index * 7919 + variant * 104729);
+    const random = seeded(seed + index * 7919 + variant * 104729);
     const made = draw(spec, random, variant, taken);
     taken.add(shapeOf(made));
     return { id: index + 1, variant, world: spec.world, ...made, answer: spec.answer, choices: choicesFor(spec, random, made) };
@@ -228,7 +260,7 @@ function build(spec: Spec, index: number): Level[] {
 }
 
 /** Makes every puzzle of the whole staircase from its seeds, by level and then variant. The same call always makes the same ones. */
-export const buildLevels = (): Level[][] => SPECS.map(build);
+export const buildLevels = (seed = SEED): Level[][] => SPECS.map((spec, index) => build(spec, index, seed));
 
 export const ALL_VARIANTS: readonly (readonly Level[])[] = buildLevels();
 

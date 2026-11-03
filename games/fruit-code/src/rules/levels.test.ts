@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fruitsIn, holds, loneFruit, picture, rowPicture, sumOf, termWorth, type Puzzle } from './equation.ts';
-import { ALL_VARIANTS, buildLevels, EVERY_PUZZLE, levelFor, LEVELS, MOST, PICKER, questionValue, readTemplate, temptingFor, VARIANTS, WORLDS } from './levels.ts';
+import { ALL_VARIANTS, buildLevels, EVERY_PUZZLE, levelFor, LEVELS, MOST, PICKER, questionValue, readTemplate, temptingFor, trapsFor, VARIANTS, WORLDS, type Level } from './levels.ts';
 import { assignments, nextStep, plan, SEARCH_TOP, solutions } from './solve.ts';
 
 const pictureOf = (puzzle: Puzzle): string => [...puzzle.clues.map(rowPicture), `${picture(puzzle.question)}=?`].join(' | ');
@@ -195,9 +195,11 @@ describe('the number buttons', () => {
         expect([...choices!].sort((a, b) => a - b)).toEqual(choices);
       }
       if (lone) expect(level.choices.question).toEqual(level.choices[lone]);
-      // The number a hurried child copies from the board is always there, and always wrong.
-      const tempting = temptingFor(level.puzzle, fruitsIn(level.puzzle.question));
-      if (tempting !== questionValue(level) && tempting <= MOST) expect(level.choices.question).toContain(tempting);
+      // A number a hurried child would grab, the row's number or its count of pictures, is always there and wrong.
+      for (const [target, choices] of Object.entries(level.choices)) {
+        const fruits = target === 'question' ? fruitsIn(level.puzzle.question) : [target as keyof typeof level.values];
+        expect(choices!.some((n) => trapsFor(level.puzzle, fruits).includes(n) && n !== (target === 'question' ? questionValue(level) : level.values[target as keyof typeof level.values])), `level ${level.id} ${target}`).toBe(true);
+      }
     }
   });
 
@@ -206,6 +208,52 @@ describe('the number buttons', () => {
       expect(level.choices.question).toEqual(PICKER);
       for (const row of level.puzzle.clues) expect(Math.abs(row.total - questionValue(level))).toBeGreaterThanOrEqual(3);
       expect(Math.abs(temptingFor(level.puzzle, fruitsIn(level.puzzle.question)) - questionValue(level))).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+describe('where the right number sits', () => {
+  /** The right number's place among three, for every three-choice target of every puzzle, over many seeds. */
+  function places(): number[] {
+    const found: number[] = [];
+    for (let seed = 1; seed <= 40; seed += 1) {
+      for (const level of buildLevels(seed * 7777).flat() as Level[]) {
+        if (level.answer !== 'three') continue;
+        const lone = loneFruit(level.puzzle);
+        for (const [target, choices] of Object.entries(level.choices)) {
+          // A lone question shares its fruit's buttons, so it is counted once.
+          if (target === 'question' && lone) continue;
+          const truth = target === 'question' ? questionValue(level) : (level.values[target as keyof typeof level.values] as number);
+          found.push(choices!.indexOf(truth));
+        }
+      }
+    }
+    return found;
+  }
+
+  it('spreads the right number evenly over lowest, middle and highest', () => {
+    const seen = places();
+    expect(seen.length).toBeGreaterThan(1000);
+    for (const place of [0, 1, 2]) {
+      const share = seen.filter((one) => one === place).length / seen.length;
+      expect(share, `place ${place}`).toBeGreaterThan(0.28);
+      expect(share, `place ${place}`).toBeLessThan(0.39);
+    }
+  });
+
+  it('lets no fixed way of tapping beat chance by more than 1.3 times', () => {
+    const seen = places();
+    const strategies: Record<string, (at: number) => number> = {
+      'always the smallest, first': () => 0,
+      'always the middle': () => 1,
+      'always the largest, last': () => 2,
+      'cycle': (at) => at % 3,
+      'cycle backwards': (at) => 2 - (at % 3),
+      'same place as last time': (at) => (at > 0 ? seen[at - 1] : 0),
+    };
+    for (const [name, guess] of Object.entries(strategies)) {
+      const wins = seen.filter((place, at) => guess(at) === place).length / seen.length;
+      expect(wins / (1 / 3), name).toBeLessThan(1.3);
     }
   });
 });

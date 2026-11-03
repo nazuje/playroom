@@ -1,15 +1,15 @@
-// A careless player: a child in a hurry who never taps a fruit to work it out. It copies the number at the end
-// of the last row holding the question's fruit, then grabs numbers close to it in a random order, and never gives
-// up: when a try runs out it taps 🔄 and guesses again at the fresh puzzle. A level counts as lost once 5 tries
-// have failed, which is when the game offers to skip it. The random numbers are seeded, so a run can be
-// repeated. Run `npx vite build` first.
+// A careless player: a child in a hurry who never taps a fruit to work it out. It taps a number it knows from the
+// board if one is offered (the row's number, or how many pictures are in the row), then grabs numbers close to
+// the row's number in a random order, and never gives up: when a try runs out it taps 🔄 and guesses again at the
+// fresh puzzle. A level counts as lost once 5 tries have failed, which is when the game offers to skip it. The
+// random numbers are seeded, so a run can be repeated. Run `npx vite build` first.
 //
 // It passes when it wins at least 8 of the 9 levels in the first two worlds, loses the last three of each later
-// world, and never earns 3 stars past world 1, since misses add up over every try. With three choices the copied
-// number is always one of them and always wrong, so each try is a coin flip after it: a child this careless loses
-// an early level about one time in 32, after 5 tries, and the skip button is there for that.
+// world, and never earns 3 stars past world 1, since misses add up over every try. With three choices one of those
+// board numbers is always offered and nearly always wrong, so each try is about a coin flip after it: a child this
+// careless loses an early level about one time in 32, after 5 tries, and the skip button is there for that.
 import { fruitsIn } from '../src/rules/equation.ts';
-import { ALL_VARIANTS, LEVELS, temptingFor } from '../src/rules/levels.ts';
+import { ALL_VARIANTS, LEVELS, temptingFor, trapsFor } from '../src/rules/levels.ts';
 import { allOpen, answer, launch, openLevel, openPage, puzzleOn, ready, screenIs, serve, touch } from './lib.mjs';
 
 const TRIES_BEFORE_SKIP = 5;
@@ -33,10 +33,12 @@ async function oneTry(page, random) {
   const level = await puzzleOn(page, ALL_VARIANTS);
   const quick = temptingFor(level.puzzle, fruitsIn(level.puzzle.question));
   const near = [...level.choices.question].sort((a, b) => Math.abs(a - quick) - Math.abs(b - quick) || b - a).slice(0, NEAR);
-  // The copied number first, if it is offered, then the rest in any order.
-  const copied = near[0] === quick;
+  // First a number it knows from the board, if one is offered: the row's number, or how many pictures are in it.
+  const known = trapsFor(level.puzzle, fruitsIn(level.puzzle.question)).find((n) => near.includes(n));
+  let first = known !== undefined;
   while (near.length) {
-    const pick = copied && near.length === NEAR ? 0 : Math.floor(random() * near.length);
+    const pick = first ? near.indexOf(known) : Math.floor(random() * near.length);
+    first = false;
     const [value] = near.splice(pick, 1);
     await answer(page, value);
     await page.waitForTimeout(TAP_WAIT_MS);
