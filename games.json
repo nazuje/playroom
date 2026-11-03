@@ -677,5 +677,33 @@
     },
     "color": "#0f7a7f",
     "status": "ready"
+  },
+  {
+    "slug": "fruit-code",
+    "title": "Fruit Code",
+    "emoji": "🍓",
+    "tagline": "Every fruit hides a number. Crack the code!",
+    "skills": [
+      "numbers",
+      "logic",
+      "challenge"
+    ],
+    "ages": "5-12",
+    "modes": [
+      "solo",
+      "together"
+    ],
+    "languages": [
+      "en",
+      "sl"
+    ],
+    "translations": {
+      "sl": {
+        "title": "Sadna šifra",
+        "tagline": "Vsak sadež skriva število. Razvozlaj šifro!"
+      }
+    },
+    "color": "#8cc63f",
+    "status": "ready"
   }
 ]

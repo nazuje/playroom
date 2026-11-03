@@ -34,6 +34,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🌋 Lava Climb / Beg pred lavo](games/lava-climb/README.md) | Jump higher before the lava gets you! | 6-12 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🏝️ My Island / Moj otok](games/my-island/README.md) | Your own little island to explore, grow and share! | 4-10 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [⚖️ Secret Seesaw / Skrivnostna gugalnica](games/secret-seesaw/README.md) | What is hiding in the box? Make it balance! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
+| [🍓 Fruit Code / Sadna šifra](games/fruit-code/README.md) | Every fruit hides a number. Crack the code! | 5-12 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 
 ## Layout
 
