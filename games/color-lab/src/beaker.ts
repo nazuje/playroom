@@ -186,6 +186,34 @@ export class Beaker {
     replayClass(this.element, 'wiggle');
   }
 
+  /**
+   * A miss is funny, not sad: the beaker goes cross-eyed, wobbles and burps up one
+   * big bubble. No sparkle, which is only for a right answer.
+   */
+  oops(): void {
+    replayClass(this.element, 'oops');
+    for (const old of this.element.querySelectorAll('.eyes, .burp')) old.remove();
+    const eyes = el('div', 'eyes');
+    eyes.setAttribute('aria-hidden', 'true');
+    eyes.append(el('span', 'eye eye-left'), el('span', 'eye eye-right'));
+    const burp = el('div', 'burp');
+    burp.setAttribute('aria-hidden', 'true');
+    this.element.append(eyes, burp);
+    void wait(1900).then(() => {
+      eyes.remove();
+      burp.remove();
+    });
+  }
+
+  /** A rare treat: something pops up out of the paint, waves, and ducks back in. */
+  surprise(emoji: string): void {
+    for (const old of this.element.querySelectorAll('.peek')) old.remove();
+    const peek = el('div', 'peek', emoji);
+    peek.setAttribute('aria-hidden', 'true');
+    this.element.append(peek);
+    void wait(2600).then(() => peek.remove());
+  }
+
   setBubbling(on: boolean): void {
     this.element.classList.toggle('bubbling', on);
   }

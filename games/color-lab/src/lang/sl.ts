@@ -32,38 +32,38 @@ export const SL_COLORS: Record<ColorId, SlColor> = {
   purple: color('vijolična', 'vijolično'),
   brown: color('rjava', 'rjavo'),
 
-  redOrange: color('rdeče oranžna', 'rdeče oranžno'),
-  golden: color('zlato rumena', 'zlato rumeno'),
-  lime: color('rumeno zelena', 'rumeno zeleno'),
+  redOrange: color('rdečeoranžna', 'rdečeoranžno'),
+  golden: color('zlatorumena', 'zlatorumeno'),
+  lime: color('rumenozelena', 'rumenozeleno'),
   teal: color('turkizna', 'turkizno'),
-  magenta: color('rdeče vijolična', 'rdeče vijolično'),
-  indigo: color('modro vijolična', 'modro vijolično'),
+  magenta: color('rdečevijolična', 'rdečevijolično'),
+  indigo: color('modrovijolična', 'modrovijolično'),
 
   pink: color('roza'),
-  paleYellow: color('svetlo rumena', 'svetlo rumeno'),
-  lightBlue: color('svetlo modra', 'svetlo modro'),
+  paleYellow: color('svetlorumena', 'svetlorumeno'),
+  lightBlue: color('svetlomodra', 'svetlomodro'),
   peach: color('breskova', 'breskovo'),
-  mint: color('mentolno zelena', 'mentolno zeleno'),
+  mint: color('mentolnozelena', 'mentolnozeleno'),
   lilac: color('lila'),
-  tan: color('svetlo rjava', 'svetlo rjavo'),
+  tan: color('svetlorjava', 'svetlorjavo'),
 
-  maroon: color('temno rdeča', 'temno rdečo'),
-  olive: color('olivno zelena', 'olivno zeleno'),
-  navy: color('temno modra', 'temno modro'),
-  darkGreen: color('temno zelena', 'temno zeleno'),
-  darkPurple: color('temno vijolična', 'temno vijolično'),
-  darkBrown: color('temno rjava', 'temno rjavo'),
+  maroon: color('temnordeča', 'temnordečo'),
+  olive: color('olivnozelena', 'olivnozeleno'),
+  navy: color('temnomodra', 'temnomodro'),
+  darkGreen: color('temnozelena', 'temnozeleno'),
+  darkPurple: color('temnovijolična', 'temnovijolično'),
+  darkBrown: color('temnorjava', 'temnorjavo'),
 
-  dustyRose: color('sivo roza'),
+  dustyRose: color('sivorožnata', 'sivorožnato'),
   khaki: color('kaki'),
-  slateBlue: color('sivo modra', 'sivo modro'),
-  sage: color('sivo zelena', 'sivo zeleno'),
-  mauve: color('sivo vijolična', 'sivo vijolično'),
-  taupe: color('sivo rjava', 'sivo rjavo'),
+  slateBlue: color('sivomodra', 'sivomodro'),
+  sage: color('sivozelena', 'sivozeleno'),
+  mauve: color('sivovijolična', 'sivovijolično'),
+  taupe: color('sivorjava', 'sivorjavo'),
 
   grey: color('siva', 'sivo'),
-  lightGrey: color('svetlo siva', 'svetlo sivo'),
-  darkGrey: color('temno siva', 'temno sivo'),
+  lightGrey: color('svetlosiva', 'svetlosivo'),
+  darkGrey: color('temnosiva', 'temnosivo'),
 };
 
 const nom = (id: ColorId): string => SL_COLORS[id].nom;
@@ -145,11 +145,11 @@ export const sl: Text = {
   madeOther: (id) => `Oho, to je ${nom(id)}! Poskusi še enkrat!`,
 
   tapAPaint: 'Izberi barvo!',
-  clear: '🧽 Pobriši',
-  clearSure: '🧽 Res?',
+  clear: 'Drži, da pobrišeš sliko',
+  undo: 'Vrni sliko',
   freeIntro: 'Zmešaj barvo, ki ti je všeč, in pobarvaj sliko!',
   paintFirst: 'Najprej dodaj barvo!',
-  clearAsk: 'Pritisni še enkrat, da pobrišeš sliko.',
+  clearAsk: 'Drži gobico, da pobrišeš sliko.',
   pictures: { butterfly: 'Metulj', house: 'Hiša' },
   pictureLabel: (picture) => `${picture} za barvanje`,
   regions: {
@@ -174,7 +174,13 @@ export const sl: Text = {
 /** Every line the game can say in Slovenian. A mix in Free paint or Make can land on any color. */
 export function spokenLines(): string[] {
   const colors = Object.keys(COLORS) as ColorId[];
-  const questions = Object.values(QUESTIONS).flat();
+  // A question can show its pots either way round.
+  const questions = Object.values(QUESTIONS)
+    .flat()
+    .flatMap(({ a, b }) => [
+      { a, b },
+      { a: b, b: a },
+    ]);
   const targets = Object.values(TARGETS).flat();
   const lines = [
     sl.welcome,

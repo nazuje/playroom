@@ -1,4 +1,4 @@
-import { store } from '@playroom/kit';
+import { playSound, store } from '@playroom/kit';
 import { button, el, replayClass } from '../dom.ts';
 import { Beaker, fillFor } from '../beaker.ts';
 import { flyDrop, potButton } from '../pots.ts';
@@ -8,9 +8,46 @@ import { FILLS_KEY, PICTURES, readFills } from '../pictures.ts';
 import type { Fills, Picture } from '../pictures.ts';
 import { say, words } from '../screen.ts';
 import { text } from '../lang/index.ts';
+import { Nudge } from '../nudge.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const BLANK = '#ffffff';
+/** How long the sponge has to be held down to wipe a picture. A tap or a palm brushing past is not enough. */
+export const HOLD_MS = 1200;
+/** A beaker this full of a dull color gets a nudge towards the rinse button. */
+const MUDDY_PARTS = 4;
+
+/**
+ * A button that acts only when held down for HOLD_MS. A short press calls onShort
+ * instead. A keyboard press, which can't be held, acts at once.
+ */
+function holdButton(className: string, onHeld: () => void, onShort: () => void): HTMLButtonElement {
+  const node = el('button', className);
+  node.type = 'button';
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  node.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || timer !== undefined) return;
+    node.classList.add('holding');
+    timer = setTimeout(() => {
+      timer = undefined;
+      node.classList.remove('holding');
+      onHeld();
+    }, HOLD_MS);
+  });
+  const letGo = (): void => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+    node.classList.remove('holding');
+    onShort();
+  };
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel'] as const) node.addEventListener(type, letGo);
+  node.addEventListener('contextmenu', (event) => event.preventDefault());
+  node.addEventListener('click', (event) => {
+    if (event.detail === 0) onHeld();
+  });
+  return node;
+}
 
 function pictureSvg(picture: Picture, fills: Record<string, string>, onTap: (id: string, shape: SVGPathElement) => void): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -26,9 +63,9 @@ function pictureSvg(picture: Picture, fills: Record<string, string>, onTap: (id:
     shape.setAttribute('tabindex', '0');
     shape.setAttribute('aria-label', text().regions[region.id]);
     shape.style.fill = fills[region.id] ?? BLANK;
-    shape.addEventListener('click', () => {
+    shape.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
       onTap(region.id, shape);
-      shape.blur();
     });
     shape.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -46,18 +83,29 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
   let color: ColorId | null = null;
   let fills: Fills = readFills(store.get<unknown>(FILLS_KEY, null));
   let picture = PICTURES[0] as Picture;
-  let confirmingClear = false;
+  /** The picture as it was before the last wipe, until the next stroke. */
+  let undo: Record<string, string> | null = null;
+  /** Set once the mix has been used, so the next paint starts a clean beaker. */
+  let used = false;
+  const nudge = new Nudge(signal);
 
   const beaker = new Beaker();
   const name = el('p', 'color-name');
   const recipe = el('p', 'small-print');
   const pots = el('div', 'pots');
-  const emptyBtn = button('btn', '', () => {
+  const emptyBtn = button('btn btn-rinse', '', () => {
     void emptyBeaker();
   });
   const canvas = el('div', 'canvas');
   const pickers = el('div', 'picture-picks');
-  const clearBtn = button('btn btn-coral', '', tapClear);
+  const clearBtn = holdButton('icon-btn tool-btn hold-btn', wipe, () => {
+    replayClass(clearBtn, 'wiggle');
+    playSound('bonk');
+    say(() => text().clearAsk);
+  });
+  clearBtn.append(el('span', 'hold-icon', '🧽'));
+  const undoBtn = button('icon-btn tool-btn', '↩️', restore);
+  undoBtn.hidden = true;
 
   function refresh(): void {
     const page = text();
@@ -70,6 +118,12 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
   }
 
   function addPaint(paint: Paint, pot: HTMLButtonElement): void {
+    // A mix that has been painted with is finished: a new paint starts a clean beaker.
+    if (used) {
+      used = false;
+      parts = {};
+      color = null;
+    }
     const before = color;
     parts = { ...parts, [paint]: (parts[paint] ?? 0) + 1 };
     color = mix(parts);
@@ -80,26 +134,38 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
     const made = color;
     if (made !== before) say(() => text().colorSpoken(made));
     refresh();
+    const { family, tone } = COLORS[made];
+    const muddy = family === 'brown' || family === 'grey' || tone === 'muted';
+    if (muddy && totalParts(parts) >= MUDDY_PARTS) nudge.now(emptyBtn);
+    else nudge.now(canvas);
   }
 
   async function emptyBeaker(): Promise<void> {
     parts = {};
     color = null;
+    used = false;
     refresh();
+    playSound('whoosh');
+    nudge.now(...pots.querySelectorAll('button'));
     await beaker.empty();
   }
 
   function paintRegion(id: string, shape: SVGPathElement): void {
     if (!color) {
       beaker.wiggle();
+      nudge.now(...pots.querySelectorAll('button'));
       say(() => text().paintFirst);
       return;
     }
     const hex = COLORS[color].hex;
     shape.style.fill = hex;
+    replayClass(shape, 'splat');
+    playSound('pop');
     fills = { ...fills, [picture.id]: { ...fills[picture.id], [id]: hex } };
     store.set(FILLS_KEY, fills);
-    resetClear();
+    used = true;
+    forgetUndo();
+    nudge.later(...pots.querySelectorAll('button'));
   }
 
   function drawPicture(): void {
@@ -109,27 +175,36 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
     }
   }
 
-  function drawClear(): void {
-    clearBtn.textContent = confirmingClear ? text().clearSure : text().clear;
+  function drawTools(): void {
+    clearBtn.setAttribute('aria-label', text().clear);
+    undoBtn.setAttribute('aria-label', text().undo);
   }
 
-  function resetClear(): void {
-    confirmingClear = false;
-    drawClear();
+  function forgetUndo(): void {
+    undo = null;
+    undoBtn.hidden = true;
+    clearBtn.hidden = false;
   }
 
-  /** The picture is precious, so clearing takes two taps. */
-  function tapClear(): void {
-    if (!confirmingClear) {
-      confirmingClear = true;
-      drawClear();
-      replayClass(clearBtn, 'wiggle');
-      say(() => text().clearAsk);
-      return;
-    }
-    resetClear();
+  /** The picture is precious: wiping it takes a long hold, and the sponge turns into an undo button. */
+  function wipe(): void {
+    const before = fills[picture.id] ?? {};
+    if (Object.keys(before).length === 0) return;
+    undo = before;
     fills = { ...fills, [picture.id]: {} };
     store.set(FILLS_KEY, fills);
+    playSound('whoosh');
+    drawPicture();
+    clearBtn.hidden = true;
+    undoBtn.hidden = false;
+  }
+
+  function restore(): void {
+    if (!undo) return;
+    fills = { ...fills, [picture.id]: undo };
+    store.set(FILLS_KEY, fills);
+    playSound('boing');
+    forgetUndo();
     drawPicture();
   }
 
@@ -138,8 +213,9 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
   }
   const picks = PICTURES.map((option) => {
     const pick = button('level-btn', '', () => {
+      if (picture === option) return;
       picture = option;
-      resetClear();
+      forgetUndo();
       drawPicture();
       say(() => text().pictures[option.id]);
     });
@@ -158,7 +234,7 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
   lab.append(top, pots);
   const studio = el('div', 'free-studio');
   const tools = el('div', 'picture-tools');
-  tools.append(pickers, clearBtn);
+  tools.append(pickers, clearBtn, undoBtn);
   studio.append(canvas, tools);
   const layout = el('div', 'play-free');
   layout.append(lab, studio);
@@ -167,9 +243,10 @@ export function showFree(root: HTMLElement, signal: AbortSignal): void {
   words(signal, () => {
     emptyBtn.textContent = text().empty;
     for (const { option, pick } of picks) pick.textContent = `${option.emoji} ${text().pictures[option.id]}`;
-    drawClear();
+    drawTools();
     refresh();
     drawPicture();
   });
   say(() => text().freeIntro);
+  nudge.now(...pots.querySelectorAll('button'));
 }

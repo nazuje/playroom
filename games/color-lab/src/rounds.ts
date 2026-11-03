@@ -21,9 +21,30 @@ export function shuffle<T>(items: readonly T[], rng: Rng): T[] {
   return shuffled;
 }
 
-/** One round: a fresh order with no repeats, however big the pool is. */
-export function pickRound<T>(pool: readonly T[], rng: Rng): T[] {
-  return shuffle(pool, rng).slice(0, ROUND_SIZE);
+/**
+ * One round: a fresh order with no repeats, however big the pool is. Anything in
+ * `avoid`, such as last round's questions, comes only after everything else.
+ */
+export function pickRound<T>(pool: readonly T[], rng: Rng, avoid: readonly T[] = []): T[] {
+  const fresh = shuffle(
+    pool.filter((item) => !avoid.includes(item)),
+    rng,
+  );
+  const again = shuffle(
+    pool.filter((item) => avoid.includes(item)),
+    rng,
+  );
+  return [...fresh, ...again].slice(0, ROUND_SIZE);
+}
+
+/** How often a surprise pops out of the beaker after a mix: about one mix in six. */
+export const SURPRISE_CHANCE = 1 / 6;
+export const SURPRISES = ['🐸', '🐙', '🦄', '🐥', '🐟', '🦆', '🐌', '🌈', '🦋', '🐞'] as const;
+
+/** Now and then a little creature, or a rainbow, pops out of the paint. Usually nothing does. */
+export function pickSurprise(rng: Rng): string | null {
+  if (rng() >= SURPRISE_CHANCE) return null;
+  return SURPRISES[Math.floor(rng() * SURPRISES.length)] ?? null;
 }
 
 // ---------- Guess the color ----------
@@ -56,6 +77,7 @@ export const QUESTIONS: Record<Level, Question[]> = {
     { a: 'red', b: 'white' },
     { a: 'blue', b: 'white' },
     { a: 'black', b: 'white' },
+    { a: 'yellow', b: 'white' },
   ],
   1: [
     { a: 'orange', b: 'white' },
@@ -76,6 +98,11 @@ export const QUESTIONS: Record<Level, Question[]> = {
     { a: 'purple', b: 'black' },
   ],
 };
+
+/** The same question with its pots swapped half the time, so a repeat still looks new. */
+export function sideSwapped(question: Question, rng: Rng): Question {
+  return rng() < 0.5 ? question : { a: question.b, b: question.a };
+}
 
 export function questionParts(question: Question): Parts {
   return addParts(POTS[question.a], POTS[question.b]);

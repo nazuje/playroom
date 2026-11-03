@@ -9,7 +9,8 @@ import { playGuess } from './modes/guess.ts';
 import { playMake } from './modes/make.ts';
 import { showFree } from './modes/free.ts';
 import { runRound } from './round.ts';
-import { pickRound, QUESTIONS, TARGETS } from './rounds.ts';
+import { Nudge } from './nudge.ts';
+import { QUESTIONS, sideSwapped, TARGETS } from './rounds.ts';
 import { hush, loadProgress, redrawStars, say, sayAgain, showStars, words } from './screen.ts';
 import { text } from './lang/index.ts';
 import type { Text } from './lang/en.ts';
@@ -48,7 +49,8 @@ function startGuess(): void {
     mode: 'guess',
     root: screen,
     signal,
-    deal: (level) => pickRound(QUESTIONS[level], Math.random),
+    pool: (level) => QUESTIONS[level],
+    vary: sideSwapped,
     play: playGuess,
     onExit: showStart,
   });
@@ -61,7 +63,7 @@ function startMake(): void {
     mode: 'make',
     root: screen,
     signal,
-    deal: (level) => pickRound(TARGETS[level], Math.random),
+    pool: (level) => TARGETS[level],
     play: playMake,
     onExit: showStart,
   });
@@ -125,11 +127,13 @@ function showStart(): void {
   heroWrap.append(hero.element, el('div', 'bench'));
 
   const modes = el('div', 'modes');
-  modes.append(
+  const cards = [
     modeCard(signal, (w) => w.modes.guess, guessArt(), stars.guess, startGuess),
     modeCard(signal, (w) => w.modes.make, makeArt(), stars.make, startMake),
     modeCard(signal, (w) => w.modes.free, freeArt(), null, startFree),
-  );
+  ];
+  modes.append(...cards);
+  new Nudge(signal).later(...cards);
   const listen = button('btn listen', '', () => {
     say(() => text().welcome);
   });

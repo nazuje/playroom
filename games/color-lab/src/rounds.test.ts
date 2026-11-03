@@ -4,11 +4,14 @@ import {
   guessChoices,
   MAKE_CAPACITY,
   pickRound,
+  pickSurprise,
   POTS,
   QUESTIONS,
   questionAnswer,
   ROUND_SIZE,
   shuffle,
+  sideSwapped,
+  SURPRISE_CHANCE,
   TARGETS,
 } from './rounds.ts';
 import type { Level, Rng } from './rounds.ts';
@@ -131,5 +134,35 @@ describe('rounds', () => {
     expect(big).toHaveLength(ROUND_SIZE);
     expect(new Set(big).size).toBe(ROUND_SIZE);
     expect(pickRound(TARGETS[0], seeded(3))).toHaveLength(TARGETS[0].length);
+  });
+
+  it('starts a round with questions the last round did not ask', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const last = pickRound(QUESTIONS[0], seeded(seed));
+      const now = pickRound(QUESTIONS[0], seeded(seed + 100), last);
+      const fresh = QUESTIONS[0].filter((question) => !last.includes(question));
+      expect(new Set(now.slice(0, fresh.length))).toEqual(new Set(fresh));
+      expect(new Set(now).size).toBe(ROUND_SIZE);
+    }
+  });
+
+  it('has more Easy questions than one round asks, so rounds differ', () => {
+    expect(QUESTIONS[0].length).toBeGreaterThan(ROUND_SIZE);
+  });
+
+  it('swaps pots without changing the answer', () => {
+    for (const question of ALL_QUESTIONS) {
+      for (let seed = 0; seed < 10; seed++) {
+        expect(questionAnswer(sideSwapped(question, seeded(seed)))).toBe(questionAnswer(question));
+      }
+    }
+  });
+
+  it('keeps surprises rare', () => {
+    const rng = seeded(11);
+    let surprises = 0;
+    for (let mix = 0; mix < 6000; mix++) if (pickSurprise(rng)) surprises += 1;
+    expect(surprises / 6000).toBeGreaterThan(SURPRISE_CHANCE * 0.7);
+    expect(surprises / 6000).toBeLessThan(SURPRISE_CHANCE * 1.3);
   });
 });

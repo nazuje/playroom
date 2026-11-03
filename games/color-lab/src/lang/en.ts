@@ -72,11 +72,11 @@ export const en = {
   madeOther: (color: ColorId) => `Ooh, that made ${name(color)}! Try again!`,
 
   tapAPaint: 'Tap a paint!',
-  clear: '🧽 Clear',
-  clearSure: '🧽 Sure?',
+  clear: 'Hold to wipe the picture',
+  undo: 'Bring the picture back',
   freeIntro: 'Mix any paint you like, then tap the picture to paint it!',
   paintFirst: 'Add some paint to the beaker first!',
-  clearAsk: 'Tap again to clear your picture.',
+  clearAsk: 'Hold the sponge down to wipe your picture.',
   pictures: { butterfly: 'Butterfly', house: 'House' } satisfies Record<PictureId, string>,
   pictureLabel: (picture: string) => `${picture} to paint`,
   regions: {

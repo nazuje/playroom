@@ -1,6 +1,7 @@
 import { COLORS } from './mix.ts';
 import type { ColorId } from './mix.ts';
-import { el, prefersCalm, replayClass } from './dom.ts';
+import { playNote } from '@playroom/kit';
+import { el, onPress, prefersCalm, replayClass } from './dom.ts';
 import { text } from './lang/index.ts';
 import { words } from './screen.ts';
 
@@ -12,6 +13,9 @@ export function tin(color: ColorId): HTMLElement {
   can.append(el('span', 'tin-paint'), el('span', 'tin-drip'));
   return can;
 }
+
+/** Each paint plinks its own note, low for black up to high for white. */
+const NOTES: Partial<Record<ColorId, number>> = { black: 262, blue: 330, red: 392, yellow: 494, white: 587 };
 
 export function potButton(
   signal: AbortSignal,
@@ -26,8 +30,10 @@ export function potButton(
     label.textContent = text().colorLabel(color);
   });
   pot.append(tin(color), label);
-  pot.addEventListener('click', () => {
+  onPress(pot, () => {
+    if (pot.disabled) return;
     replayClass(pot, 'pot-tap');
+    playNote(NOTES[color] ?? 440, { seconds: 0.25, gain: 0.5 });
     onTap(pot);
   });
   return pot;

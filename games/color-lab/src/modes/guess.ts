@@ -1,9 +1,10 @@
-import { button, el, wait } from '../dom.ts';
+import { playSound } from '@playroom/kit';
+import { button, el, onPress, wait } from '../dom.ts';
 import { Beaker, SWIRL_MS } from '../beaker.ts';
 import { tin } from '../pots.ts';
 import { COLORS } from '../mix.ts';
 import type { ColorId } from '../mix.ts';
-import { guessChoices, questionAnswer } from '../rounds.ts';
+import { guessChoices, pickSurprise, questionAnswer } from '../rounds.ts';
 import type { Question } from '../rounds.ts';
 import type { Turn } from '../round.ts';
 import { say, words } from '../screen.ts';
@@ -42,7 +43,7 @@ function blob(signal: AbortSignal, color: ColorId, onTap: (choice: HTMLButtonEle
   const paint = el('span', 'blob');
   paint.style.setProperty('--paint', COLORS[color].hex);
   choice.append(paint, colorLabel(signal, 'choice-label', color));
-  choice.addEventListener('click', () => onTap(choice));
+  onPress(choice, () => onTap(choice));
   return choice;
 }
 
@@ -73,7 +74,7 @@ async function pourAndSwirl(left: Side, right: Side, beaker: Beaker, question: Q
 }
 
 export function playGuess(question: Question, turn: Turn): void {
-  const { area, signal } = turn;
+  const { area, signal, nudge } = turn;
   const answer = questionAnswer(question);
   let picked: ColorId | null = null;
   let poured = false;
@@ -95,13 +96,15 @@ export function playGuess(question: Question, turn: Turn): void {
       picked = color;
       for (const option of options) option.choice.classList.toggle('picked', option.choice === tapped);
       pour.disabled = false;
+      playSound('pop');
+      nudge.now(pour);
       say(() => text().colorSpoken(color));
     });
     return { color, choice };
   });
   choices.append(...options.map((option) => option.choice));
 
-  const pour = button('btn btn-coral btn-big', '', () => {
+  const pour = button('btn btn-go btn-big', '', () => {
     void runPour();
   });
   pour.disabled = true;
@@ -130,17 +133,31 @@ export function playGuess(question: Question, turn: Turn): void {
     const line = (): string => text().guessReveal(question, guessedRight);
     poured = true;
     beaker.setLabel(text().beakerOf(answer));
-    beaker.celebrate();
+    if (guessedRight) {
+      beaker.celebrate();
+      playSound('ding');
+      turn.win(beaker.element);
+    } else {
+      beaker.oops();
+      playSound('burp');
+    }
     messageLine = line;
     message.textContent = line();
     message.classList.add('message-big');
     for (const option of options) {
       option.choice.classList.toggle('correct', option.color === answer);
     }
-    if (guessedRight) turn.win(beaker.element);
     say(line);
     actions.append(turn.finish());
+    const surprise = pickSurprise(Math.random);
+    if (surprise) {
+      await wait(1400);
+      if (signal.aborted) return;
+      beaker.surprise(surprise);
+      playSound('boing');
+    }
   }
 
   say(() => text().guessAsk(question));
+  nudge.now(...options.map((option) => option.choice));
 }

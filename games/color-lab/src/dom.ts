@@ -9,10 +9,24 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-export function button(className: string, text: string, onTap: (event: MouseEvent) => void): HTMLButtonElement {
+/**
+ * A press counts on pointerdown, so a tap answers within a frame and two fingers
+ * both work. A keyboard press arrives as a click with no pointer behind it.
+ */
+export function onPress(target: HTMLElement, listener: () => void): void {
+  target.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || (target instanceof HTMLButtonElement && target.disabled)) return;
+    listener();
+  });
+  target.addEventListener('click', (event) => {
+    if (event.detail === 0) listener();
+  });
+}
+
+export function button(className: string, text: string, onTap: () => void): HTMLButtonElement {
   const node = el('button', className, text);
   node.type = 'button';
-  node.addEventListener('click', onTap);
+  onPress(node, onTap);
   return node;
 }
 
@@ -32,9 +46,9 @@ export function wait(ms: number): Promise<void> {
 }
 
 /** Plays a one-shot CSS animation class again, even if it just ran. */
-export function replayClass(node: HTMLElement, className: string): void {
+export function replayClass(node: Element, className: string): void {
   node.classList.remove(className);
-  void node.offsetWidth;
+  void node.getBoundingClientRect();
   node.classList.add(className);
 }
 
