@@ -2,18 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { COLORS, mix, PAINTS, sameColor, totalParts } from './mix.ts';
 import {
   guessChoices,
-  hintLine,
   MAKE_CAPACITY,
   pickRound,
   POTS,
   QUESTIONS,
   questionAnswer,
-  questionSentence,
   ROUND_SIZE,
   shuffle,
   TARGETS,
 } from './rounds.ts';
 import type { Level, Rng } from './rounds.ts';
+import { en } from './lang/en.ts';
 
 const LEVELS: Level[] = [0, 1, 2];
 const ALL_QUESTIONS = LEVELS.flatMap((level) => QUESTIONS[level]);
@@ -47,9 +46,9 @@ describe('Guess questions', () => {
   });
 
   it('says the headline mixes the way a parent expects', () => {
-    expect(questionSentence({ a: 'red', b: 'yellow' })).toBe('Red and yellow make orange!');
-    expect(questionSentence({ a: 'red', b: 'green' })).toBe('Red and green make brown!');
-    expect(questionSentence({ a: 'black', b: 'white' })).toBe('Black and white make grey!');
+    expect(en.guessReveal({ a: 'red', b: 'yellow' }, true)).toBe('Yes! Red and yellow make orange!');
+    expect(en.guessReveal({ a: 'red', b: 'green' }, false)).toBe('Ooh, surprise! Red and green make brown!');
+    expect(en.guessReveal({ a: 'black', b: 'white' }, true)).toBe('Yes! Black and white make grey!');
   });
 
   it('offers the right answer and two wrong ones that are all different', () => {
@@ -117,10 +116,8 @@ describe('Make targets', () => {
   });
 
   it('gives hints in plain words', () => {
-    expect(hintLine({ color: 'pink', who: '🐷', recipe: { red: 1, white: 1 } })).toBe('Try red and white.');
-    expect(hintLine({ color: 'lilac', who: '🦄', recipe: { red: 1, blue: 1, white: 1 } })).toBe(
-      'Try red, blue and white.',
-    );
+    expect(en.hintLine({ red: 1, white: 1 })).toBe('Try red and white.');
+    expect(en.hintLine({ red: 1, blue: 1, white: 1 })).toBe('Try red, blue and white.');
   });
 });
 

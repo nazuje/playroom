@@ -1,6 +1,6 @@
 import '@playroom/kit/kit.css';
 import './style.css';
-import { canSpeak, homeButton } from '@playroom/kit';
+import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, useClips } from '@playroom/kit';
 import { button, byId, el } from './dom.ts';
 import { Beaker } from './beaker.ts';
 import { COLORS } from './mix.ts';
@@ -10,30 +10,39 @@ import { playMake } from './modes/make.ts';
 import { showFree } from './modes/free.ts';
 import { runRound } from './round.ts';
 import { pickRound, QUESTIONS, TARGETS } from './rounds.ts';
-import { hush, loadProgress, say, sayAgain, showStars } from './screen.ts';
+import { hush, loadProgress, redrawStars, say, sayAgain, showStars, words } from './screen.ts';
+import { text } from './lang/index.ts';
+import type { Text } from './lang/en.ts';
+import clips from './lang/sl.clips.json';
+
+useClips(clips);
 
 const screen = byId('screen');
 const back = byId('back');
 const title = byId('title');
 const repeat = byId('repeat');
+const home = homeButton();
 
 let leaving = new AbortController();
 
-function enter(heading: string): AbortSignal {
+/** Opens a screen. The heading is read from the words each time, so it follows the language. */
+function enter(heading: (words: Text) => string, atStart = false): AbortSignal {
   leaving.abort();
   leaving = new AbortController();
   hush();
   screen.replaceChildren();
-  title.textContent = heading;
-  document.body.classList.toggle('at-start', heading === 'Color Lab');
-  back.hidden = heading === 'Color Lab';
-  repeat.hidden = !canSpeak() || heading === 'Color Lab';
+  words(leaving.signal, () => {
+    title.textContent = heading(text());
+  });
+  document.body.classList.toggle('at-start', atStart);
+  back.hidden = atStart;
+  repeat.hidden = !canSpeak() || atStart;
   window.scrollTo(0, 0);
   return leaving.signal;
 }
 
 function startGuess(): void {
-  const signal = enter('Guess the color');
+  const signal = enter((w) => w.modes.guess);
   showStars(loadProgress().stars.guess);
   runRound({
     mode: 'guess',
@@ -46,7 +55,7 @@ function startGuess(): void {
 }
 
 function startMake(): void {
-  const signal = enter('Make this color');
+  const signal = enter((w) => w.modes.make);
   showStars(loadProgress().stars.make);
   runRound({
     mode: 'make',
@@ -59,9 +68,9 @@ function startMake(): void {
 }
 
 function startFree(): void {
-  enter('Free paint');
+  const signal = enter((w) => w.modes.free);
   showStars(null);
-  showFree(screen);
+  showFree(screen, signal);
 }
 
 function guessArt(): HTMLElement {
@@ -84,22 +93,32 @@ function freeArt(): HTMLElement {
   return art;
 }
 
-function modeCard(label: string, art: HTMLElement, stars: number | null, onTap: () => void): HTMLButtonElement {
+function modeCard(
+  signal: AbortSignal,
+  label: (words: Text) => string,
+  art: HTMLElement,
+  stars: number | null,
+  onTap: () => void,
+): HTMLButtonElement {
   const card = button('mode-card', '', () => {
     onTap();
   });
-  card.append(art, el('span', 'mode-name', label));
+  const name = el('span', 'mode-name');
+  words(signal, () => {
+    name.textContent = label(text());
+  });
+  card.append(art, name);
   if (stars !== null) card.append(el('span', 'mode-stars', `⭐ ${stars}`));
   return card;
 }
 
 function showStart(): void {
-  enter('Color Lab');
+  const signal = enter((w) => w.title, true);
   showStars(null);
   const { stars } = loadProgress();
 
   const hero = new Beaker();
-  hero.setLabel('A bubbling beaker of purple paint');
+  words(signal, () => hero.setLabel(text().heroLabel));
   hero.show(COLORS.purple.hex, 68);
   hero.setBubbling(true);
   const heroWrap = el('div', 'hero');
@@ -107,18 +126,36 @@ function showStart(): void {
 
   const modes = el('div', 'modes');
   modes.append(
-    modeCard('Guess the color', guessArt(), stars.guess, startGuess),
-    modeCard('Make this color', makeArt(), stars.make, startMake),
-    modeCard('Free paint', freeArt(), null, startFree),
+    modeCard(signal, (w) => w.modes.guess, guessArt(), stars.guess, startGuess),
+    modeCard(signal, (w) => w.modes.make, makeArt(), stars.make, startMake),
+    modeCard(signal, (w) => w.modes.free, freeArt(), null, startFree),
   );
-  const listen = button('btn listen', '🔊 What can I do?', () => {
-    say('Welcome to the Color Lab! Guess the color. Make this color. Or free paint. Tap a picture to start!');
+  const listen = button('btn listen', '', () => {
+    say(() => text().welcome);
+  });
+  words(signal, () => {
+    listen.textContent = text().listen;
   });
   listen.hidden = !canSpeak();
   screen.append(heroWrap, modes, listen);
 }
 
-byId('topbar').prepend(homeButton());
+/** Everything outside the screens that carries words. */
+function drawPage(): void {
+  const page = text();
+  document.documentElement.lang = getLanguage();
+  document.title = page.title;
+  document.querySelector('meta[name="description"]')?.setAttribute('content', page.description);
+  home.setAttribute('aria-label', page.homeLabel);
+  back.setAttribute('aria-label', page.backLabel);
+  repeat.setAttribute('aria-label', page.repeatLabel);
+  redrawStars();
+}
+
+byId('topbar').prepend(home);
+repeat.after(languageButton(['en', 'sl']));
 back.addEventListener('click', showStart);
 repeat.addEventListener('click', sayAgain);
+onLanguageChange(drawPage);
 showStart();
+drawPage();

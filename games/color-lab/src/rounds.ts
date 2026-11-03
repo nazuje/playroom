@@ -1,13 +1,13 @@
-import { addParts, capitalize, COLORS, mix, PAINTS } from './mix.ts';
+import { addParts, COLORS, mix, PAINTS } from './mix.ts';
 import type { ColorId, Paint, Parts } from './mix.ts';
 
 export type Rng = () => number;
 export type Level = 0 | 1 | 2;
 
-export const LEVELS: { level: Level; name: string; emoji: string }[] = [
-  { level: 0, name: 'Easy', emoji: '🌱' },
-  { level: 1, name: 'Medium', emoji: '🌿' },
-  { level: 2, name: 'Hard', emoji: '🌳' },
+export const LEVELS: { level: Level; emoji: string }[] = [
+  { level: 0, emoji: '🌱' },
+  { level: 1, emoji: '🌿' },
+  { level: 2, emoji: '🌳' },
 ];
 
 export const ROUND_SIZE = 5;
@@ -87,12 +87,6 @@ export function questionAnswer(question: Question): ColorId {
   return answer;
 }
 
-/** "Red and yellow make orange!" */
-export function questionSentence(question: Question): string {
-  const { a, b } = question;
-  return `${capitalize(COLORS[a].name)} and ${COLORS[b].name} make ${COLORS[questionAnswer(question)].name}!`;
-}
-
 const DECOYS: ColorId[] = [
   'orange',
   'green',
@@ -167,20 +161,6 @@ export const TARGETS: Record<Level, Target[]> = {
 /** The size of the beaker in Make This Color: room to spare, but not endless. */
 export const MAKE_CAPACITY = 8;
 
-export function targetRequest(target: Target): string {
-  return `I need ${COLORS[target.color].name} paint!`;
-}
-
-function listWords(words: string[]): string {
-  const last = words.at(-1) ?? '';
-  return words.length < 2 ? last : `${words.slice(0, -1).join(', ')} and ${last}`;
-}
-
 export function recipePaints(recipe: Parts): Paint[] {
   return PAINTS.filter((paint) => (recipe[paint] ?? 0) > 0);
-}
-
-/** "Try red, blue and white." */
-export function hintLine(target: Target): string {
-  return `Try ${listWords(recipePaints(target.recipe))}.`;
 }

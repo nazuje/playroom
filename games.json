@@ -82,10 +82,17 @@
       "together"
     ],
     "languages": [
-      "en"
+      "en",
+      "sl"
     ],
     "color": "#8b5cf6",
-    "status": "ready"
+    "status": "ready",
+    "translations": {
+      "sl": {
+        "title": "Barvni laboratorij",
+        "tagline": "Mešaj barve in ugani, kaj nastane!"
+      }
+    }
   },
   {
     "slug": "word-garden",

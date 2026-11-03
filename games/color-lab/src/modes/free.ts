@@ -2,11 +2,12 @@ import { store } from '@playroom/kit';
 import { button, el, replayClass } from '../dom.ts';
 import { Beaker, fillFor } from '../beaker.ts';
 import { flyDrop, potButton } from '../pots.ts';
-import { capitalize, COLORS, mix, PAINTS, recipeText, totalParts } from '../mix.ts';
+import { COLORS, mix, PAINTS, totalParts } from '../mix.ts';
 import type { ColorId, Paint, Parts } from '../mix.ts';
 import { FILLS_KEY, PICTURES, readFills } from '../pictures.ts';
 import type { Fills, Picture } from '../pictures.ts';
-import { say } from '../screen.ts';
+import { say, words } from '../screen.ts';
+import { text } from '../lang/index.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const BLANK = '#ffffff';
@@ -16,14 +17,14 @@ function pictureSvg(picture: Picture, fills: Record<string, string>, onTap: (id:
   svg.setAttribute('viewBox', '0 0 400 320');
   svg.setAttribute('class', 'picture');
   svg.setAttribute('role', 'group');
-  svg.setAttribute('aria-label', `${picture.name} to paint`);
+  svg.setAttribute('aria-label', text().pictureLabel(text().pictures[picture.id]));
   for (const region of picture.regions) {
     const shape = document.createElementNS(SVG_NS, 'path');
     shape.setAttribute('d', region.d);
     shape.setAttribute('class', 'region');
     shape.setAttribute('role', 'button');
     shape.setAttribute('tabindex', '0');
-    shape.setAttribute('aria-label', region.label);
+    shape.setAttribute('aria-label', text().regions[region.id]);
     shape.style.fill = fills[region.id] ?? BLANK;
     shape.addEventListener('click', () => {
       onTap(region.id, shape);
@@ -40,7 +41,7 @@ function pictureSvg(picture: Picture, fills: Record<string, string>, onTap: (id:
   return svg;
 }
 
-export function showFree(root: HTMLElement): void {
+export function showFree(root: HTMLElement, signal: AbortSignal): void {
   let parts: Parts = {};
   let color: ColorId | null = null;
   let fills: Fills = readFills(store.get<unknown>(FILLS_KEY, null));
@@ -48,24 +49,24 @@ export function showFree(root: HTMLElement): void {
   let confirmingClear = false;
 
   const beaker = new Beaker();
-  beaker.setLabel('An empty beaker');
-  const name = el('p', 'color-name', 'Tap a paint!');
+  const name = el('p', 'color-name');
   const recipe = el('p', 'small-print');
   const pots = el('div', 'pots');
-  const emptyBtn = button('btn', '🫙 Empty', () => {
+  const emptyBtn = button('btn', '', () => {
     void emptyBeaker();
   });
   const canvas = el('div', 'canvas');
   const pickers = el('div', 'picture-picks');
-  const clearBtn = button('btn btn-coral', '🧽 Clear', tapClear);
+  const clearBtn = button('btn btn-coral', '', tapClear);
 
   function refresh(): void {
-    name.textContent = color ? capitalize(COLORS[color].name) : 'Tap a paint!';
+    const page = text();
+    name.textContent = color ? page.colorLabel(color) : page.tapAPaint;
     name.classList.toggle('color-name-on', color !== null);
     name.style.setProperty('--paint', color ? COLORS[color].hex : 'transparent');
-    recipe.textContent = recipeText(parts);
+    recipe.textContent = page.recipe(parts);
     emptyBtn.disabled = color === null;
-    beaker.setLabel(color ? `A beaker of ${COLORS[color].name} paint` : 'An empty beaker');
+    beaker.setLabel(color ? page.beakerOf(color) : page.emptyBeaker);
   }
 
   function addPaint(paint: Paint, pot: HTMLButtonElement): void {
@@ -76,7 +77,8 @@ export function showFree(root: HTMLElement): void {
     const stirred = before ? [COLORS[before].hex, COLORS[paint].hex] : [COLORS[paint].hex];
     flyDrop(pot, beaker.element, COLORS[paint].hex);
     beaker.stir(stirred, COLORS[color].hex, fillFor(totalParts(parts)));
-    if (color !== before) say(COLORS[color].name);
+    const made = color;
+    if (made !== before) say(() => text().colorSpoken(made));
     refresh();
   }
 
@@ -90,7 +92,7 @@ export function showFree(root: HTMLElement): void {
   function paintRegion(id: string, shape: SVGPathElement): void {
     if (!color) {
       beaker.wiggle();
-      say('Add some paint to the beaker first!');
+      say(() => text().paintFirst);
       return;
     }
     const hex = COLORS[color].hex;
@@ -107,18 +109,22 @@ export function showFree(root: HTMLElement): void {
     }
   }
 
+  function drawClear(): void {
+    clearBtn.textContent = confirmingClear ? text().clearSure : text().clear;
+  }
+
   function resetClear(): void {
     confirmingClear = false;
-    clearBtn.textContent = '🧽 Clear';
+    drawClear();
   }
 
   /** The picture is precious, so clearing takes two taps. */
   function tapClear(): void {
     if (!confirmingClear) {
       confirmingClear = true;
-      clearBtn.textContent = '🧽 Sure?';
+      drawClear();
       replayClass(clearBtn, 'wiggle');
-      say('Tap again to clear your picture.');
+      say(() => text().clearAsk);
       return;
     }
     resetClear();
@@ -128,18 +134,19 @@ export function showFree(root: HTMLElement): void {
   }
 
   for (const paint of PAINTS) {
-    pots.append(potButton(paint, (pot) => addPaint(paint, pot)));
+    pots.append(potButton(signal, paint, (pot) => addPaint(paint, pot)));
   }
-  for (const option of PICTURES) {
-    const pick = button('level-btn', `${option.emoji} ${option.name}`, () => {
+  const picks = PICTURES.map((option) => {
+    const pick = button('level-btn', '', () => {
       picture = option;
       resetClear();
       drawPicture();
-      say(option.name);
+      say(() => text().pictures[option.id]);
     });
     pick.dataset['picture'] = option.id;
-    pickers.append(pick);
-  }
+    return { option, pick };
+  });
+  pickers.append(...picks.map(({ pick }) => pick));
 
   const lab = el('div', 'free-lab');
   const bench = el('div', 'bench-wrap');
@@ -157,7 +164,12 @@ export function showFree(root: HTMLElement): void {
   layout.append(lab, studio);
   root.replaceChildren(layout);
 
-  refresh();
-  drawPicture();
-  say('Mix any paint you like, then tap the picture to paint it!');
+  words(signal, () => {
+    emptyBtn.textContent = text().empty;
+    for (const { option, pick } of picks) pick.textContent = `${option.emoji} ${text().pictures[option.id]}`;
+    drawClear();
+    refresh();
+    drawPicture();
+  });
+  say(() => text().freeIntro);
 }

@@ -1,22 +1,24 @@
 import { button, el, replayClass } from '../dom.ts';
 import { Beaker, fillFor } from '../beaker.ts';
 import { flyDrop, potButton } from '../pots.ts';
-import { COLORS, mix, PAINTS, recipeText, sameColor, totalParts } from '../mix.ts';
-import type { Paint, Parts } from '../mix.ts';
-import { hintLine, MAKE_CAPACITY, recipePaints, targetRequest } from '../rounds.ts';
+import { COLORS, mix, PAINTS, sameColor, totalParts } from '../mix.ts';
+import type { ColorId, Paint, Parts } from '../mix.ts';
+import { MAKE_CAPACITY, recipePaints } from '../rounds.ts';
 import type { Target } from '../rounds.ts';
 import type { Turn } from '../round.ts';
-import { say } from '../screen.ts';
+import { say, words } from '../screen.ts';
+import { text } from '../lang/index.ts';
 
-function requestCard(target: Target): HTMLElement {
-  const card = button('request', '', () => say(targetRequest(target)));
+function requestCard(signal: AbortSignal, target: Target): HTMLElement {
+  const request = (): string => text().request(target.color);
+  const card = button('request', '', () => say(request));
   const swatch = el('span', 'swatch');
   swatch.style.setProperty('--paint', COLORS[target.color].hex);
-  card.append(
-    el('span', 'who', target.who),
-    el('span', 'bubble-text', `“${targetRequest(target)}”`),
-    swatch,
-  );
+  const bubble = el('span', 'bubble-text');
+  words(signal, () => {
+    bubble.textContent = text().quote(request());
+  });
+  card.append(el('span', 'who', target.who), bubble, swatch);
   return card;
 }
 
@@ -25,30 +27,32 @@ export function playMake(target: Target, turn: Turn): void {
   let parts: Parts = {};
   let mixed = false;
   let finished = false;
+  /** What the beaker holds after the last mix, for its label. */
+  let shown: ColorId | null = null;
+  let messageLine = (): string => text().tapPaints;
 
   const beaker = new Beaker();
-  beaker.setLabel('An empty beaker');
-  const message = el('p', 'message', 'Tap the paints!');
+  const message = el('p', 'message');
   const recipe = el('p', 'small-print');
   const pots = el('div', 'pots');
   const actions = el('div', 'actions');
 
   const potFor = new Map<Paint, HTMLButtonElement>();
   for (const paint of PAINTS) {
-    const pot = potButton(paint, (tapped) => {
+    const pot = potButton(signal, paint, (tapped) => {
       addPaint(paint, tapped);
     });
     potFor.set(paint, pot);
     pots.append(pot);
   }
 
-  const emptyBtn = button('btn', '🫙 Empty', () => {
+  const emptyBtn = button('btn', '', () => {
     void clearBeaker();
   });
-  const mixBtn = button('btn btn-grape btn-big', 'Mix! 🌀', () => {
+  const mixBtn = button('btn btn-grape btn-big', '', () => {
     void runMix();
   });
-  const hintBtn = button('btn btn-sun', '💡 Hint', () => {
+  const hintBtn = button('btn btn-sun', '', () => {
     void showHint();
   });
   hintBtn.hidden = true;
@@ -58,14 +62,24 @@ export function playMake(target: Target, turn: Turn): void {
     const count = totalParts(parts);
     emptyBtn.disabled = count === 0;
     mixBtn.disabled = count === 0 || mixed;
-    recipe.textContent = recipeText(parts);
+    recipe.textContent = text().recipe(parts);
+  }
+
+  function showMessage(line: () => string): void {
+    messageLine = line;
+    message.textContent = line();
+  }
+
+  function labelBeaker(color: ColorId | null): void {
+    shown = color;
+    beaker.setLabel(color ? text().beakerOf(color) : text().emptyBeaker);
   }
 
   function addPaint(paint: Paint, pot: HTMLButtonElement): void {
     if (finished) return;
     if (totalParts(parts) >= MAKE_CAPACITY) {
       beaker.wiggle();
-      say('The beaker is full! Tap Mix.');
+      say(() => text().beakerFull);
       return;
     }
     clearHints();
@@ -75,7 +89,7 @@ export function playMake(target: Target, turn: Turn): void {
     const hex = COLORS[paint].hex;
     flyDrop(pot, beaker.element, hex);
     beaker.addBand(hex, fillFor(partsBelow + 1), partsBelow);
-    say(paint);
+    say(() => text().colorSpoken(paint));
     refresh();
   }
 
@@ -84,8 +98,8 @@ export function playMake(target: Target, turn: Turn): void {
     mixed = false;
     clearHints();
     refresh();
-    message.textContent = 'Tap the paints!';
-    beaker.setLabel('An empty beaker');
+    showMessage(() => text().tapPaints);
+    labelBeaker(null);
     await beaker.empty();
   }
 
@@ -94,11 +108,10 @@ export function playMake(target: Target, turn: Turn): void {
   }
 
   async function showHint(): Promise<void> {
-    const line = `Let's start fresh. ${hintLine(target)}`;
     await clearBeaker();
     for (const paint of recipePaints(target.recipe)) potFor.get(paint)?.classList.add('hinted');
-    message.textContent = hintLine(target);
-    say(line);
+    showMessage(() => text().hintLine(target.recipe));
+    say(() => text().hintSpoken(target.recipe));
   }
 
   async function runMix(): Promise<void> {
@@ -108,30 +121,30 @@ export function playMake(target: Target, turn: Turn): void {
     mixed = true;
     for (const control of [mixBtn, emptyBtn, hintBtn]) control.disabled = true;
     for (const pot of potFor.values()) pot.disabled = true;
-    message.textContent = '';
+    showMessage(() => '');
 
     await beaker.swirl(colors, COLORS[made].hex);
     if (signal.aborted) return;
 
     for (const pot of potFor.values()) pot.disabled = false;
-    beaker.setLabel(`A beaker of ${COLORS[made].name} paint`);
+    labelBeaker(made);
 
     if (sameColor(made, target.color)) {
       finished = true;
-      const line = `You made ${COLORS[target.color].name}! Thank you!`;
+      const line = (): string => text().madeIt(target.color);
       for (const pot of potFor.values()) pot.disabled = true;
       beaker.celebrate();
-      message.textContent = line;
+      showMessage(line);
       turn.win(beaker.element);
       say(line);
       actions.replaceChildren(turn.finish());
       return;
     }
 
-    const line = `Ooh, that made ${COLORS[made].name}! Try again!`;
+    const line = (): string => text().madeOther(made);
     beaker.wiggle();
     replayClass(message, 'wiggle');
-    message.textContent = line;
+    showMessage(line);
     hintBtn.hidden = false;
     hintBtn.disabled = false;
     refresh();
@@ -143,9 +156,16 @@ export function playMake(target: Target, turn: Turn): void {
   left.append(beaker.element, el('div', 'bench'));
   const right = el('div', 'panel');
   right.append(message, recipe, pots, actions);
-  layout.append(requestCard(target), left, right);
+  layout.append(requestCard(signal, target), left, right);
   area.append(layout);
-  refresh();
-  say(targetRequest(target));
+  words(signal, () => {
+    message.textContent = messageLine();
+    emptyBtn.textContent = text().empty;
+    mixBtn.textContent = text().mix;
+    hintBtn.textContent = text().hint;
+    labelBeaker(shown);
+    refresh();
+  });
+  say(() => text().request(target.color));
 }
 

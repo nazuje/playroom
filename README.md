@@ -11,7 +11,7 @@ Live at <https://nazuje.github.io/playroom/>, with games at `/playroom/<slug>/`.
 | [🌍 Globe Safari](games/globe-safari/README.md) | Spin the Earth and guess who lives there! | 3-9 |  | ✓ | 🇬🇧 |
 | [🦁 Memory Zoo / Živalski spomin](games/memory-zoo/README.md) | Find the animal pairs. Take turns! | 4-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🚂 Pattern Train / Vlakec vzorcev](games/pattern-train/README.md) | What comes next on the train? | 5-9 | ✓ |  | 🇬🇧 🇸🇮 |
-| [🎨 Color Lab](games/color-lab/README.md) | Mix paints and guess the color! | 4-9 | ✓ | ✓ | 🇬🇧 |
+| [🎨 Color Lab / Barvni laboratorij](games/color-lab/README.md) | Mix paints and guess the color! | 4-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [🌻 Word Garden / Besedni vrt](games/word-garden/README.md) | Spell little words to grow flowers! | 5-9 | ✓ | ✓ | 🇬🇧 🇸🇮 |
 | [👾 Yum Yum Monster / Lačna pošast](games/yum-yum-monster/README.md) | Feed the silly monster! | 3-5 | ✓ |  | 🇬🇧 🇸🇮 |
 | [🔷 Shape Friends / Prijatelji oblik](games/shape-friends/README.md) | Help every shape find its home! | 3-5 | ✓ |  | 🇬🇧 🇸🇮 |

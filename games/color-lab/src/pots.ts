@@ -1,6 +1,8 @@
-import { COLORS, capitalize } from './mix.ts';
+import { COLORS } from './mix.ts';
 import type { ColorId } from './mix.ts';
 import { el, prefersCalm, replayClass } from './dom.ts';
+import { text } from './lang/index.ts';
+import { words } from './screen.ts';
 
 /** A tin of paint with a dribble down the side. Art only, with no button around it. */
 export function tin(color: ColorId): HTMLElement {
@@ -11,11 +13,19 @@ export function tin(color: ColorId): HTMLElement {
   return can;
 }
 
-export function potButton(color: ColorId, onTap: (pot: HTMLButtonElement) => void): HTMLButtonElement {
+export function potButton(
+  signal: AbortSignal,
+  color: ColorId,
+  onTap: (pot: HTMLButtonElement) => void,
+): HTMLButtonElement {
   const pot = el('button', 'pot');
   pot.type = 'button';
-  pot.setAttribute('aria-label', `${capitalize(COLORS[color].name)} paint`);
-  pot.append(tin(color), el('span', 'pot-label', capitalize(COLORS[color].name)));
+  const label = el('span', 'pot-label');
+  words(signal, () => {
+    pot.setAttribute('aria-label', text().paintLabel(color));
+    label.textContent = text().colorLabel(color);
+  });
+  pot.append(tin(color), label);
   pot.addEventListener('click', () => {
     replayClass(pot, 'pot-tap');
     onTap(pot);

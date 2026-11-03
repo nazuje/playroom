@@ -1,14 +1,31 @@
+export type PictureId = 'butterfly' | 'house';
+
+export type RegionId =
+  | 'sky'
+  | 'wingTopLeft'
+  | 'wingTopRight'
+  | 'wingLowLeft'
+  | 'wingLowRight'
+  | 'spotLeft'
+  | 'spotRight'
+  | 'body'
+  | 'grass'
+  | 'sun'
+  | 'chimney'
+  | 'wall'
+  | 'roof'
+  | 'door'
+  | 'window';
+
+/** A part of a picture. Its name for screen readers lives in `src/lang/`, keyed by id. */
 export interface Region {
-  id: string;
-  /** Spoken if a grown-up wants it, and read out by screen readers. */
-  label: string;
+  id: RegionId;
   /** SVG path data, in the picture's 400 by 320 space. */
   d: string;
 }
 
 export interface Picture {
-  id: string;
-  name: string;
+  id: PictureId;
   emoji: string;
   regions: Region[];
 }
@@ -20,52 +37,50 @@ function circle(cx: number, cy: number, r: number): string {
 export const PICTURES: Picture[] = [
   {
     id: 'butterfly',
-    name: 'Butterfly',
     emoji: '🦋',
     regions: [
-      { id: 'sky', label: 'sky', d: 'M0 0H400V320H0Z' },
+      { id: 'sky', d: 'M0 0H400V320H0Z' },
       {
         id: 'wingTopLeft',
-        label: 'top left wing',
+       
         d: 'M196 150C180 90 120 20 60 26C14 30 6 92 30 136C52 176 130 184 196 164Z',
       },
       {
         id: 'wingTopRight',
-        label: 'top right wing',
+       
         d: 'M204 150C220 90 280 20 340 26C386 30 394 92 370 136C348 176 270 184 204 164Z',
       },
       {
         id: 'wingLowLeft',
-        label: 'bottom left wing',
+       
         d: 'M196 172C140 184 72 188 62 228C54 266 92 304 132 298C170 292 192 232 196 190Z',
       },
       {
         id: 'wingLowRight',
-        label: 'bottom right wing',
+       
         d: 'M204 172C260 184 328 188 338 228C346 266 308 304 268 298C230 292 208 232 204 190Z',
       },
-      { id: 'spotLeft', label: 'left spot', d: circle(100, 96, 42) },
-      { id: 'spotRight', label: 'right spot', d: circle(300, 96, 42) },
+      { id: 'spotLeft', d: circle(100, 96, 42) },
+      { id: 'spotRight', d: circle(300, 96, 42) },
       {
         id: 'body',
-        label: 'body',
+       
         d: 'M200 62C216 62 222 78 218 94C228 150 224 240 200 282C176 240 172 150 182 94C178 78 184 62 200 62Z',
       },
     ],
   },
   {
     id: 'house',
-    name: 'House',
     emoji: '🏠',
     regions: [
-      { id: 'sky', label: 'sky', d: 'M0 0H400V320H0Z' },
-      { id: 'grass', label: 'grass', d: 'M0 262C90 244 300 244 400 262V320H0Z' },
-      { id: 'sun', label: 'sun', d: circle(338, 62, 44) },
-      { id: 'chimney', label: 'chimney', d: 'M232 46H284V128H232Z' },
-      { id: 'wall', label: 'wall', d: 'M66 142H306V280H66Z' },
-      { id: 'roof', label: 'roof', d: 'M186 34L330 150H42Z' },
-      { id: 'door', label: 'door', d: 'M154 196C154 172 200 172 200 196V280H154Z' },
-      { id: 'window', label: 'window', d: 'M226 176H286V236H226Z' },
+      { id: 'sky', d: 'M0 0H400V320H0Z' },
+      { id: 'grass', d: 'M0 262C90 244 300 244 400 262V320H0Z' },
+      { id: 'sun', d: circle(338, 62, 44) },
+      { id: 'chimney', d: 'M232 46H284V128H232Z' },
+      { id: 'wall', d: 'M66 142H306V280H66Z' },
+      { id: 'roof', d: 'M186 34L330 150H42Z' },
+      { id: 'door', d: 'M154 196C154 172 200 172 200 196V280H154Z' },
+      { id: 'window', d: 'M226 176H286V236H226Z' },
     ],
   },
 ];
