@@ -1,11 +1,11 @@
-// One try at a level on screen: the answer tokens, cards or stepper, the machine running each answer, the funny
-// sputter for a wrong one, the wobble when a try runs out, the hint, the idle nudge and the one-time demos of
-// each new idea.
+// One try at a level on screen: a shift of three puzzles on the machine, the answer tokens, cards or stepper, the
+// machine running each answer, a lamp and a cheer for each solved puzzle, the funny sputter for a wrong one, the
+// wobble when a try runs out, the hint, the idle nudge and the one-time demos of each new idea.
 import { burst, say, speak, store } from '@playroom/kit';
 import { text } from '../lang/index.ts';
 import { MOST, type Level } from '../rules/levels.ts';
-import { hiddenSlot, isRuleAsk, ruleKey, steps, type Rule } from '../rules/machine.ts';
-import { answer, pickKey, startPlay, starsFor, type Pick, type Play, type Why } from '../rules/play.ts';
+import { cardKey, hiddenSlot, hiddenSlots, isRuleAsk, steps, type Card } from '../rules/machine.ts';
+import { answer, current, pickKey, startPlay, starsFor, type Pick, type Play, type Why } from '../rules/play.ts';
 import {
   checkSound,
   clankSound,
@@ -30,8 +30,11 @@ const CHECK_STAGGER_MS = 260;
 const WRONG_SHOW_MS = 1200;
 const WRONG_CARD_MS = 1700;
 const WIN_AFTER_MS = 1300;
-const FAIL_MS = 1300;
-const RETRY_ARMED_MS = 600;
+/** After a solved puzzle that isn't the last of the shift: the lamp lights, a cheer, then the next machine. */
+const NEXT_AFTER_MS = 1200;
+/** The miss that ends a try runs the machine quickly, so 🔄 is ready to tap within about a second. */
+const LOSING_RUN_MS = 320;
+const RETRY_ARMED_MS = 420;
 const MISSES_BEFORE_HINT = 2;
 const PEEK_MS = 1800;
 const IDLE_MS = 8000;
@@ -47,7 +50,8 @@ export interface WinReport {
 }
 
 export interface PlayScreenOptions {
-  level: Level;
+  /** The puzzles of this go, all of one level and one shape. */
+  shift: readonly Level[];
   board: BoardView;
   dock: HTMLElement;
   guide: Guide;
@@ -74,14 +78,17 @@ export interface PlayScreen {
   stop(): void;
 }
 
-type Demo = 'choose' | 'cards' | 'stepper' | 'backwards' | 'fix' | 'chain';
+type Demo = 'choose' | 'cards' | 'stepper' | 'backwards' | 'fix' | 'pair' | 'chain';
 
 export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
-  const { level, board, dock, guide } = options;
-  const { puzzle } = level;
-  const slot = hiddenSlot(puzzle);
-  const runMs = RUN_MS * puzzle.machines.length * 0.75;
-  let play: Play = startPlay(level);
+  const { shift, board, dock, guide } = options;
+  let play: Play = startPlay(shift);
+  // The puzzle on the machine now. They change together when the shift moves on.
+  let level = current(play);
+  let puzzle = level.puzzle;
+  let slot = hiddenSlot(puzzle);
+  let slots = hiddenSlots(puzzle);
+  let runMs = RUN_MS * puzzle.machines.length * 0.75;
   let busy = false;
   let stopped = false;
   let reactions = 0;
@@ -105,6 +112,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const body = document.body.dataset;
     body.misses = String(play.misses);
     body.variant = String(level.variant);
+    body.at = String(play.at);
     body.ask = puzzle.ask;
     body.status = play.won ? 'won' : play.failed ? (busy ? 'busy' : 'failed') : busy ? 'busy' : 'playing';
   }
@@ -114,6 +122,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     if (puzzle.ask === 'out') return words.askOut(puzzle.given as number);
     if (puzzle.ask === 'in') return words.askIn(puzzle.given as number);
     if (puzzle.ask === 'rule' && puzzle.machines.length > 1) return words.askSecond;
+    if (puzzle.ask === 'fix' && slots.length > 1) return words.askPair;
     return words.asks[puzzle.ask];
   }
 
@@ -124,8 +133,9 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
    * The idea, the examples on the first worlds, then the question. Each example lights up as it is read. A tap
    * stops the rest, so it never talks over what the child asked to hear.
    */
-  async function sayIntro(): Promise<void> {
-    await say(text().ideas[level.world]);
+  async function sayIntro(first: string): Promise<void> {
+    introGoing = true;
+    await say(first);
     if (level.answer !== 'picker' && (level.world === 'add' || level.world === 'take')) {
       for (const [index, pair] of puzzle.examples.entries()) {
         if (stopped || !introGoing) return;
@@ -146,8 +156,9 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   // ---------- The dock ----------
 
-  function numberButton(value: number, big: boolean): HTMLButtonElement {
+  function numberButton(value: number, big: boolean, at: number): HTMLButtonElement {
     const made = button(big ? 'choice' : 'pick');
+    made.style.setProperty('--i', String(at));
     made.dataset.choice = String(value);
     made.append(token(big ? 'token-choice' : 'token-pick', value));
     if (isTried(value)) {
@@ -159,16 +170,25 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     return made;
   }
 
-  function cardButton(rule: Rule): HTMLButtonElement {
-    const made = button('card-pick');
-    made.dataset.card = ruleKey(rule);
-    made.append(ruleFace(rule));
-    if (isTried(rule)) {
+  /** A card shows its rule, or for two shut plates its two rules in order with an arrow between. */
+  function cardButton(card: Card, at: number): HTMLButtonElement {
+    const made = button(card.length > 1 ? 'card-pick card-pair' : 'card-pick');
+    made.dataset.card = cardKey(card);
+    made.style.setProperty('--i', String(at));
+    card.forEach((rule, place) => {
+      if (place > 0) {
+        const arrow = element('span', 'card-then');
+        arrow.textContent = '➜';
+        made.append(arrow);
+      }
+      made.append(ruleFace(rule));
+    });
+    if (isTried(card)) {
       made.classList.add('tried');
       made.setAttribute('aria-disabled', 'true');
     }
-    made.setAttribute('aria-label', text().ruleLabel(rule));
-    onPress(made, () => onChoice(rule));
+    made.setAttribute('aria-label', card.map(text().ruleLabel).join(', '));
+    onPress(made, () => onChoice(card));
     return made;
   }
 
@@ -178,6 +198,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const face = show.querySelector<HTMLElement>('.token');
     if (face) fillToken(face, stepValue);
     show.classList.toggle('tried', isTried(stepValue));
+    // Once a number is set, ✓ pulses gently: that's where it goes in.
+    dock.querySelector('.step-ok')?.classList.toggle('ready', stepValue !== 0);
   }
 
   function holdButton(label: string, delta: number, show: HTMLElement): HTMLButtonElement {
@@ -222,6 +244,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     ok.textContent = '✓';
     ok.setAttribute('aria-label', text().ok);
     onPress(ok, () => onChoice(stepValue));
+    ok.classList.toggle('ready', stepValue !== 0);
     row.append(holdButton(text().less, -1, show), show, holdButton(text().more, 1, show), ok);
     return row;
   }
@@ -230,17 +253,18 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     const row = element('div', 'answer');
     if (level.answer === 'cards') {
       const holder = element('div', 'cards');
+      holder.dataset.count = String(level.cards.length);
       holder.append(...level.cards.map(cardButton));
       row.append(holder);
     } else if (usesStepper()) {
       row.append(stepperRow());
     } else if (level.answer === 'three') {
       const holder = element('div', 'choices');
-      holder.append(...level.numbers.map((value) => numberButton(value, true)));
+      holder.append(...level.numbers.map((value, at) => numberButton(value, true, at)));
       row.append(holder);
     } else {
       const grid = element('div', 'picker-grid');
-      grid.append(...level.numbers.map((value) => numberButton(value, false)));
+      grid.append(...level.numbers.map((value, at) => numberButton(value, false, at)));
       row.append(grid);
     }
     return row;
@@ -319,12 +343,27 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
 
   const answerSpot = (): Element | null => dock.querySelector('.answer');
 
+  /** Every answer bounces in turn, left to right, so the whole row says "pick one" and none looks like a hint. */
+  function waveAnswers(): void {
+    const row = answerSpot();
+    if (!row || calm()) return;
+    row.classList.remove('wave');
+    void (row as HTMLElement).offsetWidth;
+    row.classList.add('wave');
+    const count = row.querySelectorAll('.choice, .card-pick, .pick').length;
+    later(500 + count * 120, () => row.classList.remove('wave'));
+  }
+
   /**
-   * The next thing to tap: the thing asked about, which lights up the answers. Never one of the answers, since
-   * a hand resting on one would look like a hint.
+   * The next thing to tap. On the stepper that's + until the number has moved, then ✓. Anywhere else it's the
+   * thing asked about, which lights up the answers, while the answers bounce together. Never one answer alone,
+   * since a hand resting on one would look like a hint.
    */
   function nextThing(): Element | null {
-    return play.failed ? dock.querySelector('[data-action="retry"]') : askedThing();
+    if (play.failed) return dock.querySelector('[data-action="retry"]');
+    if (usesStepper()) return dock.querySelector(stepValue === 0 ? '[data-step="1"]' : '[data-action="ok"]');
+    waveAnswers();
+    return askedThing();
   }
 
   function armIdle(): void {
@@ -380,16 +419,24 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
       },
       {
         key: 'fix',
-        when: puzzle.ask === 'fix',
+        when: puzzle.ask === 'fix' && slots.length === 1,
         steps: [{ at: onBoard('.plate'), ms: 1100, className: 'shush', glow: answerSpot }, ...pairs, { at: onBoard('.plate'), ms: 1100, className: 'shush' }],
+      },
+      {
+        key: 'pair',
+        when: puzzle.ask === 'fix' && slots.length > 1,
+        steps: [
+          ...slots.map((at): DemoStep => ({ at: onBoard(`.plate[data-plate="${at}"]`), ms: 900, className: 'shush' })),
+          ...pairs,
+          { at: onBoard(`.plate[data-plate="${slots[0]}"]`), ms: 1300, glow: answerSpot },
+        ],
       },
       {
         key: 'chain',
         when: puzzle.machines.length > 1,
         steps: [
           { at: onBoard('.slot-in'), ms: 900, className: 'poked' },
-          { at: onBoard('.plate[data-plate="0"]'), ms: 1000, className: 'shush' },
-          { at: onBoard('.plate[data-plate="1"]'), ms: 1000, className: 'shush' },
+          ...puzzle.machines.map((_, at): DemoStep => ({ at: onBoard(`.plate[data-plate="${at}"]`), ms: 900, className: 'shush' })),
           { at: onBoard('.slot-out'), ms: 1000, className: 'poked' },
         ],
       },
@@ -426,31 +473,52 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   }
 
   /** Puts the answer into the machine and runs it. The machine takes about runMs, then the result lands. */
-  function runWith(pick: Pick, smoke: boolean): void {
+  function runWith(pick: Pick, smoke: boolean, ms = runMs): void {
     if (typeof pick !== 'number') {
-      board.setPlate(slot, pick);
-      document.querySelector(`#board .plate[data-plate="${slot}"]`)?.classList.add('trying');
-      void say(text().rules([pick]));
+      slots.forEach((at, place) => {
+        board.setPlate(at, pick[place]);
+        document.querySelector(`#board .plate[data-plate="${at}"]`)?.classList.add('trying');
+      });
+      void say(text().rules(pick));
     } else if (puzzle.ask === 'in') board.setSlot('in', pick);
-    later(typeof pick === 'number' && puzzle.ask === 'in' ? 220 : 0, () => {
+    later(typeof pick === 'number' && puzzle.ask === 'in' ? Math.min(220, ms / 3) : 0, () => {
       board.drop();
       clankSound();
     });
-    board.churn(runMs, smoke);
-    whirSound(runMs);
+    board.churn(ms, smoke);
+    whirSound(ms);
+  }
+
+  /** The next puzzle of the shift goes on the machine, with a cheer and its question. */
+  function nextPuzzle(): void {
+    level = current(play);
+    puzzle = level.puzzle;
+    slot = hiddenSlot(puzzle);
+    slots = hiddenSlots(puzzle);
+    runMs = RUN_MS * puzzle.machines.length * 0.75;
+    stepValue = 0;
+    busy = false;
+    board.show(level);
+    resetSlots();
+    board.setLamps(play.at, shift.length);
+    drawDock();
+    armIdle();
+    void sayIntro(text().nextOne);
+    if (totalMisses >= MISSES_BEFORE_HINT) later(DEMO_AFTER_MS, showHint);
   }
 
   function win(): void {
     guide.hide();
     mark();
-    options.onWin({ level, stars: starsFor(totalMisses), misses: totalMisses });
+    options.onWin({ level: shift[0], stars: starsFor(totalMisses), misses: totalMisses });
   }
 
-  function rightAnswer(pick: Pick): void {
+  function rightAnswer(pick: Pick, advanced: boolean): void {
     runWith(pick, false);
     later(runMs + 200, () => {
       if (typeof pick === 'number') {
-        if (puzzle.machines.length > 1) board.setMiddle(steps(puzzle.machines, puzzle.ask === 'out' ? (puzzle.given as number) : pick)[1]);
+        // Once it's right, the numbers in the pipes are no secret.
+        if (puzzle.machines.length > 1) board.setMiddle(steps(puzzle.machines, puzzle.ask === 'out' ? (puzzle.given as number) : pick).slice(1, -1));
         // The number that went in shows again in the hopper, beside the one that came out.
         if (puzzle.ask === 'out') {
           board.setSlot('in', puzzle.given as number);
@@ -468,13 +536,14 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     });
     const checked = typeof pick === 'number' ? 0 : puzzle.examples.length * CHECK_STAGGER_MS;
     later(runMs + 500 + checked, () => {
-      document.querySelector('#board .plate.trying')?.classList.remove('trying');
+      document.querySelectorAll('#board .plate.trying').forEach((plate) => plate.classList.remove('trying'));
       board.reveal();
       rightSound();
+      board.setLamps(play.won ? shift.length : play.at, shift.length);
       void say(typeof pick === 'number' ? text().cheer(pick) : text().cheerRule);
       void say(text().rules(puzzle.machines), { queue: true });
     });
-    later(runMs + 500 + checked + WIN_AFTER_MS, win);
+    later(runMs + 500 + checked + (advanced ? NEXT_AFTER_MS : WIN_AFTER_MS), advanced ? nextPuzzle : win);
   }
 
   /** The hopper and the chute as the puzzle starts: the given number, a "?", or nothing on rule questions. */
@@ -488,29 +557,30 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   function wrongAnswer(pick: Pick, why: Why): void {
     const reaction = reactions % text().oops.length;
     reactions += 1;
-    runWith(pick, true);
+    // The miss that ends a try runs fast and offers 🔄 at once. The wobble plays on behind it.
+    const losing = play.failed;
+    const ms = losing ? LOSING_RUN_MS : runMs;
+    runWith(pick, true, ms);
     missed();
-    later(runMs + 200, () => {
+    later(ms + (losing ? 20 : 200), () => {
       if (typeof pick !== 'number') {
         board.checks(why.checks ?? [], CHECK_STAGGER_MS);
         (why.checks ?? []).forEach((fits, at) => later(at * CHECK_STAGGER_MS, () => (fits ? checkSound(at) : sputterSound(0))));
       } else if (puzzle.ask === 'in') board.showGot(why.makes ?? null);
       else board.setSlot('out', pick, 'wrong');
       sputterSound(reaction);
-      void say(text().oops[reaction], { queue: true });
+      if (losing) fail();
+      else void say(text().oops[reaction], { queue: true });
     });
+    if (losing) return;
     const wait = runMs + 200 + (typeof pick === 'number' ? WRONG_SHOW_MS : WRONG_CARD_MS);
     later(wait, () => {
       if (typeof pick !== 'number') {
-        document.querySelector('#board .plate.trying')?.classList.remove('trying');
-        board.setPlate(slot, null);
+        document.querySelectorAll('#board .plate.trying').forEach((plate) => plate.classList.remove('trying'));
+        for (const at of slots) board.setPlate(at, null);
         board.checks(puzzle.examples.map(() => null), 0);
       }
       resetSlots();
-      if (play.failed) {
-        fail();
-        return;
-      }
       busy = false;
       drawDock();
       showHint();
@@ -524,10 +594,8 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     wobbleSound();
     void say(text().failed, { queue: true });
     if (totalFails === options.canSkipAfter) void say(text().canSkip, { queue: true });
-    later(FAIL_MS, () => {
-      busy = false;
-      drawDock();
-    });
+    busy = false;
+    drawDock();
   }
 
   function onChoice(pick: Pick): void {
@@ -538,7 +606,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     busy = true;
     guide.hide();
     drawDock();
-    if (result.right) rightAnswer(pick);
+    if (result.right) rightAnswer(pick, result.advanced);
     else wrongAnswer(pick, result.why);
   }
 
@@ -589,9 +657,10 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   drawDock();
   board.show(level);
   resetSlots();
+  board.setLamps(0, shift.length);
   document.addEventListener('pointerdown', woke, true);
   armIdle();
-  void sayIntro();
+  void sayIntro(text().ideas[level.world]);
   runDemo();
   if (totalMisses >= MISSES_BEFORE_HINT) later(DEMO_AFTER_MS, showHint);
 

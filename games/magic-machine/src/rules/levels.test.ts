@@ -10,13 +10,17 @@ import {
   MIDDLE_MOST,
   MOST,
   PICKER,
+  SHIFT,
+  SHIFTS,
+  shiftFor,
   shownNumbers,
+  trapsFor,
   temptingFor,
   VARIANTS,
   WORLDS,
   type Level,
 } from './levels.ts';
-import { apply, fits, fitsEach, hiddenSlot, isRuleAsk, readRule, ruleKey, ruleText, run, sameRule, steps, withRule, type Puzzle } from './machine.ts';
+import { apply, cardKey, fits, fitsEach, hiddenSlots, isRuleAsk, readRule, ruleKey, ruleText, run, sameCard, sameRule, steps, withCard, withRule, type Card, type Puzzle } from './machine.ts';
 import { answerKeys, inputsFor, machinesFitting, rulesFor, UNIVERSE } from './solve.ts';
 
 const pictureOf = (puzzle: Puzzle): string =>
@@ -26,7 +30,7 @@ const pictureOf = (puzzle: Puzzle): string =>
     `${puzzle.ask} ${puzzle.given ?? ''}`.trim(),
   ].join(' | ');
 
-const truthKey = (level: Level): string => (typeof level.truth === 'number' ? String(level.truth) : ruleKey(level.truth));
+const truthKey = (level: Level): string => (typeof level.truth === 'number' ? String(level.truth) : cardKey(level.truth));
 const firstOf = (world: string): Level => LEVELS.find((level) => level.world === world) as Level;
 
 describe('the machines', () => {
@@ -72,8 +76,8 @@ describe('the machines', () => {
 });
 
 describe('the staircase', () => {
-  it('has 24 levels in five worlds, in order', () => {
-    expect(LEVELS.map((level) => level.id)).toEqual(Array.from({ length: 24 }, (_, at) => at + 1));
+  it('has 25 levels in five worlds, in order', () => {
+    expect(LEVELS.map((level) => level.id)).toEqual(Array.from({ length: 25 }, (_, at) => at + 1));
     expect([...new Set(LEVELS.map((level) => level.world))]).toEqual(WORLDS);
     for (let at = 1; at < LEVELS.length; at += 1) {
       expect(WORLDS.indexOf(LEVELS[at].world)).toBeGreaterThanOrEqual(WORLDS.indexOf(LEVELS[at - 1].world));
@@ -98,6 +102,16 @@ describe('the staircase', () => {
     expect(levelFor(3, VARIANTS + 1)).toBe(ALL_VARIANTS[2][1]);
   });
 
+  it('makes each go a shift of three fresh puzzles, and every go before they come round again a new shift', () => {
+    expect(VARIANTS).toBe(SHIFT * SHIFTS);
+    for (const { id } of LEVELS) {
+      const seen = Array.from({ length: SHIFTS }, (_, go) => shiftFor(id, go)).flat();
+      expect(seen.map((level) => level.variant)).toEqual(Array.from({ length: VARIANTS }, (_, at) => at));
+      expect(shiftFor(id, SHIFTS)).toEqual(shiftFor(id, 0));
+      expect(shiftFor(id, 0)).toHaveLength(SHIFT);
+    }
+  });
+
   it('teaches one idea per world, from adding to two machines run backwards', () => {
     expect(WORLDS.map((world) => firstOf(world).puzzle.ask)).toEqual(['out', 'out', 'out', 'in', 'out']);
     expect(WORLDS.map((world) => firstOf(world).answer)).toEqual(['three', 'three', 'picker', 'three', 'picker']);
@@ -108,11 +122,11 @@ describe('the staircase', () => {
     expect(opsIn('take').sort()).toEqual(['add', 'mul', 'sub']);
     expect(EVERY_PUZZLE.some((level) => level.world === 'mix' && level.puzzle.machines.some((rule) => rule.op === 'div'))).toBe(true);
     expect(EVERY_PUZZLE.filter((level) => level.world === 'back').map((level) => level.puzzle.ask)).toContain('fix');
-    for (const level of EVERY_PUZZLE) expect(level.puzzle.machines.length).toBe(level.world === 'chain' ? 2 : 1);
+    for (const level of EVERY_PUZZLE) expect(level.puzzle.machines.length).toBe(level.world === 'chain' ? (level.id >= 24 ? 3 : 2) : 1);
     const last = ALL_VARIANTS.at(-1) as Level[];
     for (const level of last) {
       expect(level.puzzle.ask).toBe('in');
-      expect(level.puzzle.open).toEqual([false, false]);
+      expect(level.puzzle.open).toEqual([false, true, false]);
       expect(level.puzzle.machines.some((rule) => rule.op === 'mul' || rule.op === 'div')).toBe(true);
     }
   });
@@ -173,25 +187,36 @@ describe('the staircase', () => {
 });
 
 describe('the grown-up end', () => {
-  const last = ALL_VARIANTS.slice(-3).flat();
+  const byId = (id: number): readonly Level[] => ALL_VARIANTS[id - 1];
+  const hard = [22, 23, 24, 25].flatMap(byId);
 
-  it('runs two machines backwards, the second hidden and then both', () => {
-    expect(ALL_VARIANTS[22].every((level) => level.puzzle.ask === 'in' && level.puzzle.open.join() === 'true,false')).toBe(true);
-    expect(ALL_VARIANTS[23].every((level) => level.puzzle.ask === 'in' && level.puzzle.open.join() === 'false,false')).toBe(true);
-    expect(ALL_VARIANTS[23].every((level) => level.puzzle.examples.length === 2)).toBe(true);
+  it('fixes both machines at once, then runs two and three machines backwards', () => {
+    expect(byId(22).every((level) => level.puzzle.ask === 'fix' && level.puzzle.open.join() === 'false,false' && level.cards.length === 5)).toBe(true);
+    expect(byId(23).every((level) => level.puzzle.ask === 'in' && level.puzzle.open.join() === 'true,false')).toBe(true);
+    expect(byId(24).every((level) => level.puzzle.ask === 'in' && level.puzzle.open.join() === 'true,false,true')).toBe(true);
+    expect(byId(25).every((level) => level.puzzle.ask === 'in' && level.puzzle.open.join() === 'false,true,false')).toBe(true);
+    for (const level of hard) expect(level.puzzle.examples.length).toBe(2);
   });
 
-  it('beats the shortcut: no single rule explains the examples on the last three levels', () => {
-    for (const level of last) {
+  it('beats the shortcut: no single rule explains the examples on the last four levels', () => {
+    for (const level of hard) {
       expect(UNIVERSE.some((rule) => fitsEach([rule], level.puzzle.examples).every(Boolean)), `level ${level.id}.${level.variant}`).toBe(false);
     }
   });
 
-  it('needs both examples on the last level: either one alone allows other answers', () => {
-    for (const level of ALL_VARIANTS[23]) {
+  it('pins two hidden machines down only with both examples: either one alone fits many pairs and other answers', () => {
+    for (const level of [...byId(22), ...byId(25)]) {
       for (const pair of level.puzzle.examples) {
-        expect(answerKeys({ ...level.puzzle, examples: [pair] }).length, `level 24.${level.variant}`).toBeGreaterThan(1);
+        const alone = { ...level.puzzle, examples: [pair] };
+        expect(machinesFitting(alone).length, `level ${level.id}.${level.variant}`).toBeGreaterThan(5);
+        expect(answerKeys(alone).length, `level ${level.id}.${level.variant}`).toBeGreaterThan(1);
       }
+    }
+  });
+
+  it('lets only one pair of parts in one order do the job of two hidden machines', () => {
+    for (const level of byId(22)) {
+      expect(machinesFitting(level.puzzle).map(cardKey)).toEqual([cardKey(level.truth as Card)]);
     }
   });
 });
@@ -212,27 +237,35 @@ describe('the answers on offer', () => {
     for (const level of EVERY_PUZZLE.filter((one) => one.answer === 'picker')) expect(level.numbers).toEqual(PICKER);
   });
 
-  it('offers three different rule cards with exactly one that fits every example', () => {
+  it('offers different rule cards with exactly one that fits every example: three early, four or five later', () => {
     for (const level of EVERY_PUZZLE.filter((one) => one.answer === 'cards')) {
       expect(isRuleAsk(level.puzzle.ask)).toBe(true);
-      expect(new Set(level.cards.map(ruleKey)).size).toBe(3);
-      const slot = hiddenSlot(level.puzzle);
-      const working = level.cards.filter((card) => fitsEach(withRule(level.puzzle.machines, slot, card), level.puzzle.examples).every(Boolean));
+      expect(new Set(level.cards.map(cardKey)).size).toBe(level.cards.length);
+      expect(level.cards.length).toBe(level.world === 'take' ? 3 : level.id >= 21 ? 5 : 4);
+      for (const card of level.cards) expect(card).toHaveLength(hiddenSlots(level.puzzle).length);
+      const working = level.cards.filter((card) => fitsEach(withCard(level.puzzle, card), level.puzzle.examples).every(Boolean));
       expect(working).toEqual([level.truth]);
     }
   });
 
   it('puts the right card in every place across a level, so its place gives nothing away', () => {
     for (const variants of ALL_VARIANTS.filter((list) => list[0].answer === 'cards')) {
-      const places = new Set(variants.map((level) => level.cards.findIndex((card) => sameRule(card, level.truth as never))));
-      expect(places.size).toBeGreaterThanOrEqual(2);
+      const places = new Set(variants.map((level) => level.cards.findIndex((card) => sameCard(card, level.truth as Card))));
+      expect(places.size).toBeGreaterThanOrEqual(3);
     }
   });
 
-  it('makes fixing a machine a real check: every wrong part gets some example right', () => {
-    for (const level of EVERY_PUZZLE.filter((one) => one.puzzle.ask === 'fix')) {
-      const wrong = level.cards.filter((card) => !sameRule(card, level.truth as never));
-      for (const card of wrong) expect(fitsEach([card], level.puzzle.examples).some(Boolean), `level ${level.id}.${level.variant}`).toBe(true);
+  it('keeps every wrong card tempting after world 2: each one gets some example right', () => {
+    for (const level of EVERY_PUZZLE.filter((one) => one.answer === 'cards' && one.world !== 'take')) {
+      const wrong = level.cards.filter((card) => !sameCard(card, level.truth as Card));
+      for (const card of wrong) expect(trapsFor(level.puzzle, card), `level ${level.id}.${level.variant} ${cardKey(card)}`).toBe(true);
+    }
+  });
+
+  it('makes fixing a single machine a real check: every wrong part alone gets some example right', () => {
+    for (const level of EVERY_PUZZLE.filter((one) => one.puzzle.ask === 'fix' && one.puzzle.machines.length === 1)) {
+      const wrong = level.cards.filter((card) => !sameCard(card, level.truth as Card));
+      for (const card of wrong) expect(fitsEach(card, level.puzzle.examples).some(Boolean), `level ${level.id}.${level.variant}`).toBe(true);
     }
   });
 });

@@ -93,10 +93,13 @@ export const ready = (page) =>
     { timeout: 10000 },
   );
 
-/** Picks a number: straight from the tokens, or with the −/+ stepper and ✓ on a phone. A rule is a card. */
+/** A card's key, as the game writes it on the card: "mul2 add1". */
+export const cardKey = (card) => card.map((rule) => `${rule.op}${rule.n}`).join(' ');
+
+/** Picks a number: straight from the tokens, or with the −/+ stepper and ✓ on a phone. A card is a list of rules. */
 export async function answer(page, pick) {
   if (typeof pick !== 'number') {
-    await touch(page, `#dock [data-card="${pick.op}${pick.n}"]`);
+    await touch(page, `#dock [data-card="${cardKey(pick)}"]`);
     return;
   }
   if (await page.locator('#dock .stepper').count()) {
@@ -111,6 +114,23 @@ export async function answer(page, pick) {
     return;
   }
   await touch(page, `#dock [data-choice="${pick}"]`);
+}
+
+/**
+ * After an answer: waits until the shift has moved on to its next puzzle and takes answers again, the level is
+ * won, or the try has run out. Says which.
+ */
+export async function afterAnswer(page, atBefore) {
+  // An answer makes the machine busy at once, on the tap. It is done when it takes answers again, or won or failed.
+  await page.waitForFunction(
+    () => document.body.dataset.screen !== 'play' || ['playing', 'failed'].includes(document.body.dataset.status ?? ''),
+    null,
+    { timeout: 12000 },
+  );
+  const { screen, status, at } = await page.evaluate(() => ({ ...document.body.dataset }));
+  if (screen === 'won') return 'won';
+  if (status === 'failed') return 'failed';
+  return at !== String(atBefore) ? 'next' : 'again';
 }
 
 /** The puzzle on screen: the level and which of its fresh puzzles this is. */

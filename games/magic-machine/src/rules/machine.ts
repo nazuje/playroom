@@ -81,14 +81,35 @@ export const fits = (machines: readonly Rule[], pair: Pair): boolean => run(mach
 /** Which examples the machines get right, in order. */
 export const fitsEach = (machines: readonly Rule[], examples: readonly Pair[]): boolean[] => examples.map((pair) => fits(machines, pair));
 
-/** The machine a rule question asks about: the one with its plate shut. */
+/** The machine a rule question asks about first: the first one with its plate shut. */
 export function hiddenSlot(puzzle: Puzzle): number {
   return puzzle.open.findIndex((open) => !open);
 }
+
+/** Every machine with its plate shut, first machine first. */
+export const hiddenSlots = (puzzle: Puzzle): number[] => puzzle.open.flatMap((open, at) => (open ? [] : [at]));
 
 /** The machines with one swapped, for trying a rule card in the hidden slot. */
 export function withRule(machines: readonly Rule[], slot: number, rule: Rule): Rule[] {
   return machines.map((machine, at) => (at === slot ? rule : machine));
 }
+
+/**
+ * A rule card fills every shut plate, in order: one rule for one shut plate, or a pair of rules in the right
+ * order for two.
+ */
+export type Card = readonly Rule[];
+
+export const cardKey = (card: Card): string => card.map(ruleKey).join(' ');
+export const sameCard = (a: Card, b: Card): boolean => cardKey(a) === cardKey(b);
+
+/** The machines with a card's rules in the shut plates. */
+export function withCard(puzzle: Puzzle, card: Card): Rule[] {
+  const slots = hiddenSlots(puzzle);
+  return puzzle.machines.map((machine, at) => (slots.includes(at) ? card[slots.indexOf(at)] : machine));
+}
+
+/** The rules behind the shut plates, as a card. */
+export const hiddenCard = (puzzle: Puzzle): Rule[] => hiddenSlots(puzzle).map((at) => puzzle.machines[at]);
 
 export const isRuleAsk = (ask: Ask): boolean => ask === 'rule' || ask === 'fix';

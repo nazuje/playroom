@@ -26,7 +26,7 @@ describe('Slovenian', () => {
       if (puzzle.ask === 'out') expect(lines).toContain(sl.askOut(puzzle.given as number));
       if (puzzle.ask === 'in') expect(lines).toContain(sl.askIn(puzzle.given as number));
       if (typeof level.truth === 'number') expect(lines).toContain(sl.cheer(level.truth));
-      for (const card of level.cards) expect(lines).toContain(sl.rules([card]));
+      for (const card of level.cards) expect(lines).toContain(sl.rules(card));
     }
     for (const rule of KID_RULES) expect(lines).toContain(sl.rules([rule]));
   });

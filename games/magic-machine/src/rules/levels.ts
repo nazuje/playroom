@@ -1,12 +1,30 @@
 // The staircase. Each level is made by a small pure generator from a fixed seed, so the numbers are the same on
 // every device and every run, and the tests can prove each puzzle has exactly one answer.
-import { fitsEach, hiddenSlot, isRuleAsk, readRule, ruleKey, run, sameRule, steps, withRule, type Ask, type Pair, type Puzzle, type Rule } from './machine.ts';
+import {
+  cardKey,
+  fitsEach,
+  hiddenCard,
+  hiddenSlot,
+  hiddenSlots,
+  isRuleAsk,
+  readRule,
+  ruleKey,
+  run,
+  sameCard,
+  steps,
+  withCard,
+  type Ask,
+  type Card,
+  type Pair,
+  type Puzzle,
+  type Rule,
+} from './machine.ts';
 import { answerKeys, rulesFor, UNIVERSE } from './solve.ts';
 
 export type WorldId = 'add' | 'take' | 'mix' | 'back' | 'chain';
 export const WORLDS: readonly WorldId[] = ['add', 'take', 'mix', 'back', 'chain'];
 
-/** Three big number tokens, three rule cards, or every number from 0 to 20. */
+/** Three big number tokens, rule cards, or every number from 0 to 20. */
 export type AnswerKind = 'three' | 'cards' | 'picker';
 
 export interface Level {
@@ -18,14 +36,17 @@ export interface Level {
   answer: AnswerKind;
   /** The numbers offered, smallest first. Empty on rule-card levels. */
   numbers: number[];
-  /** The rule cards offered, in the order they sit. Empty on number levels. */
-  cards: Rule[];
-  /** The right answer: a number, or the rule behind the shut plate. */
-  truth: number | Rule;
+  /** The rule cards offered, in the order they sit, each filling every shut plate. Empty on number levels. */
+  cards: Card[];
+  /** The right answer: a number, or the rules behind the shut plates. */
+  truth: number | Card;
 }
 
-/** Puzzles per level. A level can be skipped after 5 failed tries, so a child never sees the same one twice in a row of tries. */
-export const VARIANTS = 5;
+/** Puzzles in one go at a level: a short shift at the machine, all of the same shape. */
+export const SHIFT = 3;
+/** Shifts per level before they come round again. A level can be skipped after 5 failed tries, so a child never meets the same puzzle twice in a row of tries. */
+export const SHIFTS = 5;
+export const VARIANTS = SHIFT * SHIFTS;
 
 export const MOST = 20;
 /** A number on its way between two machines may go this high. Everything the player sees stays from 0 to 20. */
@@ -53,7 +74,6 @@ export function seeded(seed: number): () => number {
 }
 
 type Random = () => number;
-const int = (random: Random, low: number, high: number): number => low + Math.floor(random() * (high - low + 1));
 const pick = <T>(random: Random, list: readonly T[]): T => list[Math.floor(random() * list.length)];
 
 function takeSome<T>(random: Random, list: readonly T[], count: number): T[] {
@@ -82,6 +102,8 @@ interface Spec {
   trap?: 'one' | 'all';
   /** The wrong cards to draw from, when the level should keep to rules a child has met. */
   cards?: string[];
+  /** How many cards to offer. Three early on, four or five later, so a guess rarely lands. */
+  cardCount?: number;
   /** At least one machine multiplies or halves, so no single plus or minus does the same job. */
   scale?: boolean;
   /** No single machine could have made the examples, so the shortcut of one plus, minus or times fails. */
@@ -93,6 +115,13 @@ const MIXED = ['+4', '+5', '+6', '+7', '+8', '+9', '-3', '-4', '-5', 'x2', 'x3',
 const SMALL = ['+1', '+2', '+3', '-1', '-2', 'x2'];
 const FIRST = ['x2', 'x3', '+1', '+2', '+3'];
 const SECOND = ['+1', '+2', '+3', '+4', '+5', '-1', '-2', '-3', 'x2'];
+const THIRD = ['/2', 'x2', '+1', '+2', '+3', '-1', '-2'];
+/** Wrong parts for the hidden second machine: every kid rule and bigger pluses and minuses, so there are always four that fit some example. */
+const WIDE = [
+  ...KID_RULES.map((rule) => `${{ add: '+', sub: '-', mul: 'x', div: '/' }[rule.op]}${rule.n}`),
+  ...Array.from({ length: 10 }, (_, at) => `+${at + 11}`),
+  ...Array.from({ length: 5 }, (_, at) => `-${at + 6}`),
+];
 
 const SPECS: Spec[] = [
   // 1. Adding machines: what comes out?
@@ -106,7 +135,7 @@ const SPECS: Spec[] = [
   { world: 'take', ask: 'out', answer: 'three', pools: [['x2']], open: [false], examples: 2, inputs: [1, 7] },
   { world: 'take', ask: 'out', answer: 'three', pools: [['-1', '-2', 'x2', '+2']], open: [false], examples: 2, inputs: [2, 9] },
   { world: 'take', ask: 'rule', answer: 'cards', pools: [['+2', '-1', 'x2', '+1', '-2']], open: [false], examples: 2, inputs: [1, 8], cards: SMALL },
-  { world: 'take', ask: 'rule', answer: 'cards', pools: [['x2', '+3', '-2', '+2', '-1']], open: [false], examples: 2, inputs: [1, 8], trap: 'one', cards: [...SMALL, '+3'] },
+  { world: 'take', ask: 'rule', answer: 'cards', pools: [['x2', '+3', '-2', '+2', '-1']], open: [false], examples: 2, inputs: [1, 8], trap: 'one', cards: SMALL },
 
   // 3. Secret rules, from three examples, answered with 0 to 20.
   { world: 'mix', ask: 'out', answer: 'picker', pools: [['+10']], open: [false], examples: 3, inputs: [1, 10] },
@@ -117,19 +146,23 @@ const SPECS: Spec[] = [
 
   // 4. Backwards: what went in? And fix the machine with the one part that works for every example.
   { world: 'back', ask: 'in', answer: 'three', pools: [['+1', '+2', '+3', '-1', '-2']], open: [true], examples: 1, inputs: [1, 12] },
-  { world: 'back', ask: 'fix', answer: 'cards', pools: [['x2', 'x3', '+2', '+3', '+4', '+5', '-2', '/2']], open: [false], examples: 3, inputs: [1, 10], trap: 'all' },
+  // Only times and half machines can have three wrong parts that each fit an example, such as +2, +3 and +5 for double.
+  { world: 'back', ask: 'fix', answer: 'cards', pools: [['x2', 'x3', '/2']], open: [false], examples: 3, inputs: [1, 10], trap: 'all', cardCount: 4 },
   { world: 'back', ask: 'in', answer: 'picker', pools: [ADD_SOME], open: [false], examples: 2, inputs: [1, 20] },
   { world: 'back', ask: 'in', answer: 'picker', pools: [['x2', 'x3', '/2']], open: [false], examples: 2, inputs: [1, 20] },
   { world: 'back', ask: 'in', answer: 'picker', pools: [MIXED], open: [false], examples: 2, inputs: [1, 20] },
 
-  // 5. Two machines in a row: through both, the hidden second one, and all the way back.
+  // 5. Machines in a row: through both, the hidden second one, fixing both at once with the parts in the right
+  // order, and all the way back.
   { world: 'chain', ask: 'out', answer: 'picker', pools: [FIRST, SECOND], open: [true, true], examples: 1, inputs: [1, 8] },
-  { world: 'chain', ask: 'rule', answer: 'cards', pools: [FIRST, SECOND], open: [true, false], examples: 2, inputs: [1, 8], trap: 'one' },
-  { world: 'chain', ask: 'out', answer: 'picker', pools: [FIRST, SECOND], open: [true, false], examples: 2, inputs: [1, 8], scale: true, notSingle: true },
-  // The grown-up end: back through two machines with the second one hidden, then with both hidden and only two
-  // examples, where no single rule explains them.
+  { world: 'chain', ask: 'rule', answer: 'cards', pools: [FIRST, SECOND], open: [true, false], examples: 2, inputs: [1, 8], trap: 'all', cardCount: 5, cards: WIDE },
+  { world: 'chain', ask: 'fix', answer: 'cards', pools: [FIRST, SECOND], open: [false, false], examples: 2, inputs: [1, 8], trap: 'all', cardCount: 5, scale: true, notSingle: true },
+  // The grown-up end: back through two machines with the second hidden, then back through three machines with
+  // one and then two of them hidden. No single rule explains the examples, and on the last level each example
+  // alone fits many pairs of machines, so only both together pin them down.
   { world: 'chain', ask: 'in', answer: 'picker', pools: [FIRST, SECOND], open: [true, false], examples: 2, inputs: [1, 9], scale: true, notSingle: true },
-  { world: 'chain', ask: 'in', answer: 'picker', pools: [FIRST, SECOND], open: [false, false], examples: 2, inputs: [1, 9], scale: true, notSingle: true },
+  { world: 'chain', ask: 'in', answer: 'picker', pools: [FIRST, SECOND, THIRD], open: [true, false, true], examples: 2, inputs: [1, 9], scale: true, notSingle: true },
+  { world: 'chain', ask: 'in', answer: 'picker', pools: [FIRST, SECOND, THIRD], open: [false, true, false], examples: 2, inputs: [1, 9], scale: true, notSingle: true },
 ];
 
 const SEED = 20261104;
@@ -154,28 +187,42 @@ function travelsWell(machines: readonly Rule[], from: number): boolean {
   return seen.every((value, at) => value >= 0 && value <= (at === 0 || at === seen.length - 1 ? MOST : MIDDLE_MOST));
 }
 
-/** A wrong card trips up a quick checker when it gets some example right, alone or in place of both machines. */
-function trapsFor(puzzle: Puzzle, slot: number, card: Rule): boolean {
-  if (fitsEach(withRule(puzzle.machines, slot, card), puzzle.examples).some(Boolean)) return true;
-  return puzzle.machines.length > 1 && fitsEach([card], puzzle.examples).some(Boolean);
+/**
+ * A wrong card trips up a quick checker when it gets some example right: in the shut plates, or, for one shut
+ * plate among several machines, as if it were the only machine.
+ */
+export function trapsFor(puzzle: Puzzle, card: Card): boolean {
+  if (fitsEach(withCard(puzzle, card), puzzle.examples).some(Boolean)) return true;
+  return card.length === 1 && puzzle.machines.length > 1 && fitsEach(card, puzzle.examples).some(Boolean);
 }
 
-function cardsFor(spec: Spec, random: Random, puzzle: Puzzle): Rule[] | null {
-  const slot = hiddenSlot(puzzle);
-  const truth = puzzle.machines[slot];
-  const offered = spec.cards ? spec.cards.map(readRule) : KID_RULES;
-  const others = offered.filter((rule) => !sameRule(rule, truth));
-  const traps = others.filter((rule) => trapsFor(puzzle, slot, rule));
-  let wrong: Rule[];
-  if (spec.trap === 'all') wrong = takeSome(random, traps, 2);
+/** Every card the level could offer: one rule for one shut plate, or a pair from the machines' pools for two. */
+function possibleCards(spec: Spec, puzzle: Puzzle): Card[] {
+  const slots = hiddenSlots(puzzle);
+  const all: Card[] =
+    slots.length === 1
+      ? (spec.cards ? spec.cards.map(readRule) : KID_RULES).map((rule) => [rule])
+      : (([first, second]) => first.flatMap((one) => second.map((two) => [one, two])))(slots.map((at) => spec.pools[at].map(readRule)));
+  return [...new Map(all.map((card) => [cardKey(card), card])).values()];
+}
+
+function cardsFor(spec: Spec, random: Random, puzzle: Puzzle, variant: number): Card[] | null {
+  const truth = hiddenCard(puzzle);
+  const count = spec.cardCount ?? 3;
+  const others = possibleCards(spec, puzzle).filter((card) => !sameCard(card, truth));
+  const traps = others.filter((card) => trapsFor(puzzle, card));
+  // With two shut plates, the same two parts the wrong way round is the trap that teaches order.
+  const swapped = truth.length === 2 ? traps.filter((card) => sameCard(card, [truth[1], truth[0]])) : [];
+  let wrong: Card[];
+  if (spec.trap === 'all') wrong = [...swapped, ...takeSome(random, traps.filter((card) => !swapped.includes(card)), count - 1 - swapped.length)];
   else if (spec.trap === 'one') {
     const first = takeSome(random, traps, 1);
-    wrong = [...first, ...takeSome(random, others.filter((rule) => !first.some((one) => sameRule(one, rule))), 1)];
-  } else wrong = takeSome(random, others, 2);
-  if (wrong.length < 2) return null;
-  // The right card sits anywhere, so its place gives nothing away.
+    wrong = [...first, ...takeSome(random, others.filter((card) => !first.includes(card)), count - 2)];
+  } else wrong = takeSome(random, others, count - 1);
+  if (wrong.length < count - 1) return null;
+  // The right card takes every place in turn across a level's puzzles, so its place gives nothing away.
   const cards = [...wrong];
-  cards.splice(int(random, 0, 2), 0, truth);
+  cards.splice((variant * (count === 3 ? 2 : 3) + 1) % count, 0, truth);
   return cards;
 }
 
@@ -193,7 +240,7 @@ function threeNumbers(random: Random, puzzle: Puzzle, answer: number): number[] 
 
 interface Made {
   puzzle: Puzzle;
-  truth: number | Rule;
+  truth: number | Card;
 }
 
 function attempt(spec: Spec, random: Random, machines: Rule[]): Made | null {
@@ -215,16 +262,17 @@ function attempt(spec: Spec, random: Random, machines: Rule[]): Made | null {
   const given = spec.ask === 'out' ? last : spec.ask === 'in' ? (run(machines, last) as number) : null;
   const puzzle: Puzzle = { machines, open: [...spec.open], examples, ask: spec.ask, given };
   const slot = hiddenSlot(puzzle);
-  const truth: number | Rule = isRuleAsk(spec.ask) ? machines[slot] : spec.ask === 'out' ? (run(machines, last) as number) : last;
-  if (spec.notSingle && UNIVERSE.some((rule) => fitsEach([rule], examples).every(Boolean))) return null;
-  const keys = answerKeys(puzzle);
-  if (keys.length !== 1 || keys[0] !== (typeof truth === 'number' ? String(truth) : ruleKey(truth))) return null;
-  // A lone shut plate hides exactly one rule, so showing it once solved is never a fib.
-  if (spec.open.filter((open) => !open).length === 1 && rulesFor(puzzle, slot).length !== 1) return null;
+  const truth: number | Card = isRuleAsk(spec.ask) ? hiddenCard(puzzle) : spec.ask === 'out' ? (run(machines, last) as number) : last;
+  // The quick checks first, so the solver only runs on puzzles that could pass.
   if (typeof truth === 'number') {
     if (shownNumbers(puzzle).includes(truth)) return null;
     if (spec.answer === 'picker' && Math.abs(truth - (given as number)) < FAR_FROM_GIVEN) return null;
   }
+  if (spec.notSingle && UNIVERSE.some((rule) => fitsEach([rule], examples).every(Boolean))) return null;
+  const keys = answerKeys(puzzle);
+  if (keys.length !== 1 || keys[0] !== (typeof truth === 'number' ? String(truth) : cardKey(truth))) return null;
+  // A lone shut plate hides exactly one rule, so showing it once solved is never a fib.
+  if (spec.open.filter((open) => !open).length === 1 && rulesFor(puzzle, slot).length !== 1) return null;
   return { puzzle, truth };
 }
 
@@ -232,14 +280,39 @@ const shapeOf = ({ puzzle }: Made): string => JSON.stringify([puzzle.machines, p
 const machinesKey = (machines: readonly Rule[]): string => machines.map(ruleKey).join(' ');
 const scales = (machines: readonly Rule[]): boolean => machines.some((rule) => rule.op === 'mul' || rule.op === 'div');
 
+const SAMPLE_INPUTS = Array.from({ length: MOST }, (_, at) => at + 1);
+const outputsOf = (machines: readonly Rule[]): string => SAMPLE_INPUTS.map((input) => run(machines, input) ?? '-').join(',');
+
+/**
+ * Two machines with both plates shut must be the only pair that does their job: plus one then double is the same
+ * as double then plus two, so a card question could never tell them apart.
+ */
+let pairJobs: Map<string, number> | null = null;
+
+function onlyPair(machines: readonly Rule[]): boolean {
+  if (!pairJobs) {
+    pairJobs = new Map();
+    for (const first of UNIVERSE) {
+      for (const second of UNIVERSE) {
+        const job = outputsOf([first, second]);
+        pairJobs.set(job, (pairJobs.get(job) ?? 0) + 1);
+      }
+    }
+  }
+  return pairJobs.get(outputsOf(machines)) === 1;
+}
+
 /** Every way to fill the machines from their pools. */
 function combos(spec: Spec): Rule[][] {
   let all: Rule[][] = [[]];
   for (const pool of spec.pools) all = all.flatMap((chain) => pool.map((text) => [...chain, readRule(text)]));
-  return all.filter((machines) => !spec.scale || scales(machines));
+  const pairCards = isRuleAsk(spec.ask) && spec.open.every((open) => !open) && spec.pools.length === 2;
+  return all.filter((machines) => (!spec.scale || scales(machines)) && (!pairCards || onlyPair(machines)));
 }
 
 const TRIES_PER_MACHINE = 300;
+/** Card levels move on sooner: some machines can never have enough tempting wrong cards, however the examples fall. */
+const TRIES_PER_CARD_MACHINE = 30;
 
 function build(spec: Spec, index: number): Level[] {
   const taken = new Set<string>();
@@ -249,10 +322,10 @@ function build(spec: Spec, index: number): Level[] {
     // Machines the level hasn't used yet go first, so its fresh puzzles also get fresh rules.
     const order = takeSome(random, combos(spec), Infinity).sort((a, b) => Number(used.has(machinesKey(a))) - Number(used.has(machinesKey(b))));
     for (const machines of order) {
-      for (let tries = 0; tries < TRIES_PER_MACHINE; tries += 1) {
+      for (let tries = 0; tries < (spec.answer === 'cards' ? TRIES_PER_CARD_MACHINE : TRIES_PER_MACHINE); tries += 1) {
         const made = attempt(spec, random, machines);
         if (!made || taken.has(shapeOf(made))) continue;
-        const cards = spec.answer === 'cards' ? cardsFor(spec, random, made.puzzle) : [];
+        const cards = spec.answer === 'cards' ? cardsFor(spec, random, made.puzzle, variant) : [];
         const numbers =
           spec.answer === 'picker' ? [...PICKER] : spec.answer === 'three' ? threeNumbers(random, made.puzzle, made.truth as number) : [];
         if (!cards || !numbers) continue;
@@ -267,6 +340,7 @@ function build(spec: Spec, index: number): Level[] {
 
 /** Makes every puzzle of the whole staircase from its seeds, by level and then variant. The same call always makes the same ones. */
 export const buildLevels = (): Level[][] => SPECS.map(build);
+export const buildLevel = (index: number): Level[] => build(SPECS[index], index);
 
 export const ALL_VARIANTS: readonly (readonly Level[])[] = buildLevels();
 
@@ -278,5 +352,13 @@ export const EVERY_PUZZLE: readonly Level[] = ALL_VARIANTS.flat();
 
 export const levelById = (id: number): Level | undefined => LEVELS.find((level) => level.id === id);
 
-/** The puzzle for a level's nth go, wrapping round. */
-export const levelFor = (id: number, go: number): Level | undefined => ALL_VARIANTS[id - 1]?.[((go % VARIANTS) + VARIANTS) % VARIANTS];
+/** The puzzle for a level's nth variant, wrapping round. */
+export const levelFor = (id: number, variant: number): Level | undefined => ALL_VARIANTS[id - 1]?.[((variant % VARIANTS) + VARIANTS) % VARIANTS];
+
+/** The shift for a level's nth go: three fresh puzzles of the same shape, wrapping round after 5 goes. */
+export function shiftFor(id: number, go: number): Level[] {
+  const variants = ALL_VARIANTS[id - 1];
+  if (!variants) return [];
+  const first = (((go % SHIFTS) + SHIFTS) % SHIFTS) * SHIFT;
+  return variants.slice(first, first + SHIFT);
+}

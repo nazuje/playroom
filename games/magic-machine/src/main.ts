@@ -3,7 +3,7 @@ import './style.css';
 import { canSpeak, getLanguage, homeButton, languageButton, onLanguageChange, say, speak, stopSpeaking, store, useClips } from '@playroom/kit';
 import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
-import { levelFor, LEVELS } from './rules/levels.ts';
+import { levelById, LEVELS, shiftFor } from './rules/levels.ts';
 import { addSkip, addWin, cleanMisses, cleanProgress, isOpen, nextLevel, totalStars, withMisses, type Progress } from './rules/progress.ts';
 import { showFinale, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
@@ -13,7 +13,7 @@ import { createBoard } from './view/board.ts';
 import { createGuide } from './view/guide.ts';
 
 const PROGRESS_KEY = 'magic-machine:progress';
-/** How many goes each level has had, so every retry and replay gets a fresh puzzle, even after a reload. */
+/** How many goes each level has had, so every retry and replay gets a fresh shift of puzzles, even after a reload. */
 const GOES_KEY = 'magic-machine:goes';
 const FAILS_BEFORE_SKIP = 5;
 /**
@@ -171,18 +171,19 @@ function onWin(report: WinReport): void {
 }
 
 function openLevel(id: number): void {
-  if (!levelFor(id, 0) || !isOpen(progress, id)) return;
-  const level = levelFor(id, nextGo(id));
-  if (!level) return;
+  if (!levelById(id) || !isOpen(progress, id)) return;
+  // Each go is a fresh shift of three puzzles.
+  const shift = shiftFor(id, nextGo(id));
+  if (!shift.length) return;
   clearScreen();
   setScreen('play');
   document.body.dataset.level = String(id);
-  document.body.dataset.world = level.world;
+  document.body.dataset.world = shift[0].world;
   headingFor = () => [text().level(id), `⚙️ ${id}`];
   labelPage();
   stopSpeaking();
   play = startPlayScreen({
-    level,
+    shift,
     board,
     dock,
     guide,

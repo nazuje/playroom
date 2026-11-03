@@ -25,8 +25,10 @@ export interface BoardView {
   drop(): void;
   /** Shakes, whirs and puffs the machines, one after the other. Smoke instead of steam for a miss. */
   churn(ms: number, smoke: boolean): void;
-  /** A token in the pipe between two machines, with its number once it is no secret. */
-  setMiddle(value: number | null | undefined): void;
+  /** The tokens in the pipes between machines, with their numbers once they are no secret. Undefined hides one. */
+  setMiddle(values: readonly (number | undefined)[]): void;
+  /** One lamp per puzzle of the shift: lit for each one solved, blinking for the one on the machine. */
+  setLamps(done: number, total: number): void;
   /** A plate shut, open on its rule, or showing a card being tried. */
   setPlate(slot: number, rule: Rule | null): void;
   /** Every plate flips open on its real rule. */
@@ -133,7 +135,8 @@ export function createBoard(host: HTMLElement): BoardView {
     flap.append(front, back);
     plate.append(flap);
     tappable(plate, () => plateListener(slot));
-    body.append(chimney, element('span', 'gear gear-a'), element('span', 'gear gear-b'), eyes, plate, element('span', 'vents'));
+    // The first machine carries the shift's lamps where the others have vents.
+    body.append(chimney, element('span', 'gear gear-a'), element('span', 'gear gear-b'), eyes, plate, element('span', slot === 0 ? 'lamps' : 'vents'));
     return body;
   }
 
@@ -191,15 +194,20 @@ export function createBoard(host: HTMLElement): BoardView {
     // A chip is two tokens and about 20px of arrow and padding. The belt adds 32px of rollers and 6px between
     // chips, and a little spare keeps rounding from wrapping the last chip onto a second row.
     const beltRoom = (width - 40 - 6 * (pairs - 1) - 26 * pairs) / (2 * pairs);
-    const across = level.puzzle.machines.length === 1 ? 7.4 : 13;
+    const across = [7.4, 13, 19][level.puzzle.machines.length - 1] ?? 19;
     for (let pass = 0; pass < 2; pass += 1) {
       const unit = parseFloat(host.style.getPropertyValue('--s')) || 30;
       host.style.setProperty('--bt', `${Math.max(34, Math.min(54, unit * 1.25, beltRoom)).toFixed(1)}px`);
       const height = host.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - strip.offsetHeight - 16;
-      // Tokens are 2.3 units, but never under 64px. Hopper and chute each hold one, and the body is 5.7 more.
-      const big = height / 10.3;
-      const tall = big * 2.3 >= 64 ? big : (height - 128) / 5.7;
-      host.style.setProperty('--s', `${Math.max(16, Math.min(46, tall, width / across)).toFixed(2)}px`);
+      // Tokens are 2.3 units but never under 64px, and the hopper and chute each hold one. The body is 4.6 units
+      // but never under 118px, so its gauges, plate and lamps fit on a narrow machine.
+      const fits = (size: number): boolean => {
+        const tok = Math.max(64, size * 2.3);
+        return 2 * tok + size + Math.max(size * 4.6, 118) <= height;
+      };
+      let size = Math.min(46, width / across);
+      while (size > 16 && !fits(size)) size -= 0.5;
+      host.style.setProperty('--s', `${size.toFixed(2)}px`);
     }
   }
 
@@ -213,7 +221,7 @@ export function createBoard(host: HTMLElement): BoardView {
       host.replaceChildren(belt(shown), works(shown));
       const { puzzle } = shown;
       puzzle.machines.forEach((rule, slot) => setPlate(slot, puzzle.open[slot] ? rule : null));
-      this.setMiddle(undefined);
+      this.setMiddle([]);
       layout();
     },
     layout,
@@ -256,15 +264,28 @@ export function createBoard(host: HTMLElement): BoardView {
         later(each * at, () => {
           rig.classList.toggle('smoky', smoke);
           replay(rig, 'running', each);
-          if (at > 0) replay(host.querySelector('.pipe'), 'flowing', each);
+          if (at > 0) replay(host.querySelectorAll('.pipe')[at - 1] ?? null, 'flowing', each);
         });
       });
     },
-    setMiddle(value) {
-      const middle = host.querySelector<HTMLElement>('.token-mid');
-      if (!middle) return;
-      middle.hidden = value === undefined;
-      if (value !== undefined) fillToken(middle, value);
+    setMiddle(values) {
+      host.querySelectorAll<HTMLElement>('.token-mid').forEach((middle, at) => {
+        const value = values[at];
+        middle.hidden = value === undefined;
+        if (value !== undefined) fillToken(middle, value);
+      });
+    },
+    setLamps(done, total) {
+      const lamps = host.querySelector<HTMLElement>('.lamps');
+      if (!lamps) return;
+      lamps.replaceChildren(
+        ...Array.from({ length: total }, (_, at) => {
+          const lamp = element('span', at < done ? 'lamp lamp-on' : at === done ? 'lamp lamp-now' : 'lamp');
+          return lamp;
+        }),
+      );
+      lamps.dataset.done = String(done);
+      if (done > 0) replay(lamps.children[done - 1] ?? null, 'lamp-lit');
     },
     setPlate,
     reveal() {

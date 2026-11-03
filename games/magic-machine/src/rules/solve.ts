@@ -1,7 +1,7 @@
 // The solver. It tries every rule a machine could have, far more than the game ever uses, keeps the ones that
 // make every example come out right, and collects what each of those would answer. A puzzle is fair when that
 // collection holds exactly one answer.
-import { fitsEach, isRuleAsk, ruleKey, run, type Puzzle, type Rule } from './machine.ts';
+import { apply, cardKey, hiddenSlots, isRuleAsk, ruleKey, run, type Puzzle, type Rule } from './machine.ts';
 
 /** Adding or taking 1 to 20, and times or divided by 2 to 5. */
 export const UNIVERSE: readonly Rule[] = [
@@ -14,14 +14,35 @@ export const UNIVERSE: readonly Rule[] = [
 /** Inputs searched when running a machine backwards, well past the 0 to 20 the game asks for. */
 export const SEARCH_TOP = 60;
 
-/** Every way of filling the shut plates that makes every example come out right. Open plates stay as they are. */
+/**
+ * Every way of filling the shut plates that makes every example come out right. Open plates stay as they are. It
+ * walks the machines in order carrying every example's number along, and drops a rule as soon as a machine can't
+ * take one of them.
+ */
 export function machinesFitting(puzzle: Puzzle): Rule[][] {
-  let chains: Rule[][] = [[]];
-  puzzle.machines.forEach((rule, at) => {
-    const options = puzzle.open[at] ? [rule] : UNIVERSE;
-    chains = chains.flatMap((chain) => options.map((option) => [...chain, option]));
-  });
-  return chains.filter((chain) => fitsEach(chain, puzzle.examples).every(Boolean));
+  const options = puzzle.machines.map((rule, at) => (puzzle.open[at] ? [rule] : UNIVERSE));
+  const wanted = puzzle.examples.map((pair) => pair.to);
+  const found: Rule[][] = [];
+  const chain: Rule[] = [];
+  const walk = (at: number, values: readonly number[]): void => {
+    if (at === options.length) {
+      if (values.every((value, index) => value === wanted[index])) found.push([...chain]);
+      return;
+    }
+    for (const rule of options[at]) {
+      const next: number[] = [];
+      for (const value of values) {
+        const made = apply(rule, value);
+        if (made === null) break;
+        next.push(made);
+      }
+      if (next.length !== values.length) continue;
+      chain[at] = rule;
+      walk(at + 1, next);
+    }
+  };
+  walk(0, puzzle.examples.map((pair) => pair.from));
+  return found;
 }
 
 /** Every input from 0 up to the search top that the machines turn into this number. */
@@ -36,9 +57,9 @@ export function inputsFor(machines: readonly Rule[], output: number): number[] {
  */
 export function answerKeys(puzzle: Puzzle): string[] {
   const found = new Set<string>();
-  const slot = puzzle.open.findIndex((open) => !open);
+  const slots = hiddenSlots(puzzle);
   for (const chain of machinesFitting(puzzle)) {
-    if (isRuleAsk(puzzle.ask)) found.add(ruleKey(chain[slot]));
+    if (isRuleAsk(puzzle.ask)) found.add(cardKey(slots.map((at) => chain[at])));
     else if (puzzle.ask === 'out') found.add(String(run(chain, puzzle.given as number) ?? 'none'));
     else {
       const inputs = inputsFor(chain, puzzle.given as number);

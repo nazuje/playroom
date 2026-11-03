@@ -53,6 +53,8 @@ export const sl: Text = {
     fix: 'Popravi stroj! Kateri del deluje za vsa števila?',
   },
   askSecond: 'Kaj naredi drugi stroj?',
+  askPair: 'Popravi oba stroja! Kateri del gre prvi in kateri drugi?',
+  nextOne: 'Še en stroj!',
   rules: (rules) => `${capitalized(rules.map(ruleName).join(', potem '))}!`,
   ruleLabel: (rule) => ruleName(rule),
   secret: 'Tiho, to je skrivnost!',
@@ -91,6 +93,8 @@ export function spokenLines(): string[] {
     ...Object.values(sl.ideas),
     ...Object.values(sl.asks),
     sl.askSecond,
+    sl.askPair,
+    sl.nextOne,
     sl.secret,
     sl.cheerRule,
     ...sl.oops,
@@ -108,6 +112,8 @@ export function spokenLines(): string[] {
   ];
   for (const level of EVERY_PUZZLE) {
     lines.push(...level.puzzle.examples.map((pair) => sl.pair(pair.from, pair.to)), sl.rules(level.puzzle.machines));
+    // A card says its rules as it goes in, so pair cards need their own lines.
+    lines.push(...level.cards.map((card) => sl.rules(card)));
   }
   return [...new Set(lines)];
 }

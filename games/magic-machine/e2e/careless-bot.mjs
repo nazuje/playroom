@@ -1,17 +1,16 @@
-// A careless player: a child in a hurry who never reads the examples. It copies the number already on the
-// machine first, then grabs one either side of it in a random order. On rule cards it taps the card under its
-// thumb, the first one, then the others in a random order. It never gives up: when a try runs out it taps 🔄 and
-// guesses again at the fresh machine. A level counts as lost once 5 tries have failed, which is when the game
+// A careless player: a child in a hurry who never reads the examples. Its first tap copies the number already on
+// the machine, or takes the card under its thumb, the first one. After that it grabs numbers close to the one on
+// the machine, or any card, at random, through every puzzle of the shift. It never gives up: when a try runs out
+// it taps 🔄 and guesses again at the fresh shift. A level counts as lost once 5 tries have failed, which is when the game
 // offers to skip it. The random numbers are seeded, so a run can be repeated. Run `npx vite build` first.
 //
 // It passes when it wins every level of the first two worlds, loses the last three of each later world, and
 // never earns 3 stars after world 1, because misses count across every try.
 import { ALL_VARIANTS, LEVELS, temptingFor } from '../src/rules/levels.ts';
-import { allOpen, answer, launch, openLevel, openPage, puzzleOn, ready, screenIs, serve, touch } from './lib.mjs';
+import { afterAnswer, allOpen, answer, launch, openLevel, openPage, puzzleOn, screenIs, serve, touch } from './lib.mjs';
 
 const TRIES_BEFORE_SKIP = 5;
 const NEAR = 3;
-const TAP_WAIT_MS = 40;
 
 function seeded(seed) {
   let state = seed >>> 0;
@@ -23,29 +22,33 @@ function seeded(seed) {
   };
 }
 
-const status = (page) => page.evaluate(() => ({ ...document.body.dataset }));
-
-/** The quick guesses: the first card or the copied number, then the rest of them or its neighbours. */
+/** The quick guesses, quickest first: the cards left to right, or the numbers nearest the one on the machine. */
 function guessesFor(level) {
   if (level.answer === 'cards') return [...level.cards];
   const quick = temptingFor(level.puzzle);
-  return [...level.numbers].sort((a, b) => Math.abs(a - quick) - Math.abs(b - quick) || b - a).slice(0, NEAR);
+  return [...level.numbers].sort((a, b) => Math.abs(a - quick) - Math.abs(b - quick) || b - a);
 }
 
-/** One try: the quickest guess first, the others in a random order, until it wins or the try runs out. */
+/**
+ * One try at a shift. The very first tap is the quickest guess: the copied number, or the card under the thumb.
+ * After that it grabs one of the nearest few guesses at random, puzzle after puzzle, until it wins the shift or
+ * the try runs out.
+ */
 async function oneTry(page, random) {
-  const level = await puzzleOn(page, ALL_VARIANTS);
-  const guesses = guessesFor(level);
-  for (let first = true; guesses.length; first = false) {
-    const [pick] = guesses.splice(first ? 0 : Math.floor(random() * guesses.length), 1);
-    await answer(page, pick);
-    await page.waitForTimeout(TAP_WAIT_MS);
-    await ready(page);
-    const now = await status(page);
-    if (now.screen === 'won') return 'won';
-    if (now.status === 'failed') return 'failed';
+  let first = true;
+  for (;;) {
+    const level = await puzzleOn(page, ALL_VARIANTS);
+    const at = Number(await page.evaluate(() => document.body.dataset.at));
+    const guesses = guessesFor(level);
+    for (;;) {
+      const [pick] = guesses.splice(first ? 0 : Math.floor(random() * Math.min(NEAR, guesses.length)), 1);
+      first = false;
+      await answer(page, pick);
+      const outcome = await afterAnswer(page, at);
+      if (outcome === 'won' || outcome === 'failed') return outcome;
+      if (outcome === 'next') break;
+    }
   }
-  return 'failed';
 }
 
 async function playLevel(page, random) {

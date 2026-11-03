@@ -2,8 +2,8 @@
 // first. It fails on any error, outside request, sideways scroll, lost progress, tap target under 64px, or a
 // machine that is covered by the answers or cut off, checked on every level at each screen size.
 import { ALL_VARIANTS, LEVELS } from '../src/rules/levels.ts';
-import { sameRule } from '../src/rules/machine.ts';
-import { allOpen, answer, launch, openLevel, openPage, puzzleOn, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
+import { sameCard } from '../src/rules/machine.ts';
+import { afterAnswer, allOpen, answer, launch, openLevel, openPage, puzzleOn, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
 
 const SCREENS = [
   { name: 'phone', width: 390, height: 844 },
@@ -12,6 +12,30 @@ const SCREENS = [
 ];
 const SMALLEST_TARGET = 64;
 const MASH_TAPS = 50;
+/** One tap to retry within about a second of the miss that ends a try. */
+const RETRY_WITHIN_MS = 1100;
+
+const atNow = (page) => page.evaluate(() => Number(document.body.dataset.at));
+
+/** Answers the rest of the shift right, until the level is won. */
+async function finishShift(page) {
+  for (;;) {
+    const level = await puzzleOn(page, ALL_VARIANTS);
+    const at = await atNow(page);
+    await answer(page, level.truth);
+    if ((await afterAnswer(page, at)) === 'won') return;
+  }
+}
+
+/** Where the 👆 is, as the thing under its fingertip. */
+const handOn = (page) =>
+  page.evaluate(() => {
+    const hand = document.querySelector('.hand:not([hidden])');
+    if (!hand) return null;
+    const box = hand.getBoundingClientRect();
+    const under = document.elementsFromPoint(box.left + box.width * 0.3, box.top + 4).find((item) => !item.classList.contains('hand'));
+    return under?.closest('[data-step], [data-action], .slot, .plate, .choice, .card-pick, .pick')?.outerHTML.slice(0, 60) ?? 'nothing';
+  });
 
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
@@ -67,7 +91,7 @@ async function everyLevelFits(page, screen, problems) {
     if (small.length) problems.push(`${screen.name} level ${level.id}: small targets ${[...new Set(small)].join(', ')}`);
     for (const problem of await boardFits(page)) problems.push(`${screen.name} level ${level.id}: ${problem}`);
     if ((await sideways(page)) > 0) problems.push(`${screen.name} level ${level.id}: scrolls sideways`);
-    if ([9, 16, 21, 24].includes(level.id)) await shot(page, `${screen.name}-fit-l${level.id}`);
+    if ([9, 16, 21, 22, 24, 25].includes(level.id)) await shot(page, `${screen.name}-fit-l${level.id}`);
     await touch(page, '[data-action="levels"]');
     await screenIs(page, 'map');
   }
@@ -92,6 +116,11 @@ async function tour(browser, screen, language) {
   await shot(page, `${tag}-l1-run`);
   await page.waitForTimeout(900);
   await shot(page, `${tag}-l1-reveal`);
+  await ready(page);
+  await page.waitForTimeout(400);
+  await shot(page, `${tag}-l1-next`);
+  if ((await page.locator('#board .lamp-on').count()) !== 1) problems.push(`${tag}: the first lamp did not light after the first puzzle`);
+  await finishShift(page);
   await screenIs(page, 'won');
   await page.waitForTimeout(500);
   await shot(page, `${tag}-won`);
@@ -104,7 +133,7 @@ async function tour(browser, screen, language) {
   level = await puzzleOn(page, ALL_VARIANTS);
   await page.waitForTimeout(400);
   await shot(page, `${tag}-l9-cards`);
-  const wrongCard = level.cards.find((card) => !sameRule(card, level.truth));
+  const wrongCard = level.cards.find((card) => !sameCard(card, level.truth));
   await answer(page, wrongCard);
   await page.waitForTimeout(1500);
   await shot(page, `${tag}-l9-wrong`);
@@ -119,6 +148,8 @@ async function tour(browser, screen, language) {
   await answer(page, level.truth);
   await page.waitForTimeout(1700);
   await shot(page, `${tag}-l9-right`);
+  await ready(page);
+  await finishShift(page);
   await screenIs(page, 'won');
   await page.waitForSelector('.card-btn.armed');
   await touch(page, '[data-action="map"]');
@@ -129,7 +160,7 @@ async function tour(browser, screen, language) {
   await page.waitForTimeout(2600);
   await shot(page, `${tag}-l10-picker`);
   level = await puzzleOn(page, ALL_VARIANTS);
-  const wrongs = [0, 1, 2, 3].filter((value) => value !== level.truth).slice(0, 3);
+  const wrongs = [0, 1, 2, 3, 4].filter((value) => value !== level.truth).slice(0, 4);
   await answer(page, wrongs[0]);
   await page.waitForTimeout(1200);
   await shot(page, `${tag}-l10-wrong`);
@@ -137,9 +168,19 @@ async function tour(browser, screen, language) {
   await answer(page, wrongs[1]);
   await ready(page);
   await answer(page, wrongs[2]);
-  await page.waitForTimeout(2600);
-  await shot(page, `${tag}-l10-wobble`);
+  await ready(page);
+  // Timed in the page, from the tap that gives the losing answer to 🔄 taking taps.
+  await page.evaluate(() => {
+    const clock = window;
+    document.addEventListener('pointerdown', () => (clock.lastTapAt = performance.now()), true);
+    new MutationObserver(() => {
+      if (!clock.armedAt && document.querySelector('#dock .retry.armed')) clock.armedAt = performance.now();
+    }).observe(document.getElementById('dock'), { subtree: true, attributes: true, childList: true });
+  });
+  await answer(page, wrongs[3]);
   await page.waitForSelector('#dock .retry.armed', { timeout: 8000 });
+  const retryMs = Math.round(await page.evaluate(() => window.armedAt - window.lastTapAt));
+  if (retryMs > RETRY_WITHIN_MS) problems.push(`${tag}: 🔄 took ${retryMs}ms to be ready after the losing miss`);
   await shot(page, `${tag}-l10-failed`);
   const failedVariant = level.variant;
   await touch(page, '#dock [data-action="retry"]');
@@ -170,17 +211,33 @@ async function tour(browser, screen, language) {
   await answer(page, level.truth);
   await page.waitForTimeout(2000);
   await shot(page, `${tag}-l20-right`);
-  await screenIs(page, 'won');
-  await page.waitForSelector('.card-btn.armed');
-  await touch(page, '[data-action="map"]');
+  await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
-  await openLevel(page, 24);
-  await shot(page, `${tag}-l24`);
-  // Left alone, a hand points at the next thing to tap.
+  // Level 22: five pair cards for two shut plates.
+  await openLevel(page, 22);
+  await page.waitForTimeout(800);
+  await shot(page, `${tag}-l22-pairs`);
+  await touch(page, '[data-action="levels"]');
+  await screenIs(page, 'map');
+
+  await openLevel(page, 25);
+  await shot(page, `${tag}-l25`);
+  // Left alone, a hand points at the next thing to tap: + on the stepper, the question elsewhere.
   await page.waitForTimeout(9000);
-  await shot(page, `${tag}-l24-idle`);
-  if (!(await page.locator('.hand:not([hidden])').count())) problems.push(`${tag}: no hand after a quiet spell`);
+  await shot(page, `${tag}-l25-idle`);
+  const pointed = await handOn(page);
+  const stepper = (await page.locator('#dock .stepper').count()) > 0;
+  if (!pointed) problems.push(`${tag}: no hand after a quiet spell`);
+  else if (stepper ? !pointed.includes('data-step="1"') : !pointed.includes('slot')) problems.push(`${tag}: the idle hand rests on ${pointed}`);
+  if (stepper) {
+    await touch(page, '#dock [data-step="1"]');
+    await page.waitForTimeout(9000);
+    const then = await handOn(page);
+    if (!then?.includes('data-action="ok"')) problems.push(`${tag}: after +, the idle hand rests on ${then}`);
+    if (!(await page.locator('#dock .step-ok.ready').count())) problems.push(`${tag}: ✓ doesn't pulse once a number is set`);
+    await shot(page, `${tag}-l25-idle-ok`);
+  }
 
   // A palm and a mashing hand: nothing breaks and the game stays on the level, its win card or the map.
   const { width, height } = screen;
@@ -206,8 +263,7 @@ async function tour(browser, screen, language) {
 async function calmRun(browser) {
   const { page, problems } = await openPage(browser, { motion: 'reduce' });
   await openLevel(page, 1);
-  const level = await puzzleOn(page, ALL_VARIANTS);
-  await answer(page, level.truth);
+  await finishShift(page);
   await screenIs(page, 'won');
   await shot(page, 'calm-won');
   const saved = await page.evaluate(() => localStorage.getItem('playroom:magic-machine:progress'));

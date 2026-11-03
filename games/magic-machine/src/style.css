@@ -496,8 +496,8 @@ body[data-screen='map'] #play {
   align-items: center;
 }
 
-/* Two machines in a row step down like stairs: the first takes the token in, the second lets it out. */
-.works[data-machines='2'] .rig[data-slot='1'] {
+/* Machines in a row line up: the first takes the token in, the last lets it out. */
+.works .rig:not([data-slot='0']) {
   margin-top: calc(var(--tok) + var(--s) * 0.4);
 }
 
@@ -529,7 +529,7 @@ body[data-screen='map'] #play {
 .body {
   position: relative;
   width: calc(var(--s) * 7);
-  height: calc(var(--s) * 4.6);
+  height: max(118px, calc(var(--s) * 4.6));
   border-radius: calc(var(--s) * 0.9);
   background:
     radial-gradient(circle at calc(var(--s) * 0.45) calc(var(--s) * 0.45), #ffd7c9 0 calc(var(--s) * 0.12), transparent calc(var(--s) * 0.14)),
@@ -542,6 +542,56 @@ body[data-screen='map'] #play {
 
 .works[data-machines='2'] .body {
   width: calc(var(--s) * 5.6);
+}
+
+.works[data-machines='3'] .body {
+  width: calc(var(--s) * 5.2);
+}
+
+/* Three machines are narrow, so their plates may be too. */
+.works[data-machines='3'] .plate {
+  width: max(84px, calc(var(--s) * 3.4));
+}
+
+/* The shift's lamps: one per puzzle, lit mint once solved, blinking brass for the one on the machine. */
+.lamps {
+  position: absolute;
+  bottom: max(6px, calc(var(--s) * 0.42));
+  left: 50%;
+  display: flex;
+  gap: max(5px, calc(var(--s) * 0.22));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.lamp {
+  width: max(12px, calc(var(--s) * 0.5));
+  height: max(12px, calc(var(--s) * 0.5));
+  border: 2px solid var(--tomato-dark);
+  border-radius: 50%;
+  background: #7a2412;
+}
+
+.lamp-on {
+  border-color: var(--mint-dark);
+  background: var(--mint);
+  box-shadow: 0 0 8px var(--mint);
+}
+
+.lamp-now {
+  background: var(--brass);
+  animation: lamp-blink 1.1s ease-in-out infinite;
+}
+
+.lamp-lit {
+  animation: pop 0.45s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+
+@keyframes lamp-blink {
+  50% {
+    background: var(--brass-2);
+    box-shadow: 0 0 10px var(--brass-2);
+  }
 }
 
 .chimney {
@@ -702,7 +752,7 @@ body[data-screen='map'] #play {
 /* The plate hides the rule. It flips over to show it. */
 .plate {
   position: absolute;
-  top: calc(var(--s) * 2.5);
+  top: max(58px, calc(var(--s) * 2.5));
   left: 50%;
   width: max(96px, calc(var(--s) * 3.6));
   height: max(64px, calc(var(--s) * 2.1));
@@ -970,7 +1020,7 @@ body[data-screen='map'] #play {
   place-items: center;
   width: calc(var(--s) * 2.4);
   height: calc(var(--s) * 0.9);
-  margin: calc(var(--tok) + var(--s) * 0.4 + var(--s) * 3.2) calc(var(--s) * -0.4) 0;
+  margin: calc(var(--tok) + var(--s) * 0.4 + max(118px, calc(var(--s) * 4.6)) - var(--s) * 1.4) calc(var(--s) * -0.4) 0;
   border-radius: calc(var(--s) * 0.2);
   background: repeating-linear-gradient(90deg, var(--mint) 0 calc(var(--s) * 0.3), var(--mint-dark) calc(var(--s) * 0.3) calc(var(--s) * 0.36));
   box-shadow: inset 0 calc(var(--s) * -0.15) 0 rgba(0, 0, 0, 0.2);
@@ -1223,6 +1273,77 @@ body[data-screen='map'] #play {
   background: var(--navy-3);
 }
 
+/* Four or five cards share the row, and pair cards wrap onto two. */
+.cards {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.cards[data-count='4'] .card-pick:not(.card-pair) {
+  width: min(84px, calc((100vw - 54px) / 4));
+}
+
+/* Five single cards don't fit a phone's width at 64px or more, so they wrap three and two, a little shorter. */
+.cards[data-count='5'] .card-pick:not(.card-pair) {
+  width: 84px;
+  height: 72px;
+  padding: 4px;
+}
+
+.cards[data-count='5'] {
+  gap: 8px;
+}
+
+.card-pair {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 104px;
+  height: 66px;
+  padding: 8px 6px 2px;
+}
+
+.card-pair .rule-top {
+  font-size: 1.3rem;
+}
+
+.card-pair .rule-art {
+  gap: 2px;
+}
+
+.card-then {
+  font-size: 1rem;
+  color: var(--brass-dark);
+}
+
+/* Every answer bounces in turn, so the row as a whole says "pick one". */
+.answer.wave .choice,
+.answer.wave .card-pick,
+.answer.wave .pick {
+  animation: wave 0.45s calc(var(--i, 0) * 0.12s) ease-in-out;
+}
+
+@keyframes wave {
+  45% {
+    transform: translateY(-12px);
+  }
+}
+
+/* ✓ pulses once a number is set on the stepper. */
+.step-ok.ready {
+  animation: ready 1.4s ease-in-out infinite;
+}
+
+@keyframes ready {
+  50% {
+    box-shadow: 0 6px 0 var(--mint-dark), 0 0 0 8px rgba(52, 227, 168, 0.35);
+    transform: scale(1.06);
+  }
+}
+
 @media (max-width: 380px) {
   .choices,
   .cards {
@@ -1231,6 +1352,10 @@ body[data-screen='map'] #play {
 
   .card-pick {
     width: 96px;
+  }
+
+  .cards[data-count='5'] {
+    gap: 6px;
   }
 }
 
@@ -1594,6 +1719,11 @@ body[data-screen='map'] #play {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .step-ok.ready,
+  .lamp-now,
+  .answer.wave .choice,
+  .answer.wave .card-pick,
+  .answer.wave .pick,
   .finale-trophy,
   .finale-gear,
   .answer.demo-glow,

@@ -45,6 +45,9 @@ export const en = {
     fix: 'Fix the machine! Which part works for every number?',
   } satisfies Record<Exclude<Ask, 'out' | 'in'>, string>,
   askSecond: 'What does the second machine do?',
+  askPair: 'Fix both machines! Which part goes first, and which goes second?',
+  /** Between the puzzles of a shift. */
+  nextOne: 'One more machine!',
   /** The rules behind the plates, read out: "Double, then plus one!" */
   rules: (rules: readonly Rule[]): string => `${capitalized(rules.map(ruleName).join(', then '))}!`,
   ruleLabel: (rule: Rule): string => ruleName(rule),
