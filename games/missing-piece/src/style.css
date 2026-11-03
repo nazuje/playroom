@@ -457,8 +457,8 @@ body[data-screen='map'] #play {
   box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.35), inset 0 6px 8px rgba(255, 230, 180, 0.25);
 }
 
-/* Behind the win card the basket is empty, so nothing below it looks like a piece still to pick. */
-body[data-screen='won'] #dock .basket {
+/* Behind a card the whole dock is gone, skip button too, so nothing below it can be tapped. */
+body[data-screen='won'] #dock > * {
   visibility: hidden;
 }
 
@@ -592,6 +592,7 @@ body[data-screen='won'] #dock .basket {
 
 .hand {
   position: fixed;
+  transition: left 0.22s ease-in-out, top 0.22s ease-in-out;
   z-index: 20;
   font-size: 3rem;
   line-height: 1;
@@ -842,8 +843,29 @@ body[data-screen='won'] #dock .basket {
   gap: 14px;
 }
 
+.card-corners {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  left: 18px;
+  justify-content: space-between;
+}
+
+.card:has(.card-corners) {
+  padding-top: 64px;
+}
+
+/* The big "next level" button fills the card's width, so a mashing hand lands on it. */
+.card-next {
+  align-self: stretch;
+  min-height: 104px;
+  margin-top: 6px;
+  font-size: 1.6rem;
+}
+
 .card-small-btn {
-  width: 64px;
+  width: 56px;
+  min-height: 52px;
   padding: 0;
   font-size: 1.5rem;
 }
@@ -916,7 +938,8 @@ body[data-screen='won'] #dock .basket {
     animation: none;
   }
 
-  .patch {
+  .patch,
+  .hand {
     transition: none;
   }
 

@@ -6,7 +6,7 @@
 import { cellKey } from '../src/rules/cells.ts';
 import { LEVELS, SET, shownFor } from '../src/rules/levels.ts';
 import { solve } from '../src/rules/solve.ts';
-import { boardShows, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
+import { boardShows, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, tapCard } from './lib.mjs';
 
 const REPLAYS = Number(process.env.REPLAYS ?? 2);
 const WIDTH = Number(process.env.WIDTH ?? 390);
@@ -65,12 +65,11 @@ async function main() {
         rows.push({ id, stars: set.stars, ms: set.ms });
         const finale = await page.evaluate(() => document.body.dataset.finale === 'true');
         if (finale !== (id === LEVELS.length)) throw new Error(`Level ${id}: the end-of-game card ${finale ? 'showed early' : 'is missing'}`);
-        await page.waitForSelector('.card-btn.armed');
         if (go < REPLAYS) {
           // The end-of-game card has one button, to the map, so the last level is replayed from there.
-          if (await page.locator('[data-action="again"]').count()) await touch(page, '[data-action="again"]');
+          if (await page.locator('[data-action="again"]').count()) await tapCard(page, 'again');
           else {
-            await touch(page, '[data-action="map"]');
+            await tapCard(page, 'map');
             await screenIs(page, 'map');
             await openLevel(page, id);
           }
@@ -83,9 +82,9 @@ async function main() {
       );
       if (id === LEVELS.length) await page.screenshot({ path: `${SHOTS}/skilled-finale.png` });
       const next = page.locator('[data-action="next"]');
-      if (await next.count()) await touch(page, '[data-action="next"]');
+      if (await next.count()) await tapCard(page, 'next');
       else {
-        await touch(page, '[data-action="map"]');
+        await tapCard(page, 'map');
         await screenIs(page, 'map');
       }
       await ready(page);

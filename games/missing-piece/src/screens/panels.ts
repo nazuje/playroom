@@ -11,18 +11,23 @@ import type { WinReport } from './play.ts';
 const WORLD_ART: Record<WorldId, string> = { match: '🟥', pair: '🎨', grow: '🪜', once: '🔀', tricky: '🧠' };
 /** Long enough for a mashing hand to stop before the next level can start. */
 const NEXT_AFTER_MS = 600;
+/**
+ * The small buttons in the card's top corners wait longer, so a hand still mashing after the big button wakes up
+ * lands on "next level", never on the map or a replay.
+ */
+const SMALL_AFTER_MS = 1600;
 const TILES_AFTER_MS = 450;
 let shownAt = 0;
 
 /** A big button that ignores taps until a mashing hand has had time to lift. */
-function armedButton(className: string, label: string, onChoose: () => void): HTMLButtonElement {
+function armedButton(className: string, label: string, onChoose: () => void, wait = NEXT_AFTER_MS): HTMLButtonElement {
   const made = button(className);
   made.textContent = label;
   let armed = false;
   window.setTimeout(() => {
     armed = true;
     made.classList.add('armed');
-  }, NEXT_AFTER_MS);
+  }, wait);
   onPress(made, () => {
     if (!armed) return;
     pickSound();
@@ -110,23 +115,23 @@ export function showWon(host: HTMLElement, { report, onNext, onAgain, onMap }: W
   line.textContent = text()[`stars${report.stars}` as 'stars1' | 'stars2' | 'stars3'];
   const small = element('p', 'card-small');
   small.textContent = text().misses(report.misses);
-  const row = element('div', 'card-row');
-  const again = armedButton('card-btn card-small-btn', '🔄', onAgain);
+  // Replay and the map sit small in the top corners, away from the big "next level" button a mashing hand finds.
+  const row = element('div', 'card-row card-corners');
+  const again = armedButton('card-btn card-small-btn', '🔄', onAgain, SMALL_AFTER_MS);
   again.setAttribute('aria-label', text().again);
   again.dataset.action = 'again';
-  const map = armedButton('card-btn card-small-btn', '🗺️', onMap);
+  const map = armedButton('card-btn card-small-btn', '🗺️', onMap, SMALL_AFTER_MS);
   map.setAttribute('aria-label', text().levels);
   map.dataset.action = 'map';
   row.append(again, map);
   // Three stars already says "no mistakes", so the count only shows when there were some.
-  panel.append(stars, line);
+  panel.append(row, stars, line);
   if (report.misses > 0) panel.append(small);
   if (onNext) {
-    const next = armedButton('card-btn card-main', `${text().next} ▶`, onNext);
+    const next = armedButton('card-btn card-main card-next', `${text().next} ▶`, onNext);
     next.dataset.action = 'next';
     panel.append(next);
   }
-  panel.append(row);
   host.append(panel);
   if (!calm()) {
     const box = stars.getBoundingClientRect();

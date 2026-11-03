@@ -9,7 +9,7 @@
 // there and misses add up over every try.
 import { carelessOrder } from '../src/rules/careless.ts';
 import { carelessGoal, LEVELS, seeded } from '../src/rules/levels.ts';
-import { allOpen, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
+import { allOpen, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, tapCard, touch } from './lib.mjs';
 
 const TRIES_BEFORE_SKIP = 5;
 
@@ -71,8 +71,7 @@ async function main() {
         console.log(`level ${String(id).padStart(2)} ${world.padEnd(6)} won  on try ${tries} with ${misses ?? 0} miss(es) ${'★'.repeat(Number(stars))}`);
         if (Number(stars) === 3 && world !== 'match') lucky.push(id);
         if (world === 'match' && tries > 1) slow.push(id);
-        await page.waitForSelector('.card-btn.armed');
-        await touch(page, '[data-action="map"]');
+        await tapCard(page, 'map');
       } else {
         console.log(`level ${String(id).padStart(2)} ${world.padEnd(6)} lost on try ${tries}`);
         if (world === 'match') slow.push(id);

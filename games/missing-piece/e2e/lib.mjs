@@ -94,6 +94,12 @@ export const ready = (page) =>
     { timeout: 10000 },
   );
 
+/** Taps a button on the win card once it is awake: the big next button wakes first, the small corner ones later. */
+export async function tapCard(page, action) {
+  await page.waitForSelector(`#overlay [data-action="${action}"].armed`, { timeout: 8000 });
+  await touch(page, `#overlay [data-action="${action}"]`);
+}
+
 /** Taps a piece in the basket. */
 export const pickPiece = (page, index) => touch(page, `#dock [data-option="${index}"]`);
 

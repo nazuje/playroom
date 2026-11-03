@@ -22,6 +22,9 @@ const AFTER_TUNE_MS = 700;
 const RETRY_ARMED_MS = 600;
 const MISSES_BEFORE_HINT = 2;
 const IDLE_MS = 8000;
+/** The first world is for age 4, so its first nudge of each set comes sooner. */
+const FIRST_NUDGE_MS = 3500;
+const SWEEP_STEP_MS = 260;
 const DEMO_AFTER_MS = 800;
 const HOP_STEP_MS = 560;
 const SHOWN_KEY = 'missing-piece:shown';
@@ -156,14 +159,17 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     mark();
   }
 
+  /** A piece hops, as the hand passes over it or the gap is tapped. */
+  function bounce(piece: HTMLElement, delay = 0): void {
+    piece.classList.remove('bounce');
+    void piece.offsetWidth;
+    piece.style.animationDelay = `${delay}ms`;
+    piece.classList.add('bounce');
+  }
+
   /** Tapping the gap makes the pieces hop one after another, so a child knows where to look next. */
   function focusBasket(): void {
-    dock.querySelectorAll<HTMLElement>('.piece').forEach((piece, at) => {
-      piece.classList.remove('bounce');
-      void piece.offsetWidth;
-      piece.style.animationDelay = `${at * 90}ms`;
-      piece.classList.add('bounce');
-    });
+    dock.querySelectorAll<HTMLElement>('.piece').forEach((piece, at) => bounce(piece, at * 90));
   }
 
   // ---------- Flying pieces ----------
@@ -236,16 +242,34 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
     guide.demo([...rules.flatMap(lineSteps), toGap]);
   }
 
-  /** The thing to tap next: the gap, never one of the pieces, which would look like the answer. */
-  const nextThing = (): Element | null => (play.failed ? dock.querySelector('[data-action="retry"]') : board.gap());
+  /**
+   * The nudge after a quiet spell: the hand taps the gap, then travels down across the basket as each piece hops
+   * under it, and comes back to rest on the gap. It never stops on a piece, which would look like the answer. After
+   * a lost try it points at the retry button.
+   */
+  function nudge(): void {
+    if (play.failed) {
+      guide.point(dock.querySelector('[data-action="retry"]'));
+      return;
+    }
+    const pieces = [...dock.querySelectorAll<HTMLElement>('.piece')];
+    guide.demo(
+      [
+        { at: () => board.gap(), ms: 800, className: 'hop' },
+        ...pieces.map((piece) => ({ at: () => piece, ms: SWEEP_STEP_MS, run: () => bounce(piece) })),
+        { at: () => board.gap(), ms: 900, className: 'hop' },
+      ],
+      true,
+    );
+  }
 
-  function armIdle(): void {
+  function armIdle(wait = IDLE_MS): void {
     window.clearTimeout(idleTimer);
     idleTimer = window.setTimeout(() => {
       if (stopped || play.won) return;
-      if (!busy && !guide.busy) guide.point(nextThing());
+      if (!busy && !guide.busy) nudge();
       armIdle();
-    }, IDLE_MS);
+    }, wait);
   }
 
   function woke(): void {
@@ -406,7 +430,7 @@ export function startPlayScreen(options: PlayScreenOptions): PlayScreen {
   drawDock();
   board.layout();
   document.addEventListener('pointerdown', woke, true);
-  armIdle();
+  armIdle(level.big ? FIRST_NUDGE_MS : IDLE_MS);
   if (options.sayIdea) void say(text().ideas[level.world]);
   void say(text().ask, { queue: true });
   runDemos();

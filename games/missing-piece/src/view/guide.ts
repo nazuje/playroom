@@ -15,8 +15,8 @@ export interface DemoStep {
 export interface Guide {
   point(target: Element | null): void;
   hide(): void;
-  /** Points at each step in turn, then hides. A new call or hide() stops it. */
-  demo(steps: readonly DemoStep[]): void;
+  /** Points at each step in turn, then hides, or with rest stays on the last step. A new call or hide() stops it. */
+  demo(steps: readonly DemoStep[], rest?: boolean): void;
   readonly busy: boolean;
 }
 
@@ -67,7 +67,7 @@ export function createGuide(): Guide {
       stop();
       hand.hidden = true;
     },
-    demo(steps) {
+    demo(steps, rest = false) {
       stop();
       running = true;
       let wait = 0;
@@ -90,7 +90,7 @@ export function createGuide(): Guide {
       const end = window.setTimeout(() => {
         timers.delete(end);
         unmark();
-        hand.hidden = true;
+        if (!rest) hand.hidden = true;
         running = false;
       }, wait);
       timers.add(end);

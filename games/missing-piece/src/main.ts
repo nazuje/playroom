@@ -5,7 +5,7 @@ import { text } from './lang/index.ts';
 import clips from './lang/sl.clips.json';
 import { levelFor, LEVELS, setFor } from './rules/levels.ts';
 import { addMiss, cleanMisses, missesSoFar, settle, type MissLog } from './rules/misses.ts';
-import { addSkip, addWin, cleanProgress, isOpen, nextLevel, totalStars, type Progress } from './rules/progress.ts';
+import { addSkip, addWin, cleanProgress, isOpen, totalStars, type Progress } from './rules/progress.ts';
 import { showFinale, showMap, showWon } from './screens/panels.ts';
 import { startPlayScreen, type PlayScreen, type WinReport } from './screens/play.ts';
 import { pickSound, stopSounds, winSound } from './sounds.ts';
@@ -145,6 +145,8 @@ function onWin(report: WinReport): void {
   saveProgress(addWin(progress, level.id, stars));
   saveMisses(settle(missLog, level.id));
   fails.delete(level.id);
+  // Nothing in the dock, skip button included, stays live under the card.
+  dock.replaceChildren();
   setScreen('won');
   document.body.dataset.stars = String(stars);
   winSound();
@@ -195,10 +197,10 @@ function openLevel(id: number): void {
     onMiss: () => saveMisses(addMiss(missLog, id)),
     onFail: (total) => fails.set(id, total),
     onRetry: () => openLevel(id),
+    // Skipping always moves on to the next level in order, or back to the map after the last one.
     onSkip() {
       saveProgress(addSkip(progress, id));
-      const next = nextLevel(progress);
-      if (next && next !== id) openLevel(next);
+      if (levelFor(id + 1, 0)) openLevel(id + 1);
       else pickLevel();
     },
     onWin,

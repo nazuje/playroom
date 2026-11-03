@@ -1,9 +1,11 @@
-// Screens, languages, mashing and calm mode on the built game. Pictures land in .shots/. Run `npx vite build`
-// first. It fails on any error, outside request, sideways scroll, lost progress, a target under 64px (88px on the
-// first world), a quilt or basket cut off or overlapping, a first-world try that fails, a slow retry, or an idle hand resting on a piece. The fit
-// is checked on every level at each screen size.
+// Screens, languages, win cards, mashing and calm mode on the built game. Pictures land in .shots/. Run
+// `npx vite build` first. It fails on any error, outside request, sideways scroll, lost progress, a target under
+// 64px (88px on the first world), a quilt or basket cut off or overlapping, a first-world try that fails, a slow
+// retry, an idle hand that doesn't sweep the basket or rests on a piece, a live dock under the win card, mashing
+// the win card anywhere but the next level, or skip going anywhere but the next level. The fit is checked on every
+// level at each screen size.
 import { LEVELS, SET } from '../src/rules/levels.ts';
-import { allOpen, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, touch } from './lib.mjs';
+import { allOpen, launch, levelOn, openLevel, openPage, pickPiece, ready, screenIs, serve, SHOTS, tapCard, touch } from './lib.mjs';
 
 const SCREENS = [
   { name: 'phone', width: 390, height: 844 },
@@ -11,6 +13,7 @@ const SCREENS = [
   { name: 'tablet', width: 1024, height: 768 },
 ];
 const MASH_TAPS = 50;
+const TRIES_BEFORE_SKIP = 5;
 const RETRY_WITHIN_MS = 1200;
 
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
@@ -63,6 +66,39 @@ async function everyLevelFits(page, screen, problems) {
   }
 }
 
+/**
+ * Watches the idle hand for a while: whether it swept over the basket, whether the pieces hopped as it passed, and
+ * where it rests at the end. It must come back to the gap, never stop on a piece.
+ */
+const watchNudge = (page, ms) =>
+  page.evaluate(async (ms) => {
+    const seen = { basket: false, bounced: false };
+    const where = () => {
+      const finger = document.querySelector('.hand:not([hidden])');
+      if (!finger) return 'none';
+      const x = parseFloat(finger.style.left);
+      const y = parseFloat(finger.style.top);
+      const inside = (box) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+      if ([...document.querySelectorAll('#dock .piece')].some((piece) => inside(piece.getBoundingClientRect()))) return 'piece';
+      return inside(document.querySelector('#board .gap').getBoundingClientRect()) ? 'gap' : 'elsewhere';
+    };
+    const end = performance.now() + ms;
+    while (performance.now() < end) {
+      if (where() === 'piece') seen.basket = true;
+      if (document.querySelector('#dock .piece.bounce')) seen.bounced = true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return { ...seen, rest: where() };
+  }, ms);
+
+function nudgeProblems(tag, nudge) {
+  const problems = [];
+  if (!nudge.basket) problems.push(`${tag}: the idle hand never travelled over the basket`);
+  if (!nudge.bounced) problems.push(`${tag}: the pieces did not hop with the idle hand`);
+  if (nudge.rest !== 'gap') problems.push(`${tag}: after its sweep the idle hand rests at ${nudge.rest}, not the gap`);
+  return problems;
+}
+
 /** Plays the rest of a set right, from whichever puzzle is on now. */
 async function finishSet(page) {
   for (;;) {
@@ -84,7 +120,10 @@ async function tour(browser, screen, language) {
   await openLevel(page, 1);
   await page.waitForTimeout(1400);
   await shot(page, `${tag}-l1-demo`);
-  await page.waitForTimeout(2600);
+  // On the first world the first nudge comes after about 3.5 seconds: the hand sweeps the basket as it hops.
+  await page.waitForTimeout(2400);
+  await shot(page, `${tag}-l1-nudge`);
+  problems.push(...nudgeProblems(`${tag} level 1`, await watchNudge(page, 2800)));
   await touch(page, '#board [data-cell="0"]');
   if (!(await page.locator('#board [data-cell="0"].hop').count())) problems.push(`${tag}: a tapped patch did not hop`);
   await touch(page, '#board .gap');
@@ -111,14 +150,16 @@ async function tour(browser, screen, language) {
   await shot(page, `${tag}-l1-second`);
   await finishSet(page);
   await page.waitForTimeout(100);
+  if (await page.locator('#dock > *').evaluateAll((parts) => parts.some((part) => getComputedStyle(part).visibility !== 'hidden'))) {
+    problems.push(`${tag}: something in the dock still shows under the win card`);
+  }
   // A mashing hand on the win card does nothing for a moment.
   const next = await page.locator('[data-action="next"]').boundingBox();
   if (next) await page.touchscreen.tap(next.x + next.width / 2, next.y + next.height / 2);
   if ((await dataset(page)).screen !== 'won') problems.push(`${tag}: the win card took a tap at once`);
   await page.waitForTimeout(400);
   await shot(page, `${tag}-won`);
-  await page.waitForSelector('.card-btn.armed');
-  await touch(page, '[data-action="map"]');
+  await tapCard(page, 'map');
   await screenIs(page, 'map');
 
   // Level 9: a try running out, the tangle and a quick retry onto a fresh set.
@@ -163,21 +204,12 @@ async function tour(browser, screen, language) {
   await touch(page, '[data-action="levels"]');
   await screenIs(page, 'map');
 
-  // Level 24 left alone: the hand points at the gap, never at a piece.
+  // Level 24 left alone: after 8 seconds the hand sweeps the basket and comes back to the gap.
   await openLevel(page, 24);
   await shot(page, `${tag}-l24`);
-  await page.waitForTimeout(9000);
+  await page.waitForTimeout(8300);
   await shot(page, `${tag}-l24-idle`);
-  const hand = await page.evaluate(() => {
-    const finger = document.querySelector('.hand:not([hidden])');
-    if (!finger) return 'none';
-    const x = parseFloat(finger.style.left);
-    const y = parseFloat(finger.style.top);
-    const inside = (box) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
-    if ([...document.querySelectorAll('#dock .piece')].some((piece) => inside(piece.getBoundingClientRect()))) return 'piece';
-    return inside(document.querySelector('#board .gap').getBoundingClientRect()) ? 'gap' : 'elsewhere';
-  });
-  if (hand !== 'gap') problems.push(`${tag}: after a quiet spell the hand is at ${hand}, not the gap`);
+  problems.push(...nudgeProblems(`${tag} level 24`, await watchNudge(page, 3600)));
 
   // A palm and a mashing hand: nothing breaks and the game stays put.
   const { width, height } = screen;
@@ -198,6 +230,87 @@ async function tour(browser, screen, language) {
     await screenIs(page, 'map');
     await everyLevelFits(page, screen, problems);
   }
+  await page.context().close();
+  return problems;
+}
+
+/** Fails a try by tapping wrong pieces until it runs out, and waits for the retry button. */
+async function loseTry(page) {
+  for (;;) {
+    await ready(page);
+    if ((await dataset(page)).status === 'failed') break;
+    const level = await levelOn(page);
+    const tried = await page.locator('#dock .piece.tried').evaluateAll((pieces) => pieces.map((piece) => Number(piece.dataset.option)));
+    await pickPiece(page, wrongOf(level).find((at) => !tried.includes(at)));
+    await page.waitForFunction(() => document.body.dataset.status !== 'playing');
+  }
+  await page.waitForSelector('#dock .retry.armed', { timeout: 8000 });
+}
+
+async function loseUntilSkip(page) {
+  for (let tries = 1; tries <= TRIES_BEFORE_SKIP; tries += 1) {
+    await loseTry(page);
+    if (tries < TRIES_BEFORE_SKIP) {
+      await touch(page, '#dock [data-action="retry"]');
+      await page.waitForFunction(() => document.body.dataset.status === 'playing');
+    }
+  }
+}
+
+/** The win card after lost tries, mashing on the win card, and where skip goes. */
+async function cardRun(browser) {
+  const { page, problems } = await openPage(browser, { progress: allOpen(LEVELS) });
+
+  // Level 9: five lost tries bring the skip button. Then a win: nothing in the dock, skip included, takes a tap.
+  await openLevel(page, 9);
+  await loseUntilSkip(page);
+  const skip = await page.locator('#dock [data-action="skip"]').boundingBox();
+  if (!skip) problems.push('cards: no skip button after 5 lost tries');
+  await touch(page, '#dock [data-action="retry"]');
+  await page.waitForFunction(() => document.body.dataset.status === 'playing');
+  await finishSet(page);
+  await screenIs(page, 'won');
+  await shot(page, 'cards-won-after-skip');
+  if (skip) {
+    for (const wait of [100, 800]) {
+      await page.waitForTimeout(wait);
+      await page.touchscreen.tap(skip.x + skip.width / 2, skip.y + skip.height / 2);
+    }
+    await page.waitForTimeout(400);
+    const now = await dataset(page);
+    if (now.screen !== 'won') problems.push(`cards: tapping where skip was left the win card for ${now.screen} level ${now.level}`);
+  }
+  if (await page.locator('#dock [data-action="skip"]').count()) problems.push('cards: the skip button is still in the dock under the win card');
+
+  // Mashing the win card from the moment it shows only ever moves on to the next level.
+  await tapCard(page, 'map');
+  await screenIs(page, 'map');
+  await openLevel(page, 10);
+  await finishSet(page);
+  await screenIs(page, 'won');
+  const card = await page.locator('#overlay .card').boundingBox();
+  for (let tap = 0; tap < 40; tap += 1) {
+    await page.touchscreen.tap(card.x + 10 + ((tap * 67) % (card.width - 20)), card.y + 10 + ((tap * 113) % (card.height - 20)));
+    await page.waitForTimeout(50);
+  }
+  await page.waitForTimeout(300);
+  const mashed = await dataset(page);
+  if (mashed.screen === 'map' || (mashed.screen === 'play' && mashed.level !== '11')) {
+    problems.push(`cards: mashing the win card went to ${mashed.screen} level ${mashed.level}, not level 11`);
+  }
+  await shot(page, 'cards-after-mash');
+
+  // Level 12: skip moves on to level 13, the next in order.
+  if ((await dataset(page)).screen !== 'map') {
+    await touch(page, '[data-action="levels"]').catch(() => undefined);
+    await screenIs(page, 'map');
+  }
+  await openLevel(page, 12);
+  await loseUntilSkip(page);
+  await touch(page, '#dock [data-action="skip"]');
+  await page.waitForFunction(() => document.body.dataset.screen !== 'play' || document.body.dataset.level !== '12');
+  const skipped = await dataset(page);
+  if (skipped.level !== '13') problems.push(`cards: skip on level 12 went to ${skipped.screen} level ${skipped.level}, not 13`);
   await page.context().close();
   return problems;
 }
@@ -234,6 +347,9 @@ async function main() {
         problems.push(...found);
       }
     }
+    const cards = await cardRun(browser);
+    console.log(`${cards.length ? '✗' : '✓'} win cards and skip`);
+    problems.push(...cards);
     const calm = await calmRun(browser);
     console.log(`${calm.length ? '✗' : '✓'} calm mode`);
     problems.push(...calm);
