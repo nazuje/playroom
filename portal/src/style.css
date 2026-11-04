@@ -5,11 +5,40 @@
   --gutter: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   /* iOS-like sheet curve: quick to start, long gentle settle. */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Page text and raised surfaces. --ink stays dark for text on the bright kit buttons. */
+  --text: var(--ink);
+  --text-soft: var(--ink-soft);
+  --surface: #fff;
+  --focus: var(--grape);
+  --danger: var(--coral-dark);
+  color-scheme: light dark;
+}
+
+/* Night shelves follow the device's dark setting. Games keep their own worlds. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1b1630;
+    --paper-2: #2a2245;
+    --surface: #342b52;
+    --text: #f7efe1;
+    --text-soft: #c8bedd;
+    --focus: #b39dff;
+    --danger: #ff7b7b;
+  }
+
+  .language-btn {
+    background: var(--surface);
+  }
+
+  .btn:focus-visible {
+    outline-color: var(--focus);
+  }
 }
 
 body {
   display: flex;
   flex-direction: column;
+  color: var(--text);
 }
 
 /* ---------- Top bar ---------- */
@@ -56,7 +85,7 @@ body {
   border-radius: 50%;
   font-size: 1.4rem;
   line-height: 1;
-  background: color-mix(in srgb, var(--paper-2) 70%, #fff);
+  background: color-mix(in srgb, var(--paper-2) 70%, var(--surface));
   opacity: 0.85;
   touch-action: manipulation;
 }
@@ -83,7 +112,7 @@ body {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 5px 0 var(--paper-2), 0 0 0 4px transparent;
   transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out), opacity 120ms var(--ease-out);
   touch-action: manipulation;
@@ -108,7 +137,7 @@ body {
   font-size: 18px;
   font-weight: 700;
   color: #fff;
-  background: var(--grape);
+  background: var(--grape-dark);
   box-shadow: 0 0 0 3px var(--paper);
 }
 
@@ -235,7 +264,7 @@ body {
   flex-direction: column;
   gap: 6px;
   container-type: inline-size;
-  color: var(--ink);
+  color: var(--text);
   text-decoration: none;
   touch-action: manipulation;
   -webkit-touch-callout: none;
@@ -295,7 +324,7 @@ a.tile:active .tile-art {
 .profile-avatar:focus-visible,
 .step-btn:focus-visible,
 .avatar-choice:focus-visible {
-  outline: 4px solid var(--grape);
+  outline: 4px solid var(--focus);
   outline-offset: 3px;
 }
 
@@ -342,7 +371,7 @@ a.tile:active .tile-art {
   border-radius: 999px;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--text-soft);
   background: transparent;
   touch-action: manipulation;
 }
@@ -356,6 +385,7 @@ a.tile:active .tile-art {
 }
 
 .show-all-chip {
+  color: var(--ink);
   background: var(--sun);
   box-shadow: 0 4px 0 var(--sun-dark);
 }
@@ -383,7 +413,7 @@ a.tile:active .tile-art {
 .empty-note {
   margin: 0 0 16px;
   font-size: 1.3rem;
-  color: var(--ink-soft);
+  color: var(--text-soft);
 }
 
 /* ---------- Filter chips, in the grown-up sheet and the filtered view ---------- */
@@ -396,8 +426,8 @@ a.tile:active .tile-art {
   border-radius: 999px;
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--ink);
-  background: #fff;
+  color: var(--text);
+  background: var(--surface);
   box-shadow: 0 4px 0 var(--paper-2);
   transition: transform 100ms var(--ease-out), box-shadow 100ms var(--ease-out);
   touch-action: manipulation;
@@ -409,6 +439,7 @@ a.tile:active .tile-art {
 }
 
 .filter[aria-pressed='true'] {
+  color: var(--ink);
   background: var(--sun);
   box-shadow: 0 4px 0 var(--sun-dark);
 }
@@ -430,7 +461,7 @@ a.tile:active .tile-art {
   overscroll-behavior: contain;
   border: 0;
   border-radius: var(--radius) var(--radius) 0 0;
-  color: var(--ink);
+  color: var(--text);
   background: var(--paper);
   box-shadow: 0 -8px 40px rgb(43 33 64 / 0.25);
   transition:
@@ -521,7 +552,7 @@ a.tile:active .tile-art {
 .sheet-note {
   margin: 0 0 12px;
   font-size: 1rem;
-  color: var(--ink-soft);
+  color: var(--text-soft);
 }
 
 .profile-list {
@@ -540,7 +571,7 @@ a.tile:active .tile-art {
   gap: 8px;
   padding: 8px;
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
 }
 
 .profile-avatar {
@@ -584,14 +615,14 @@ a.tile:active .tile-art {
   border-radius: 50%;
   font-size: 1.4rem;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--text);
   background: var(--paper-2);
   touch-action: manipulation;
 }
 
 .remove-btn {
   font-size: 1.1rem;
-  color: var(--coral-dark);
+  color: var(--danger);
 }
 
 .avatar-picker {
@@ -630,7 +661,7 @@ a.tile:active .tile-art {
   margin: 0 0 6px;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--text-soft);
 }
 
 .filter-row {
@@ -646,7 +677,7 @@ a.tile:active .tile-art {
   padding: 0 var(--gutter) calc(var(--safe-bottom) + 20px);
   font-size: 0.85rem;
   text-align: center;
-  color: var(--ink-soft);
+  color: var(--text-soft);
 }
 
 .credits a {
