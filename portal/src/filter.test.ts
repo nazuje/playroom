@@ -107,6 +107,8 @@ describe('applyFilter', () => {
   it('counts both ends of the age range', () => {
     expect(slugs({ age: 4 })).toEqual(['a', 'b']);
     expect(slugs({ age: 6 })).toEqual(['b', 'c']);
+    expect(slugs({ age: 9 })).toEqual(['c']);
+    expect(slugs({ age: 12 })).toEqual([]);
   });
 
   it('never matches an age on a game with an unreadable range', () => {
@@ -139,6 +141,24 @@ describe('the registry', () => {
       expect(parseAges(entry.ages), entry.slug).not.toBeNull();
       expect(entry.modes.length, entry.slug).toBeGreaterThan(0);
       expect(entry.modes.every((mode) => mode in MODE_LABELS), entry.slug).toBe(true);
+    }
+  });
+});
+
+describe('tile names', () => {
+  // A tile on a 320px phone fits about 12 letters a line and shows two lines.
+  const MAX_TITLE = 24;
+  const MAX_WORD = 12;
+
+  it('fit a phone tile in full, in every language', () => {
+    for (const entry of REGISTRY) {
+      for (const language of ['en', 'sl'] as const) {
+        const { title } = tileWords(entry, language);
+        expect([...title].length, `${entry.slug} ${language}: ${title}`).toBeLessThanOrEqual(MAX_TITLE);
+        for (const word of title.split(/\s+/)) {
+          expect([...word].length, `${entry.slug} ${language}: ${word}`).toBeLessThanOrEqual(MAX_WORD);
+        }
+      }
     }
   });
 });

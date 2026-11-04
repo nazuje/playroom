@@ -1,5 +1,12 @@
 /* The first screen is for games: a short top bar, the players, then shelves. */
 
+:root {
+  /* A landscape iPhone reports its notch as a side inset, the same on both sides. */
+  --gutter: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  /* iOS-like sheet curve: quick to start, long gentle settle. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 body {
   display: flex;
   flex-direction: column;
@@ -13,12 +20,17 @@ body {
   padding-bottom: 4px;
 }
 
+/* The name is a picture-like mark sized in px, and gives way before the language and grown-up buttons do. */
 .logo {
+  min-width: 0;
   margin: 0;
-  font-size: clamp(1.7rem, 6vw, 2.4rem);
+  padding-block: 4px;
+  overflow: hidden;
+  font-size: clamp(27px, 6vw, 38px);
   font-weight: 700;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .logo-mark {
@@ -28,6 +40,7 @@ body {
 
 .corner {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 10px;
 }
@@ -50,18 +63,14 @@ body {
 
 /* ---------- Who's playing ---------- */
 
+/* Every child's animal stays in view: the chips wrap rather than hide past the edge. */
 .players {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   width: min(100%, 1320px);
   margin: 0 auto;
   padding: 6px var(--gutter) 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.players::-webkit-scrollbar {
-  display: none;
 }
 
 .player {
@@ -76,12 +85,13 @@ body {
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 5px 0 var(--paper-2), 0 0 0 4px transparent;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out), opacity 120ms var(--ease-out);
   touch-action: manipulation;
 }
 
+/* The animal and age badge are pictures sized to their chip, so large text settings don't spill them out. */
 .player-avatar {
-  font-size: 3.2rem;
+  font-size: 52px;
   line-height: 1;
 }
 
@@ -95,7 +105,7 @@ body {
   height: 32px;
   padding: 0 6px;
   border-radius: 999px;
-  font-size: 1.1rem;
+  font-size: 18px;
   font-weight: 700;
   color: #fff;
   background: var(--grape);
@@ -115,6 +125,46 @@ body {
 
 .player:active {
   transform: translateY(3px);
+}
+
+/* On a phone, four or more chips shrink so they fill two rows at most. */
+@media (max-width: 520px) {
+  .players:has(.player:nth-child(4)) {
+    gap: 10px;
+  }
+
+  .players:has(.player:nth-child(4)) .player {
+    width: 72px;
+    height: 72px;
+  }
+
+  .players:has(.player:nth-child(4)) .player-avatar {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 340px) {
+  .players {
+    gap: 10px;
+  }
+
+  .player {
+    width: 72px;
+    height: 72px;
+  }
+
+  .player-avatar {
+    font-size: 42px;
+  }
+
+  .players:has(.player:nth-child(4)) .player {
+    width: 64px;
+    height: 64px;
+  }
+
+  .players:has(.player:nth-child(4)) .player-avatar {
+    font-size: 38px;
+  }
 }
 
 /* ---------- Shelves ---------- */
@@ -204,12 +254,15 @@ body {
     radial-gradient(circle at 50% 45%, rgb(255 255 255 / 0.45), transparent 62%),
     var(--accent);
   box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 65%, #000);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
 }
 
-a.tile:hover .tile-art {
-  transform: translateY(-3px);
-  box-shadow: 0 9px 0 color-mix(in srgb, var(--accent) 65%, #000);
+/* A touch screen keeps :hover on a tapped tile, which would leave it lifted. */
+@media (hover: hover) and (pointer: fine) {
+  a.tile:hover .tile-art {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 0 color-mix(in srgb, var(--accent) 65%, #000);
+  }
 }
 
 a.tile:active .tile-art {
@@ -346,7 +399,7 @@ a.tile:active .tile-art {
   color: var(--ink);
   background: #fff;
   box-shadow: 0 4px 0 var(--paper-2);
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition: transform 100ms var(--ease-out), box-shadow 100ms var(--ease-out);
   touch-action: manipulation;
 }
 
@@ -380,16 +433,61 @@ a.tile:active .tile-art {
   color: var(--ink);
   background: var(--paper);
   box-shadow: 0 -8px 40px rgb(43 33 64 / 0.25);
+  transition:
+    transform 280ms var(--ease-drawer),
+    opacity 280ms var(--ease-drawer),
+    overlay 280ms allow-discrete,
+    display 280ms allow-discrete;
 }
 
 .sheet::backdrop {
-  background: rgb(43 33 64 / 0.45);
+  background-color: rgb(43 33 64 / 0.45);
+  transition:
+    background-color 280ms var(--ease-out),
+    overlay 280ms allow-discrete,
+    display 280ms allow-discrete;
 }
 
+/* On a phone the sheet slides up from the bottom edge, and leaves faster than it came. */
+.sheet:not([open]) {
+  transform: translateY(100%);
+  transition-duration: 180ms;
+}
+
+.sheet:not([open])::backdrop {
+  background-color: transparent;
+  transition-duration: 180ms;
+}
+
+@starting-style {
+  .sheet[open] {
+    transform: translateY(100%);
+  }
+
+  .sheet[open]::backdrop {
+    background-color: transparent;
+  }
+}
+
+/* On a wider screen it sits in the middle, so it grows in place instead. */
 @media (min-width: 600px) {
   .sheet {
     margin: auto;
     border-radius: var(--radius);
+    transition-duration: 200ms;
+  }
+
+  .sheet:not([open]) {
+    opacity: 0;
+    transform: scale(0.96);
+    transition-duration: 150ms;
+  }
+
+  @starting-style {
+    .sheet[open] {
+      opacity: 0;
+      transform: scale(0.96);
+    }
   }
 }
 
@@ -434,11 +532,12 @@ a.tile:active .tile-art {
   list-style: none;
 }
 
+/* The age label gives way on a narrow phone, so the remove button never drops to a row of its own. */
 .profile-edit {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px;
   border-radius: var(--radius);
   background: #fff;
@@ -461,12 +560,14 @@ a.tile:active .tile-art {
 
 .stepper {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
 }
 
 .stepper-age {
-  min-width: 64px;
+  flex: 0 1 64px;
+  min-width: 0;
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;
@@ -489,14 +590,13 @@ a.tile:active .tile-art {
 }
 
 .remove-btn {
-  margin-left: auto;
   font-size: 1.1rem;
   color: var(--coral-dark);
 }
 
 .avatar-picker {
   display: flex;
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 4px;

@@ -1,7 +1,7 @@
 import { LANGUAGES, type Language } from '@playroom/kit';
 import { SKILL_LABELS, type Game, type Mode, type Skill } from './games.ts';
 
-export const AGES = [4, 6] as const;
+export const AGES = [4, 6, 9, 12] as const;
 
 export interface Filters {
   mode: Mode | 'all';

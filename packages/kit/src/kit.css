@@ -17,6 +17,8 @@
   --grape-dark: #6236c9;
   --radius: 22px;
   --gutter: 16px;
+  /* Strong ease-out for press feedback: moves at once, then settles. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   font-family: 'Fredoka', 'Baloo 2', ui-rounded, 'Segoe UI Rounded', system-ui, sans-serif;
@@ -36,9 +38,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Holding a finger on a button would otherwise select its label on a tablet. */
 button {
   font: inherit;
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ---------- Top bar: homeButton() first, then a title. Add .topbar-end to push the last item right. languageButton() matches homeButton() ---------- */
@@ -67,8 +72,11 @@ button {
   text-decoration: none;
   background: #fff;
   box-shadow: 0 5px 0 var(--sun-dark);
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition: transform 100ms var(--ease-out), box-shadow 100ms var(--ease-out);
   touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .home-btn:active,
@@ -102,12 +110,15 @@ button {
   color: var(--ink);
   background: var(--btn-color);
   box-shadow: 0 5px 0 var(--btn-edge);
-  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s;
+  transition: transform 100ms var(--ease-out), box-shadow 100ms var(--ease-out), filter 150ms;
   touch-action: manipulation;
 }
 
-.btn:hover {
-  filter: brightness(1.06);
+/* A touch screen keeps :hover on a tapped button, so only a mouse gets it. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    filter: brightness(1.06);
+  }
 }
 
 .btn:active {
